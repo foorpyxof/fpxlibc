@@ -1,0 +1,21 @@
+# build tools
+*/build/
+
+#vs/vscode files
+.vs/
+.vscode/
+
+# Compiled stuff
+*.o
+*.obj
+*.lo
+*.slo
+
+*.so
+*.dylib
+*.dll
+
+*.lai
+*.la
+*.a
+*.lib
