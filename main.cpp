@@ -2,6 +2,7 @@
 
 #include "fpx_cpp-utils/fpx_cpp-utils.h"
 #include "fpx_linkedlist/fpx_linkedlist.h"
+#include "fpx_vector/fpx_vector.h"
 extern "C" {
   #include "fpx_string/fpx_string.h"
 }
@@ -9,6 +10,8 @@ extern "C" {
 using namespace fpx;
 
 int main(int argc, const char** argv) {
+
+  // test fpx::Exception
   try { throw new Exception(); }
   catch (Exception* err) { err->Print(); } // An exception has occured at runtime!
   try { throw new NotImplementedException(); }
@@ -18,6 +21,7 @@ int main(int argc, const char** argv) {
 
   EMPTY_LINE
 
+  // test fpx::LinkedList
   LinkedList sll; // a singly linked list
   LinkedListNode* node1PTR = new LinkedListNode(123);
 
@@ -43,6 +47,7 @@ int main(int argc, const char** argv) {
 
   EMPTY_LINE
 
+  // test fpx_string
   const char* testString = "hELLo friENd";
   const char* testLowercase = fpx_string_to_lower(testString);
 
@@ -52,5 +57,62 @@ int main(int argc, const char** argv) {
 
   delete[] testLowercase;
 
+  EMPTY_LINE
+
+  // test fpx::Vector<>
+  Vector<int> v1(4); // create a vector with capacity 4
+  v1.PushBack(2); // add given value to the end of the vector
+  v1.PushBack(-13);
+  v1.PushBack(123);
+
+  v1.Grow(3); // expand capacity by 3
+
+  std::cout << "v1 size: " << v1.GetSize() << std::endl; // expect: 3
+  std::cout << "v1 capacity: " << v1.GetCapacity() << std::endl; // expect: 7 (4+3)
+  
+  EMPTY_LINE
+  
+  for (int object : v1) {
+    std::cout << object << std::endl;
+  } // expect: 2 | -13 | 123
+  
+  EMPTY_LINE
+  
+  v1.PopBack();
+
+  for (int object : v1) {
+    std::cout << object << std::endl;
+  } // expect: 2 | -13
+
+  EMPTY_LINE
+
+  Vector<char> v2; // create an empty vector
+  std::cout << "v2 size: " << v2.GetSize() << std::endl; // expect: 0
+  std::cout << "v2 capacity: " << v2.GetCapacity() << std::endl; // expect: 0
+  
+  EMPTY_LINE
+  
+  v2.PushBack('h');
+  v2.PushBack('i');
+
+  std::cout << "v2 size: " << v2.GetSize() << std::endl; // expect: 2
+  std::cout << "v2 capacity: " << v2.GetCapacity() << std::endl; // expect: 4
+  for (char object : v2) {
+    std::cout << object << std::endl;
+  } // expect h | i
+  
+  EMPTY_LINE
+  
+  v2.PopBack();
+  std::cout << "v2 shrink by 4 succeeded? " << v2.Shrink(4) << std::endl; // expect: false/0
+  std::cout << "v2 capacity: " << v2.GetCapacity() << std::endl; // expect: 4
+  
+  EMPTY_LINE
+  
+  std::cout << "v2 empty? " << v2.IsEmpty() << std::endl; // expect: false/0
+  v2.PopBack();
+  std::cout << "v2 empty? " << v2.IsEmpty() << std::endl; // expect: true/1
+
   return 0;
+
 }
