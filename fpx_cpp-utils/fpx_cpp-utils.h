@@ -1,6 +1,8 @@
 #ifndef FPX_CPPUTILS_H
 #define FPX_CPPUTILS_H
 
+#include <iostream>
+
 namespace fpx {
 
   // Custom exceptions declared below
@@ -13,6 +15,7 @@ namespace fpx {
 
       virtual int Code() const;
       virtual const char* Message() const;
+      virtual void Print() const;
 
     protected:
       int m_ErrCode;
@@ -28,6 +31,7 @@ namespace fpx {
 
       int Code() const;
       const char* Message() const;
+      void Print() const;
 
     private:
       int m_ErrCode;
@@ -43,6 +47,7 @@ namespace fpx {
 
       int Code() const;
       const char* Message() const;
+      void Print() const;
 
     private:
       int m_ErrCode;

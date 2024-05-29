@@ -10,6 +10,8 @@ struct LinkedListNode {
   LinkedListNode(): Next(nullptr), Value(0) {}
   LinkedListNode(int val): Next(nullptr), Value(val) {}
 
+  // ~LinkedListNode() { std::cout << "Destructing node with value " << Value << std::endl; }
+
   virtual void Print() { std::cout << Value; }
 
   virtual bool operator==(LinkedListNode const& other) const { return Value == other.Value; }
@@ -33,6 +35,9 @@ class LinkedList {
     void* RemoveNode(unsigned int);
 
     void Print() const;
+
+    void SetName(const char*);
+    const char* GetName() const;
 
     LinkedListNode& operator[] (unsigned int) const;
 

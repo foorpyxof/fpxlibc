@@ -8,8 +8,8 @@
 
 int fpx_getstringlength(const char*);
 int fpx_substringindex(const char*, const char*);
-char* fpx_substr_replace(const char*, const char*, const char*);
-char* fpx_string_to_upper(const char*);
-char* fpx_string_to_lower(const char*);
+const char* fpx_substr_replace(const char*, const char*, const char*);
+const char* fpx_string_to_upper(const char*);
+const char* fpx_string_to_lower(const char*);
 
 #endif /* FPX_STRING_H */

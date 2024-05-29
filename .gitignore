@@ -1,5 +1,5 @@
-# build tools
-*/build/
+# build stuff
+./build/*
 
 #vs/vscode files
 .vs/

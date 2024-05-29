@@ -14,6 +14,7 @@ namespace fpx {
 
   int Exception::Code() const { return m_ErrCode; }
   const char* Exception::Message() const { return m_ErrMessage; }
+  void Exception::Print() const { std::cout << "Error " << this->m_ErrCode << ": " << this->m_ErrMessage << std::endl; }
 
   // method/constructor declarations for the NotImplementedException class
   NotImplementedException::NotImplementedException(): m_ErrMessage(FPX_NOTIMPLEMENTED_ERRMSG), m_ErrCode(-2) { }
@@ -23,6 +24,7 @@ namespace fpx {
 
   int NotImplementedException::Code() const { return m_ErrCode; }
   const char* NotImplementedException::Message() const { return m_ErrMessage; }
+  void NotImplementedException::Print() const { std::cout << "Error " << this->m_ErrCode << ": " << this->m_ErrMessage << std::endl; }
 
   // method/constructor declarations for the IndexOutOfRangeException class
   IndexOutOfRangeException::IndexOutOfRangeException(): m_ErrMessage(FPX_INDEXOUTOFRANGE_ERRMSG), m_ErrCode(-3) { }
@@ -32,5 +34,6 @@ namespace fpx {
 
   int IndexOutOfRangeException::Code() const { return m_ErrCode; }
   const char* IndexOutOfRangeException::Message() const { return m_ErrMessage; }
+  void IndexOutOfRangeException::Print() const { std::cout << "Error " << this->m_ErrCode << ": " << this->m_ErrMessage << std::endl; }
 
 }

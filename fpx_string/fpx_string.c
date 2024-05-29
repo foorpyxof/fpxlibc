@@ -46,7 +46,7 @@ int fpx_substringindex(const char* haystack, const char* needle) {
   return -1;
 }
 
-char* fpx_substr_replace(const char* haystack, const char* needle, const char* replacement) {
+const char* fpx_substr_replace(const char* haystack, const char* needle, const char* replacement) {
   /**
    * Replaces the *first* occurence of the given "needle" string
    * within the "haystack" string with the given replacement string.
@@ -89,7 +89,7 @@ char* fpx_substr_replace(const char* haystack, const char* needle, const char* r
   return returnedHaystack;
 }
 
-char* fpx_string_to_upper(const char* input) {
+const char* fpx_string_to_upper(const char* input) {
   /**
    * Converts the whole string to its uppercase variant.
    * 
@@ -99,14 +99,14 @@ char* fpx_string_to_upper(const char* input) {
   char* inputCopy = (char*) malloc(inputLength + 1);
 
   for (int i=0; i<inputLength; i++) {
-    inputCopy[i] = (input[i] >= 97 && input[i] <= 122) ? (input[i] - 32) : input[i];
+    inputCopy[i] = (input[i] > 96 && input[i] < 123) ? (input[i] - 32) : input[i];
   }
 
   inputCopy[inputLength] = '\0';
   return inputCopy;
 }
 
-char* fpx_string_to_lower(const char* input) {
+const char* fpx_string_to_lower(const char* input) {
   /**
    * Converts the whole string to its lowercase variant.
    * 
@@ -117,7 +117,7 @@ char* fpx_string_to_lower(const char* input) {
   char* inputCopy = (char*) malloc(inputLength + 1);
 
   for(int i=0; i<inputLength; i++) {
-    inputCopy[i] = (input[i] >= 65 && input[i] <= 90) ? (input[i] + 32) : input[i];
+    inputCopy[i] = (input[i] > 64 && input[i] < 91) ? (input[i] + 32) : input[i];
   }
 
   inputCopy[inputLength] = '\0';

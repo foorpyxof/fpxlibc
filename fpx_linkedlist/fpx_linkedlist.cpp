@@ -3,6 +3,8 @@
 namespace fpx {
 
 LinkedList::~LinkedList() {
+  // std::cout << "Linked List out of scope! Freeing nodes..." << std::endl;
+
   LinkedListNode* current = nullptr;
 
   while (m_FirstNode) {
@@ -65,12 +67,17 @@ void* LinkedList::RemoveNode(unsigned int node_Index) {
 }
 
 void LinkedList::Print() const {
+  std::cout << m_Name << ":" << std::endl << "(head)->";
   for(LinkedListNode& node : *this) {
     node.Print();
     if (node.Next) std::cout << "->";
   }
   std::cout << std::endl;
 }
+
+
+void LinkedList::SetName(const char* newName) { m_Name = newName; }
+const char* LinkedList::GetName() const { return m_Name; }
 
 
 LinkedListNode& LinkedList::operator[] (unsigned int index) const {
