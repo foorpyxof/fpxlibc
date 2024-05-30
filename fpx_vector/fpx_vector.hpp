@@ -38,6 +38,11 @@ Vector<T>::Vector(T array[]):
   }
 
 template<typename T>
+Vector<T>::~Vector() {
+  delete[] m_Array;
+}
+
+template<typename T>
 bool Vector<T>::DoubleCapacity() {
   return Grow(m_Size);
 }

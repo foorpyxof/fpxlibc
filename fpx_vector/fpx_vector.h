@@ -12,6 +12,7 @@ class Vector {
     Vector();
     Vector(unsigned int);
     Vector(T[]);
+    ~Vector();
 
     unsigned int GetSize() const { return m_Size; }
     unsigned int GetCapacity() const { return m_Capacity; }
