@@ -29,7 +29,7 @@ class Vector {
 
     T* Data() const { return m_Array; }
 
-    bool PushBack(T);
+    bool PushBack(const T&);
     T PopBack();
 
     T& operator[] (unsigned int) const;

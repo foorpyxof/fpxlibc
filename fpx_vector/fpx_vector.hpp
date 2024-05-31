@@ -115,7 +115,7 @@ T& Vector<T>::operator[] (unsigned int index) const {
 }
 
 template<typename T>
-bool Vector<T>::PushBack(T item) {
+bool Vector<T>::PushBack(const T& item) {
   if (m_Size == m_Capacity)
     if (!Grow(4)) return false;
   

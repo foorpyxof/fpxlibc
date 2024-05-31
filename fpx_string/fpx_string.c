@@ -89,6 +89,21 @@ const char* fpx_substr_replace(const char* haystack, const char* needle, const c
   return returnedHaystack;
 }
 
+// const char* fpx_string_to_upper_STACK(char* input) {
+//   /**
+//    * Converts the whole string to its uppercase variant.
+//    * 
+//    * Returns the old char[] when finished.
+//   */
+//   const int inputLength = fpx_getstringlength(input);
+
+//   for (int i=0; i<inputLength; i++) {
+//     input[i] = (input[i] > 96 && input[i] < 123) ? (input[i] - 32) : input[i];
+//   }
+
+//   return input;
+// }
+
 const char* fpx_string_to_upper(const char* input) {
   /**
    * Converts the whole string to its uppercase variant.
@@ -106,6 +121,21 @@ const char* fpx_string_to_upper(const char* input) {
   return inputCopy;
 }
 
+// const char* fpx_string_to_lower_STACK(char* input) {
+//   /**
+//    * Converts the whole string to its lowercase variant.
+//    * 
+//    * Returns the old char[] when finished.
+//   */
+//   const int inputLength = fpx_getstringlength(input);
+
+//   for(int i=0; i<inputLength; i++) {
+//     input[i] = (input[i] > 64 && input[i] < 91) ? (input[i] + 32) : input[i];
+//   }
+
+//   return input;
+// }
+
 const char* fpx_string_to_lower(const char* input) {
   /**
    * Converts the whole string to its lowercase variant.
@@ -113,7 +143,6 @@ const char* fpx_string_to_lower(const char* input) {
    * Returns new heap-allocated, null-terminated char[] when finished.
   */
   const int inputLength = fpx_getstringlength(input);
-  // printf("%d", inputLength);
   char* inputCopy = (char*) malloc(inputLength + 1);
 
   for(int i=0; i<inputLength; i++) {
