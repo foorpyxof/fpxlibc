@@ -34,6 +34,7 @@ int fpx_substringindex(const char* haystack, const char* needle) {
       }
     } else if (*haystack == *needleStart) {
       needle = needleStart+1;
+      foundSubstringIndex = i;
     }else {
       needle = needleStart;
     }
