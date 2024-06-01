@@ -1,4 +1,5 @@
 #include "fpx_vector.h"
+#include <cmath>
 
 namespace fpx {
 
@@ -48,7 +49,7 @@ bool Vector<T>::DoubleCapacity() {
 }
 
 template<typename T>
-bool Vector<T>::Grow(int more) {
+bool Vector<T>::Grow(const int& more) {
   if (more < 0)
     return Shrink(0-more);
   else if (more == 0)
@@ -64,20 +65,20 @@ bool Vector<T>::Grow(int more) {
 
   m_Capacity += more;
 
-  for(int i=0; i < m_Size; i++)
-    newArray[i] = m_Array[i];
+  // for(int i=0; i < m_Size; i++)
+  //   newArray[i] = m_Array[i];
 
-  for(int i=m_Size; i < m_Capacity; i++)
-    newArray[i] = 0;
+  // for(int i=m_Size; i < m_Capacity; i++)
+  //   newArray[i] = 0;
 
-  delete[] m_Array;
-  m_Array = newArray;
+  // delete[] m_Array;
+  // m_Array = newArray;
 
   return true;
 }
 
 template<typename T>
-bool Vector<T>::Shrink(int less) {
+bool Vector<T>::Shrink(const int& less) {
   if (less < 0)
     return Grow(0-less);
   else if (less == 0)
@@ -122,6 +123,31 @@ bool Vector<T>::PushBack(const T& item) {
   m_Array[m_Size] = item;
   m_Size++;
 
+  return true;
+}
+
+template<typename T>
+bool Vector<T>::PushBack(T&& item) noexcept {
+  if (m_Size == m_Capacity)
+    if (!Grow(4)) return false;
+  
+  m_Array[m_Size] = std::move(item);
+  m_Size++;
+
+  return true;
+}
+
+template<typename T>
+bool Vector<T>::PushBack(const Vector<T>& other) {
+  const float x = other.GetSize() / 4.0f;
+  if (m_Size + other.GetSize() > m_Capacity-1)
+    if (!Grow((int)ceil(x) * 4)) return false;
+
+  for (int i = 0; i<other.GetSize(); i++) {
+    m_Array[m_Size+i] = other[i];
+  }
+  m_Size += other.GetSize();
+  
   return true;
 }
 

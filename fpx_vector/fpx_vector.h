@@ -21,8 +21,8 @@ class Vector {
     bool IsEmpty() const { return (m_Size == 0); }
 
     bool DoubleCapacity();
-    bool Grow(int = 1);
-    bool Shrink(int = 1);
+    bool Grow(const int& = 1);
+    bool Shrink(const int& = 1);
 
     T& Front() const { return m_Array[0]; }
     T& Back() const { return m_Array[m_Size-1]; }
@@ -30,6 +30,8 @@ class Vector {
     T* Data() const { return m_Array; }
 
     bool PushBack(const T&);
+    bool PushBack(T&&) noexcept;
+    bool PushBack(const Vector<T>&);
     T PopBack();
 
     T& operator[] (unsigned int) const;

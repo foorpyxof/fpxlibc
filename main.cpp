@@ -11,13 +11,17 @@ using namespace fpx;
 
 int main(int argc, const char** argv) {
 
+  std::cout << "Starting exception tests:\n" << std::endl;
+
   // test fpx::Exception
-  try { throw new Exception(); }
-  catch (Exception* err) { err->Print(); } // An exception has occured at runtime!
-  try { throw new NotImplementedException(); }
-  catch (Exception* err) { err->Print(); } // This functionality has not been implemented yet!
-  try { throw new IndexOutOfRangeException(); }
-  catch (Exception* err) { err->Print(); } // The index you tried to reach is not in range!
+  try { throw Exception(); }
+  catch (Exception& err) { err.Print(); } // Error -1: An exception has occured at runtime!
+  try { throw NotImplementedException("hiyaaa"); }
+  catch (Exception& err) { err.Print(); } // Error -2: hiyaaa
+  try { throw IndexOutOfRangeException(-69); }
+  catch (Exception& err) { err.Print(); } // Error -69: The index you tried to reach is not in range!
+  try { throw NetException("NetException test", -1100); }
+  catch (Exception& err) { err.Print(); } // Error -1100: NetException test
 
   EMPTY_LINE
 
@@ -112,6 +116,33 @@ int main(int argc, const char** argv) {
   std::cout << "v2 empty? " << v2.IsEmpty() << std::endl; // expect: false/0
   v2.PopBack();
   std::cout << "v2 empty? " << v2.IsEmpty() << std::endl; // expect: true/1
+
+  v2.PushBack('u');
+  v2.PushBack('w');
+  v2.PushBack('u');
+
+  Vector<char> v3;
+  v3.PushBack('h');
+  v3.PushBack('i');
+  v3.PushBack(' ');
+  v3.PushBack('t');
+  v3.PushBack('h');
+  v3.PushBack('e');
+  v3.PushBack('r');
+  v3.PushBack('e');
+  v3.PushBack('!');
+  v3.PushBack('!');
+
+  v2.PushBack(v3);
+
+  for (char& obj : v2) std::cout << obj; // expect: v3 appended to v2
+  std::cout << std::endl;
+
+  EMPTY_LINE
+
+  // EMPTY_LINE
+
+  // std::cout << fpx_math_ceiling(1.12) << std::endl;
 
   return 0;
 
