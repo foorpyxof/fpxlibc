@@ -111,7 +111,7 @@ bool Vector<T>::Shrink(const int& less) {
 
 template<typename T>
 T& Vector<T>::operator[] (unsigned int index) const {
-  if (index > m_Size) throw IndexOutOfRangeException();
+  if (index >= m_Size) throw IndexOutOfRangeException();
   return m_Array[index];
 }
 
