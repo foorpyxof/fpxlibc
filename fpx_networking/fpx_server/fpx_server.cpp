@@ -2,20 +2,6 @@
 
 namespace fpx {
 
-// TcpServer::TcpServer(const char* ip, unsigned short port)
-//   {
-//     m_Port = port;
-//     m_Socket4 = 0;
-//     m_SocketAddress4 = { AF_INET, htons(port), { } };
-//     m_IsListening = false;
-//     memset(m_Sockets, 0, sizeof(m_Sockets));
-//     inet_aton(ip, &(m_SocketAddress4.sin_addr));
-//   }
-
-// TcpServer::~TcpServer() {
-//   Close();
-// }
-
 // STATIC DECLARATIONS
 unsigned short TcpServer::m_Port;
 
@@ -30,7 +16,6 @@ struct sockaddr TcpServer::m_ClientAddress;
 socklen_t TcpServer::m_ClientAddressSize;
 
 short TcpServer::m_ConnectedClients;
-short TcpServer::m_TotalSockets;
 
 bool TcpServer::m_IsListening;
 
@@ -43,7 +28,7 @@ bool TcpServer::Setup(const char* ip, unsigned short port) {
   }
   m_Port = port;
   m_Socket4 = 0;
-  m_SocketAddress4 = { AF_INET, htons(port), { INADDR_ANY } };
+  m_SocketAddress4 = { AF_INET, htons(port), {  } };
 
   m_IsListening = false;
   
@@ -82,7 +67,6 @@ void TcpServer::Listen() {
 
   m_Sockets[0].fd = m_Socket4;
   m_Sockets[0].events = POLLIN;
-  m_TotalSockets = 1;
 
   printf("TCPserver listening on %s:%d\n", inet_ntoa(m_SocketAddress4.sin_addr), ntohs(m_SocketAddress4.sin_port));
   
@@ -102,7 +86,7 @@ void TcpServer::Listen() {
   while (m_IsListening) {
 
     // printf("Polling sockets for %d seconds or until a socket is ready...\n", POLLTIMEOUT/1000);
-    int result = poll(m_Sockets, m_TotalSockets, POLLTIMEOUT);
+    int result = poll(m_Sockets, sizeof(m_Sockets)/sizeof(m_Sockets[0]), POLLTIMEOUT);
 
     if (result == -1) {
       printf("An error occured while polling sockets. %s\n", strerror(errno));
@@ -114,7 +98,7 @@ void TcpServer::Listen() {
     }
 
     short j = 0;
-    for(short i = 1; i<m_TotalSockets && j<result; i++) {
+    for(short i = 1; i<MAX_CONNECTIONS+1 && j<result; i++) {
 
       bool handled = 0;
       if (m_Sockets[i].revents & POLLIN) {
@@ -134,7 +118,7 @@ void TcpServer::Listen() {
                   short k=1;
                   for (client& cnt : m_Clients) {
                     if (*cnt.Name != 0) {
-                      sprintf(temp, "%s (%d)", cnt.Name, j);
+                      sprintf(temp, "%s (%d)", cnt.Name, k);
                       if (k==i)
                         strcat(temp, " << YOU");
                       strcat(temp, "\n");
@@ -143,16 +127,20 @@ void TcpServer::Listen() {
                     }
                     k++;
                   }
+                  strcat(writeBuffer, "\n");
                 } else
                 if (!strcmp(cleanMsg, "!whoami")) {
-                  sprintf(temp, "\nYou are: %s (%d)\n", m_Clients[i-1].Name, i);
+                  sprintf(temp, "\nYou are: %s (%d)\n\n", m_Clients[i-1].Name, i);
                   strcat(writeBuffer, temp);
                   memset(temp, 0, sizeof(temp));
                 } else
                 if (!strcmp(cleanMsg, "!help")) {
-                  sprintf(writeBuffer, "\nHere is a list of commands:\n!whoami\n!online\n");
-                } else {
-                  sprintf(writeBuffer, "\nUnrecognised command '%s'. Try '!help' for a list of commands.\n", cleanMsg);
+                  sprintf(writeBuffer, "\nHere is a list of commands:\n!whoami\n!online\n\n");
+                } else
+                if (!strcmp(cleanMsg, "!id")) {
+                  sprintf(writeBuffer, "%d", i);
+                }else {
+                  sprintf(writeBuffer, "\nUnrecognised command '%s'. Try '!help' for a list of commands.\n\n", cleanMsg);
                 }
                 write(m_Sockets[i].fd, writeBuffer, strlen(writeBuffer));
                 memset(writeBuffer, 0, strlen(writeBuffer));
@@ -160,7 +148,13 @@ void TcpServer::Listen() {
             case 0:
               break;
             default:
-              printf("[%s (%d)] says: %s\n", m_Clients[i-1].Name, i, cleanMsg);
+              sprintf(writeBuffer, "[%s (%d)]: %s\n", m_Clients[i-1].Name, i, cleanMsg);
+              printf(writeBuffer);
+              for(pollfd& socket : m_Sockets) {
+                if (!(socket.fd == m_Socket4 || socket.fd == m_Sockets[i].fd))
+                  write(socket.fd, writeBuffer, strlen(writeBuffer));
+              }
+              memset(writeBuffer, 0, strlen(writeBuffer));
               break;
             }
             free((char*)cleanMsg);
@@ -169,14 +163,17 @@ void TcpServer::Listen() {
           if(!strncmp(readBuffer, FPX_DISCONNECT, strlen(FPX_DISCONNECT))) {
             pvt_HandleDisconnect(m_Sockets[i], i);
             j+=1;
+            memset(readBuffer, 0, BUF_SIZE);
             continue;
           } else
 
           if (!strncmp(readBuffer, FPX_INIT, strlen(FPX_INIT))) {
             char* clientName = (char*)fpx_substr_replace(readBuffer, FPX_INIT, "");
             clientName[strcspn(clientName, "\r\n")] = 0;
-            memset(m_Clients[i-1].Name, 0, sizeof(m_Clients[i-1]));
-            memcpy(m_Clients[i-1].Name, clientName, fpx_getstringlength(clientName));
+            if (!(*clientName == '0')) {
+              memset(m_Clients[i-1].Name, 0, sizeof(m_Clients[i-1]));
+              memcpy(m_Clients[i-1].Name, clientName, fpx_getstringlength(clientName));
+            }
             free(clientName);
           }
 
@@ -219,7 +216,7 @@ void TcpServer::Close() {
 }
 
 void* TcpServer::pvt_AcceptLoop(void*) {
-  const char welcomeMessage[] = "Welcome to fpx_TCP, client! :)\nType !help for a list of commands.\n";
+  const char welcomeMessage[] = "Welcome to fpx_TCP! :)\nSend '!help' for a list of commands.\n\n";
   while (1) {
     if (m_ConnectedClients < MAX_CONNECTIONS) {
       int client = accept(m_Socket4, &m_ClientAddress, &m_ClientAddressSize);
@@ -227,15 +224,14 @@ void* TcpServer::pvt_AcceptLoop(void*) {
         close(client);
         continue;
       }
-      printf("A new client has connected!\n");
-      write(client, welcomeMessage, sizeof(welcomeMessage));
       short i = -1;
       for (pollfd& socket : m_Sockets) {
         if (socket.fd == -1) {
           socket = { client, POLLIN, 0 };
           m_Clients[i] = { "Anonymous" };
           m_ConnectedClients++;
-          m_TotalSockets++;
+          printf("A new client (%d) has connected!\n", i+1);
+          write(client, welcomeMessage, sizeof(welcomeMessage));
           break;
         }
         i++;
@@ -251,10 +247,9 @@ bool TcpServer::pvt_DropConnection() {
 
 void TcpServer::pvt_HandleDisconnect(pollfd& client, short& clientNumber) {
   m_ConnectedClients--;
-  m_TotalSockets--;
   close(client.fd);
   printf("[%s (%d)] disconnected.\n", m_Clients[clientNumber-1].Name, clientNumber);
-  memset(&client, -1, sizeof(client));
+  client = { -1, -1, 0 };
   memset(&m_Clients[clientNumber-1], 0, sizeof(m_Clients[clientNumber-1]));
 }
 

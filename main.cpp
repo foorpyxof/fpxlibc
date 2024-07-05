@@ -4,6 +4,7 @@
 #include "fpx_linkedlist/fpx_linkedlist.h"
 #include "fpx_vector/fpx_vector.h"
 #include "fpx_networking/fpx_server/fpx_server.h"
+#include "fpx_networking/fpx_client/fpx_client.h"
 extern "C" {
   #include "fpx_string/fpx_string.h"
 }
@@ -11,6 +12,8 @@ extern "C" {
 using namespace fpx;
 
 int main(int argc, const char** argv) {
+
+  #ifdef __FPX_COMPILE_DEFAULT
 
   std::cout << "Starting exception tests:\n" << std::endl;
 
@@ -139,14 +142,34 @@ int main(int argc, const char** argv) {
   for (char& obj : v3) std::cout << obj; // expect: v3 appended to v2
   std::cout << std::endl;
 
+
   EMPTY_LINE
   
-  TcpServer::Setup("127.0.0.1", 9999);
+  #endif // __FPX_COMPILE_DEFAULT
+
+////////////////////////////////////////////////////////
+
+  #ifdef __FPX_COMPILE_TCP_SERVER
+  TcpServer::Setup("0.0.0.0", 9999);
   try {
     TcpServer::Listen();
   } catch (fpx::NetException exc) {
     exc.Print();
   }
+  #endif // __FPX_COMPILE_TCP_SERVER
+
+////////////////////////////////////////////////////////
+
+  #ifdef __FPX_COMPILE_TCP_CLIENT
+  TcpClient::Setup("127.0.0.1", 9999);
+  try {
+    TcpClient::Connect(TcpClient::Mode::Interactive, NULL, "testusernamee");
+  } catch (fpx::Exception exc) {
+    exc.Print();
+  }
+  #endif // __FPX_COMPILE_TCP_CLIENT
+
+////////////////////////////////////////////////////////
 
   return 0;
 

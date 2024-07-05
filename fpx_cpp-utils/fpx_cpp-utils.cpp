@@ -34,4 +34,12 @@ namespace fpx {
   const char* NetException::Message() const { return m_ErrMessage; }
   void NetException::Print() const { std::cout << "Error " << this->m_ErrCode << ": " << this->m_ErrMessage << std::endl; }
 
+  // method/constructor declarations for the ArgumentException class
+  ArgumentException::ArgumentException(int code): m_ErrMessage(FPX_NET_ERRMSG), m_ErrCode(code) { }
+  ArgumentException::ArgumentException(const char* message, int code): m_ErrMessage(message), m_ErrCode(code) { }
+
+  int ArgumentException::Code() const { return m_ErrCode; }
+  const char* ArgumentException::Message() const { return m_ErrMessage; }
+  void ArgumentException::Print() const { std::cout << "Error " << this->m_ErrCode << ": " << this->m_ErrMessage << std::endl; }
+
 }

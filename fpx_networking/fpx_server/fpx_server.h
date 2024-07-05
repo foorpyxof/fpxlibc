@@ -26,16 +26,13 @@ extern "C"{
 #define POLLTIMEOUT 1000
 #define BUF_SIZE 1024
 
-#define FPX_INCOMING "CLIENT MSG INCOMING:"
-#define FPX_DISCONNECT "DISCONNECT OK?"
-#define FPX_INIT "CLIENT INIT INCOMING:"
+#define FPX_INCOMING "MSG:"
+#define FPX_DISCONNECT "DISCONNECT"
+#define FPX_INIT "NAME:"
 
 namespace fpx {
 
 class TcpServer {
-  public:
-    // TcpServer(const char*, unsigned short = 8000);
-    // ~TcpServer();
   public:
     static bool Setup(const char*, unsigned short = 8000);
     static void Listen();
@@ -62,7 +59,6 @@ class TcpServer {
     static socklen_t m_ClientAddressSize;
 
     static short m_ConnectedClients;
-    static short m_TotalSockets;
 
     static bool m_IsListening;
 
