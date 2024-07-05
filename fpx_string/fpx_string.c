@@ -23,20 +23,22 @@ int fpx_substringindex(const char* haystack, const char* needle) {
   const int haystackLen = fpx_getstringlength(haystack);
   const int needleLen = fpx_getstringlength(needle);
   const char* needleStart = needle;
-  
+  char lost = 0;
   int foundSubstringIndex = 0;
 
 	for (int i=0; i<haystackLen; i++) {
     if (*haystack == *needle) {
       needle++;
-      if (*haystack == *needleStart && !(*(haystack-1) == *needleStart)) {
+      if (*haystack == *needleStart && !(*(haystack-1) == *needleStart) && lost) {
         foundSubstringIndex = i;
+        lost = 0;
       }
     } else if (*haystack == *needleStart) {
       needle = needleStart+1;
       foundSubstringIndex = i;
     }else {
       needle = needleStart;
+      lost = 1;
     }
     haystack++;
     if (needle-needleStart == needleLen) {
@@ -60,13 +62,13 @@ const char* fpx_substr_replace(const char* haystack, const char* needle, const c
   const int needleLen = fpx_getstringlength(needle);
   const int replacementLen = fpx_getstringlength(replacement);
   const int haystackStartIndex = fpx_substringindex(haystack, needle);
-  const int returnedHaystackLen = fpx_getstringlength(haystack) + fpx_getstringlength(replacement) - fpx_getstringlength(needle);
+  const int returnedHaystackLen = fpx_getstringlength(haystack) + replacementLen - needleLen;
 
   // allocate string to return on the heap
   char* returnedHaystack = (char*)malloc(returnedHaystackLen + 1);
 
   // if haystack doesn't contain needle, return haystack back to the caller
-  if (haystackStartIndex < 0) return haystack;
+  if (haystackStartIndex < 0) return (char*)malloc(fpx_getstringlength(haystack) + 1);
 
   /*
    * perform magic

@@ -3,6 +3,7 @@
 #include "fpx_cpp-utils/fpx_cpp-utils.h"
 #include "fpx_linkedlist/fpx_linkedlist.h"
 #include "fpx_vector/fpx_vector.h"
+#include "fpx_networking/fpx_server/fpx_server.h"
 extern "C" {
   #include "fpx_string/fpx_string.h"
 }
@@ -135,14 +136,17 @@ int main(int argc, const char** argv) {
 
   v2.PushBack(v3);
 
-  for (char& obj : v2) std::cout << obj; // expect: v3 appended to v2
+  for (char& obj : v3) std::cout << obj; // expect: v3 appended to v2
   std::cout << std::endl;
 
   EMPTY_LINE
-
-  // EMPTY_LINE
-
-  // std::cout << fpx_math_ceiling(1.12) << std::endl;
+  
+  TcpServer::Setup("127.0.0.1", 9999);
+  try {
+    TcpServer::Listen();
+  } catch (fpx::NetException exc) {
+    exc.Print();
+  }
 
   return 0;
 
