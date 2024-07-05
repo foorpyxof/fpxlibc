@@ -131,17 +131,17 @@ void TcpServer::Listen() {
                 if (!strcmp(cleanMsg, "!online")) {
                   memset(temp, 0, sizeof(temp));
                   sprintf(writeBuffer, "\nHere is a list of connected clients (%d/%d):\n\n", m_ConnectedClients, MAX_CONNECTIONS);
-                  short j=1;
+                  short k=1;
                   for (client& cnt : m_Clients) {
                     if (*cnt.Name != 0) {
                       sprintf(temp, "%s (%d)", cnt.Name, j);
-                      if (j==i)
+                      if (k==i)
                         strcat(temp, " << YOU");
                       strcat(temp, "\n");
                       strcat(writeBuffer, temp);
                       memset(temp, 0, sizeof(temp));
                     }
-                    j++;
+                    k++;
                   }
                 } else
                 if (!strcmp(cleanMsg, "!whoami")) {
