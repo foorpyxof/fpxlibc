@@ -135,15 +135,44 @@ void TcpServer::Listen() {
                   memset(temp, 0, sizeof(temp));
                 } else
                 if (!strcmp(cleanMsg, "!help")) {
-                  sprintf(writeBuffer, "\nHere is a list of commands:\n!whoami\n!online\n\n");
+                  sprintf(writeBuffer, "\nHere is a list of commands:\n!whoami\n!online\n!pm [id] [message]\n\n");
                 } else
                 if (!strcmp(cleanMsg, "!id")) {
                   sprintf(writeBuffer, "%d", i);
-                }else {
+                } else
+                if (!strncmp(cleanMsg, "!pm", 3)) {
+                  // TODO:  improve this command's code.
+                  //        wrote this while very tired and braindead lol
+                  //        - Erynn
+                  if (!(cleanMsg[3] == ' '))
+                    sprintf(writeBuffer, "Bad syntax: '!pm'. Requires '!pm [id] [message]'");
+                  else {
+                    const char* args = fpx_substr_replace(cleanMsg, "!pm ", "");
+                    const char* argsCpy = args;
+                    char recIDchars[4], message[BUF_SIZE], messageCpy[BUF_SIZE];
+                    int recID;
+
+                    memcpy(recIDchars, args, (strspn(args, "0123456789") > 4) ? 4 : strspn(args, "0123456789"));
+                    recID = atoi(recIDchars);
+                    args += strspn(args, "0123456789");
+                    if (*args != ' ')
+                      sprintf(writeBuffer, "Bad syntax: '!pm'. Requires '!pm [id] [message]'");
+                    else {
+                      args++;
+                      sprintf(message, "Private from [%s (%d)]: ", m_Clients[i-1].Name, i);
+                      memcpy(messageCpy, message, BUF_SIZE);
+                      snprintf(message, BUF_SIZE, "%s%s\n", messageCpy, args);
+                      write(m_Sockets[recID].fd, message, strlen(message));
+                      free((char*)argsCpy);
+                    }
+                  }
+                } else {
                   sprintf(writeBuffer, "\nUnrecognised command '%s'. Try '!help' for a list of commands.\n\n", cleanMsg);
                 }
-                write(m_Sockets[i].fd, writeBuffer, strlen(writeBuffer));
-                memset(writeBuffer, 0, strlen(writeBuffer));
+                if (*writeBuffer != 0) {
+                  write(m_Sockets[i].fd, writeBuffer, strlen(writeBuffer));
+                  memset(writeBuffer, 0, strlen(writeBuffer));
+                }
                 break;
             case 0:
               break;
@@ -175,6 +204,12 @@ void TcpServer::Listen() {
               memcpy(m_Clients[i-1].Name, clientName, sizeof(m_Clients[i-1]));
             }
             free(clientName);
+          } else
+          if (!strncmp(readBuffer, FPX_ECHO, strlen(FPX_ECHO))) {
+            const char* cleanMsg = fpx_substr_replace(readBuffer, FPX_ECHO, "");
+            snprintf(writeBuffer, BUF_SIZE, "%s", cleanMsg);
+            write(m_Sockets[i].fd, writeBuffer, strlen(writeBuffer));
+            memset(writeBuffer, 0, BUF_SIZE);
           }
 
           memset(readBuffer, 0, BUF_SIZE);

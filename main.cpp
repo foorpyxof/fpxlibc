@@ -21,8 +21,9 @@ extern "C" {
 #ifdef __FPX_COMPILE_TCP_CLIENT
   #include "fpx_networking/fpx_client/fpx_client.h"
 
-  void ReadCallback(char* theMessage) {
-    printf(theMessage);
+  void ReadCallback(const char* theMessage) {
+    printf("%s", theMessage);
+    fflush(stdout);
   }
 #endif // __FPX_COMPILE_TCP_CLIENT
 
@@ -189,8 +190,8 @@ int main(int argc, const char** argv) {
   char sendbuf[32];
   while (1) {
     memset(sendbuf, 0, 32);
-    scanf("%s", sendbuf);
-    TcpClient::SendMessage(sendbuf);
+    fgets(sendbuf, sizeof(sendbuf), stdin);
+    TcpClient::SendRaw(sendbuf);
   }
   #endif // __FPX_COMPILE_TCP_CLIENT
   

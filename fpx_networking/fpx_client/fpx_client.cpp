@@ -27,7 +27,7 @@ bool TcpClient::Setup(const char* ip, short port) {
   return inet_aton(m_SrvIp, &m_SrvAddress.sin_addr);
 }
 
-void TcpClient::Connect(Mode mode, void (*readerCallback)(char*), const char* name) {
+void TcpClient::Connect(Mode mode, void (*readerCallback)(const char*), const char* name) {
   if (m_SrvPort == 0)
     throw NetException("Client not set up. Run Setup()");
   if (mode == Mode::Background && readerCallback == nullptr)
@@ -62,13 +62,19 @@ bool TcpClient::Disconnect() {
 }
 
 void TcpClient::SendRaw(const char* msg) {
+  const short msgLen = fpx_getstringlength(msg);
+  bool cr = (fpx_substringindex(msg, "\r") != -1);
+  if (msg[msgLen-1] == '\n') {
+    memset((char*)msg+msgLen-(1+cr), 0, 1+cr);
+  }
   snprintf(m_WriteBuffer, BUF_SIZE, "%s", msg);
-  write(m_Socket, m_WriteBuffer, fpx_getstringlength(m_WriteBuffer));
+  write(m_Socket, m_WriteBuffer, msgLen);
   memset(m_WriteBuffer, 0, BUF_SIZE);
 }
 
 void TcpClient::SendMessage(const char* msg) {
   char buf[BUF_SIZE-16];
+
   snprintf(buf, sizeof(buf), "%s%s", FPX_INCOMING, msg);
   SendRaw(buf);
 }
@@ -83,10 +89,12 @@ void* TcpClient::pvt_ReaderLoop(void*) {
       }
       if (!(short)m_ReadBuffer[0]) {
         //code 1: server closed connection
-        m_ThreadData.fn((char*)"CONN_CLOSE");
+        m_ThreadData.fn("CONN_CLOSE");
+        Disconnect();
+        pthread_exit(NULL);
       }
       // m_ReadBuffer[strcspn(m_ReadBuffer, "\r\n")] = 0;
-      m_ThreadData.fn(m_ReadBuffer);
+      m_ThreadData.fn((const char*)m_ReadBuffer);
       memset(m_ReadBuffer, 0, BUF_SIZE);
     }
   } else {

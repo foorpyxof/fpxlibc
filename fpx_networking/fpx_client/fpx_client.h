@@ -20,6 +20,8 @@ extern "C"{
 #define BUF_SIZE 1024
 #define DEFAULTPORT 8080
 
+#define FPX_ECHO "ECHO:"
+#define FPX_PRIVATE "PRIVATE_FOR_"
 #define FPX_INCOMING "MSG:"
 #define FPX_DISCONNECT "DISCONNECT"
 #define FPX_INIT "NAME:"
@@ -28,7 +30,7 @@ namespace fpx {
 
 
 class TcpClient {
-  typedef void (*fn_ptr)(char*);
+  typedef void (*fn_ptr)(const char*);
 
   public:
     enum class Mode {
@@ -55,7 +57,7 @@ class TcpClient {
      * The callback is ignored and can be set to NULL when the Mode
      * is interactive.
      */
-    static void Connect(Mode mode, void (*readerCallback)(char*), const char* name = "");
+    static void Connect(Mode mode, void (*readerCallback)(const char*), const char* name = "");
     
     /**
      * Gracefully close the socket. Takes no arguments.

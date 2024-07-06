@@ -26,6 +26,8 @@ extern "C"{
 #define POLLTIMEOUT 1000
 #define BUF_SIZE 1024
 
+#define FPX_ECHO "ECHO:"
+#define FPX_PRIVATE "PRIVATE_FOR_"
 #define FPX_INCOMING "MSG:"
 #define FPX_DISCONNECT "DISCONNECT"
 #define FPX_INIT "NAME:"
