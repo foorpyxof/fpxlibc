@@ -1,6 +1,11 @@
 #ifndef FPX_STRING_H
 #define FPX_STRING_H
 
+////////////////////////////////////////////////////////////////
+//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
+//  Author: Erynn 'foorpyxof' Scholtes                        //
+////////////////////////////////////////////////////////////////
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>

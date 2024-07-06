@@ -1,6 +1,11 @@
 #ifndef FPX_LINKEDLIST_H
 #define FPX_LINKEDLIST_H
 
+////////////////////////////////////////////////////////////////
+//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
+//  Author: Erynn 'foorpyxof' Scholtes                        //
+////////////////////////////////////////////////////////////////
+
 #include <iostream>
 #include "../fpx_cpp-utils/fpx_cpp-utils.h"
 

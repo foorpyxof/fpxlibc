@@ -1,8 +1,14 @@
 #ifndef FPX_VECTOR_H
 #define FPX_VECTOR_H
 
+////////////////////////////////////////////////////////////////
+//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
+//  Author: Erynn 'foorpyxof' Scholtes                        //
+////////////////////////////////////////////////////////////////
+
 #include <iostream>
 #include "../fpx_cpp-utils/fpx_cpp-utils.h"
+#include <cmath>
 
 namespace fpx {
 
@@ -29,10 +35,17 @@ class Vector {
 
     T* Data() const { return m_Array; }
 
+    // bool PushFront(const T&);
+    // bool PushFront(T&&) noexcept;
+    // bool PushFront(const Vector<T>&);
+    // T PopFront();
+
     bool PushBack(const T&);
     bool PushBack(T&&) noexcept;
     bool PushBack(const Vector<T>&);
     T PopBack();
+
+    bool Shift(int, bool=false);
 
     T& operator[] (unsigned int) const;
 

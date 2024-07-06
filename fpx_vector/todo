@@ -1,0 +1,5 @@
+TODO:
+- Vector shift left/right
+- PopBack multiple elements at once
+	same for new method PopFront
+- PopFront should also move everything after the popped objects towards the front

@@ -1,3 +1,8 @@
+////////////////////////////////////////////////////////////////
+//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
+//  Author: Erynn 'foorpyxof' Scholtes                        //
+////////////////////////////////////////////////////////////////
+
 #include "fpx_string.h"
 
 int fpx_getstringlength(const char* stringToCheck) {

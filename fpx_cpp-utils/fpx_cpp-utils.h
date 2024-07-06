@@ -1,6 +1,11 @@
 #ifndef FPX_CPPUTILS_H
 #define FPX_CPPUTILS_H
 
+////////////////////////////////////////////////////////////////
+//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
+//  Author: Erynn 'foorpyxof' Scholtes                        //
+////////////////////////////////////////////////////////////////
+
 #include <iostream>
 
 #define FPX_GENERIC_ERRMSG "An exception has occured at runtime!"

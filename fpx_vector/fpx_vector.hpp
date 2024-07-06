@@ -1,5 +1,9 @@
+////////////////////////////////////////////////////////////////
+//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
+//  Author: Erynn 'foorpyxof' Scholtes                        //
+////////////////////////////////////////////////////////////////
+
 #include "fpx_vector.h"
-#include <cmath>
 
 namespace fpx {
 
@@ -161,4 +165,19 @@ T Vector<T>::PopBack() {
   return object;
 }
 
+template<typename T>
+bool Vector<T>::Shift(int amount, bool remove) {
+  T old[m_Size];
+  for(int i=0; i<m_Size; i++)
+    old[i] = m_Array[i];
+  
+  amount = -(amount%m_Size);
+  if (!amount) return true;
+  for (int i=0; i<m_Size; i++)
+    m_Array[i] = (i + amount < m_Size && i + amount > -1) ? old[i + amount] : (i+amount > -1) ? old[i + amount - m_Size] : old[m_Size - (amount+i)];
+  return true;
 }
+
+}
+
+
