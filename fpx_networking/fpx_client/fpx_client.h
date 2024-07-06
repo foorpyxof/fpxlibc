@@ -26,23 +26,51 @@ extern "C"{
 
 namespace fpx {
 
-typedef void (*fn_ptr)(char*);
 
 class TcpClient {
+  typedef void (*fn_ptr)(char*);
+
   public:
     enum class Mode {
       Interactive,
-      NonInteractive
+      Background
     };
   
   public:
-    // TcpClient();
-    // TcpClient(const char*, short = DEFAULTPORT);
-    // ~TcpClient();
+    /**
+     * Takes an IP and a PORT to set, prior to connecting.
+     */
     static bool Setup(const char* ip, short port = DEFAULTPORT);
+
+    /**
+     * Connect to the fpx::TcpServer instance
+     * Takes an fpx::TcpClient::Mode, 
+     * a callback method for passing strings incoming over the socket, 
+     * a username for connecting to an fpx::TcpServer instance.
+     * ---
+     * Modes:
+     * - Interactive - Opens a terminal prompt allowing the user to read and write messages
+     * - Background - Messages must be manually sent using SendRaw() and SendMessage()
+     * ---
+     * The callback is ignored and can be set to NULL when the Mode
+     * is interactive.
+     */
     static void Connect(Mode mode, void (*readerCallback)(char*), const char* name = "");
+    
+    /**
+     * Gracefully close the socket. Takes no arguments.
+     */
     static bool Disconnect();
+
+    /**
+     * Send a raw string over the socket.
+     */
     static void SendRaw(const char*);
+
+    /**
+     * Invokes 'SendRaw' to send a plain message to
+     * an instance of fpx::TcpServer
+     */
     static void SendMessage(const char*);
   
   private:

@@ -34,9 +34,30 @@ namespace fpx {
 
 class TcpServer {
   public:
+    /**
+     * Takes an IP and a PORT to set up for listening.
+     */
     static bool Setup(const char*, unsigned short = 8000);
+
+    /**
+     * Starts listening on the set IP and PORT.
+     * This method functions as the main loop for handling messages from clients.
+     * 
+     * Also creates a thread that continuously listens for NEW connections
+     * and adds those to an array.
+     */
     static void Listen();
+
+    /**
+     * Listen(), but using TLS.
+     * 
+     * Not finished yet, thus throws fpx::NotImplementedException.
+     */
     static void ListenSecure(const char*, const char*);
+
+    /**
+     * Close the listening socket.
+     */
     static void Close();
 
   private:

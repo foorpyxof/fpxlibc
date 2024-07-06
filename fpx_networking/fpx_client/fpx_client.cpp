@@ -2,28 +2,6 @@
 
 namespace fpx {
 
-// TcpClient::TcpClient():
-//   m_SrvIp("0.0.0.0"), m_SrvPort(DEFAULTPORT),
-//   m_Socket(-1),
-//   m_SrvAddress { AF_INET, htons(m_SrvPort), {  } },
-//   m_WriterThread(0), m_ReaderThread(0)
-//   {
-//     inet_aton(m_SrvIp, &m_SrvAddress.sin_addr);
-//   }
-
-// TcpClient::TcpClient(const char* ip, short port):
-//   m_SrvIp(ip), m_SrvPort(port),
-//   m_Socket(-1),
-//   m_SrvAddress { AF_INET, htons(m_SrvPort), {  } },
-//   m_WriterThread(0), m_ReaderThread(0)
-//   {
-//     inet_aton(m_SrvIp, &m_SrvAddress.sin_addr);
-//   }
-
-// TcpClient::~TcpClient() {
-//   pvt_GracefulQuit();
-// }
-
 // STATIC DECLARATIONS
 struct TcpClient::threaddata TcpClient::m_ThreadData;
 pthread_t TcpClient::m_ReaderThread, TcpClient::m_WriterThread;
@@ -52,9 +30,9 @@ bool TcpClient::Setup(const char* ip, short port) {
 void TcpClient::Connect(Mode mode, void (*readerCallback)(char*), const char* name) {
   if (m_SrvPort == 0)
     throw NetException("Client not set up. Run Setup()");
-  if (mode == Mode::NonInteractive && readerCallback == nullptr)
+  if (mode == Mode::Background && readerCallback == nullptr)
     throw fpx::ArgumentException("No callback function was supplied.");
-  if (mode == Mode::NonInteractive)
+  if (mode == Mode::Background)
     m_ThreadData.fn = readerCallback;
   
   m_Socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -63,11 +41,16 @@ void TcpClient::Connect(Mode mode, void (*readerCallback)(char*), const char* na
     return;
   }
 
-  pthread_create(&m_ReaderThread, NULL, pvt_ReaderLoop, NULL);
-  pthread_create(&m_WriterThread, NULL, pvt_WriterLoop, (void*)name);
+  sprintf(m_WriteBuffer, "%s", FPX_INIT);
+  strncat(m_WriteBuffer, name, 17);
+  write(m_Socket, m_WriteBuffer, strlen(m_WriteBuffer));
 
-  pthread_join(m_WriterThread, NULL);
-  pthread_kill(m_ReaderThread, SIGINT);
+  pthread_create(&m_ReaderThread, NULL, pvt_ReaderLoop, NULL);
+  if (mode == Mode::Interactive) {
+    pthread_create(&m_WriterThread, NULL, pvt_WriterLoop, (void*)name);
+    pthread_join(m_WriterThread, NULL);
+    pthread_kill(m_ReaderThread, SIGINT);
+  }
 
   return;
 }
@@ -102,7 +85,7 @@ void* TcpClient::pvt_ReaderLoop(void*) {
         //code 1: server closed connection
         m_ThreadData.fn((char*)"CONN_CLOSE");
       }
-      m_ReadBuffer[strcspn(m_ReadBuffer, "\r\n")] = 0;
+      // m_ReadBuffer[strcspn(m_ReadBuffer, "\r\n")] = 0;
       m_ThreadData.fn(m_ReadBuffer);
       memset(m_ReadBuffer, 0, BUF_SIZE);
     }
@@ -130,10 +113,6 @@ void* TcpClient::pvt_WriterLoop(void* arg) {
   bool preventPrompt = 0;
   const char* name = (const char*)arg;
   memset(&m_WriteBuffer, 0, BUF_SIZE);
-
-  sprintf(m_WriteBuffer, "%s", FPX_INIT);
-  strcat(m_WriteBuffer, name);
-  write(m_Socket, m_WriteBuffer, strlen(m_WriteBuffer));
 
   while (1) {
     memset(m_Input, 0, sizeof(m_Input));

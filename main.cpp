@@ -1,13 +1,30 @@
 #define EMPTY_LINE std::cout << std::endl;
 
+#include <unistd.h>
 #include "fpx_cpp-utils/fpx_cpp-utils.h"
+
+#ifdef __FPX_COMPILE_DEFAULT
+
 #include "fpx_linkedlist/fpx_linkedlist.h"
 #include "fpx_vector/fpx_vector.h"
-#include "fpx_networking/fpx_server/fpx_server.h"
-#include "fpx_networking/fpx_client/fpx_client.h"
+
 extern "C" {
   #include "fpx_string/fpx_string.h"
 }
+
+#endif // __FPX_COMPILE_DEFAULT
+
+#ifdef __FPX_COMPILE_TCP_SERVER
+  #include "fpx_networking/fpx_server/fpx_server.h"
+#endif // __FPX_COMPILE_TCP_SERVER
+
+#ifdef __FPX_COMPILE_TCP_CLIENT
+  #include "fpx_networking/fpx_client/fpx_client.h"
+
+  void ReadCallback(char* theMessage) {
+    printf(theMessage);
+  }
+#endif // __FPX_COMPILE_TCP_CLIENT
 
 using namespace fpx;
 
@@ -153,7 +170,7 @@ int main(int argc, const char** argv) {
   TcpServer::Setup("0.0.0.0", 9999);
   try {
     TcpServer::Listen();
-  } catch (fpx::NetException exc) {
+  } catch (NetException& exc) {
     exc.Print();
   }
   #endif // __FPX_COMPILE_TCP_SERVER
@@ -163,12 +180,20 @@ int main(int argc, const char** argv) {
   #ifdef __FPX_COMPILE_TCP_CLIENT
   TcpClient::Setup("127.0.0.1", 9999);
   try {
-    TcpClient::Connect(TcpClient::Mode::Interactive, NULL, "testusernamee");
-  } catch (fpx::Exception exc) {
+    // if string is empty, username is 'Anonymous'.
+    // Also, a maximum of 16 characters is enforced by both the server and this specific client.
+    TcpClient::Connect(TcpClient::Mode::Background, ReadCallback, "testUser");
+  } catch (Exception& exc) {
     exc.Print();
   }
+  char sendbuf[32];
+  while (1) {
+    memset(sendbuf, 0, 32);
+    scanf("%s", sendbuf);
+    TcpClient::SendMessage(sendbuf);
+  }
   #endif // __FPX_COMPILE_TCP_CLIENT
-
+  
 ////////////////////////////////////////////////////////
 
   return 0;

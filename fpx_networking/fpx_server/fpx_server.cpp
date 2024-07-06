@@ -170,9 +170,9 @@ void TcpServer::Listen() {
           if (!strncmp(readBuffer, FPX_INIT, strlen(FPX_INIT))) {
             char* clientName = (char*)fpx_substr_replace(readBuffer, FPX_INIT, "");
             clientName[strcspn(clientName, "\r\n")] = 0;
-            if (!(*clientName == '0')) {
+            if (!(*clientName == 0)) {
               memset(m_Clients[i-1].Name, 0, sizeof(m_Clients[i-1]));
-              memcpy(m_Clients[i-1].Name, clientName, fpx_getstringlength(clientName));
+              memcpy(m_Clients[i-1].Name, clientName, sizeof(m_Clients[i-1]));
             }
             free(clientName);
           }
