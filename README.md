@@ -6,7 +6,6 @@ I'll keep updating it with more stuff as I go along on my journey to learn more 
 ---
 
 Includes a lil' main.cpp test program that you can build using 'make'.
-A debug-compatible version can be built with 'make debug'.
 
 ---
 
@@ -14,6 +13,8 @@ A debug-compatible version can be built with 'make debug'.
 
 - ```make tcpserver``` will make just the TCP server
 - ```make tcpclient``` will make just the TCP client
+
+All make targets have the '-g' debug flag enabled.
 
 Output file will be put in ./build/fpxLIB.out
 
