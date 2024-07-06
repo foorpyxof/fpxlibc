@@ -1,6 +1,11 @@
 #ifndef FPX_SERVER_H
 #define FPX_SERVER_H
 
+////////////////////////////////////////////////////////////////
+//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
+//  Author: Erynn 'foorpyxof' Scholtes                        //
+////////////////////////////////////////////////////////////////
+
 #include "../../fpx_cpp-utils/fpx_cpp-utils.h"
 extern "C"{
 #include "../../fpx_string/fpx_string.h"

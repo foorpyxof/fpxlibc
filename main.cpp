@@ -1,3 +1,8 @@
+////////////////////////////////////////////////////////////////
+//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
+//  Author: Erynn 'foorpyxof' Scholtes                        //
+////////////////////////////////////////////////////////////////
+
 #define EMPTY_LINE std::cout << std::endl;
 
 #include <unistd.h>
