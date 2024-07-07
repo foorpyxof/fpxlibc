@@ -6,9 +6,9 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "../../fpx_cpp-utils/fpx_cpp-utils.h"
+#include "../fpx_cpp-utils/fpx_cpp-utils.h"
 extern "C"{
-#include "../../fpx_string/fpx_string.h"
+#include "../fpx_string/fpx_string.h"
 }
 
 #include <sys/types.h>
@@ -27,9 +27,14 @@ extern "C"{
 
 #include <signal.h>
 
-#define MAX_CONNECTIONS 24
+#define MAX_CONNECTIONS 32
+
+namespace fpx {
+
+#define TCP_BUF_SIZE 1024
+#define TCP_DEFAULTPORT 8080
+
 #define POLLTIMEOUT 1000
-#define BUF_SIZE 1024
 
 #define FPX_ECHO "ECHO:"
 #define FPX_PRIVATE "PRIVATE_FOR_"
@@ -37,14 +42,12 @@ extern "C"{
 #define FPX_DISCONNECT "DISCONNECT"
 #define FPX_INIT "NAME:"
 
-namespace fpx {
-
 class TcpServer {
   public:
     /**
      * Takes an IP and a PORT to set up for listening.
      */
-    static bool Setup(const char*, unsigned short = 8000);
+    static bool Setup(const char*, unsigned short = TCP_DEFAULTPORT);
 
     /**
      * Starts listening on the set IP and PORT.

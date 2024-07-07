@@ -18,9 +18,9 @@ struct sockaddr_in TcpClient::m_SrvAddress;
 
 int TcpClient::m_Socket;
 
-char TcpClient::m_ReadBuffer[BUF_SIZE];
-char TcpClient::m_WriteBuffer[BUF_SIZE];
-char TcpClient::m_Input[BUF_SIZE-16];
+char TcpClient::m_ReadBuffer[TCP_BUF_SIZE];
+char TcpClient::m_WriteBuffer[TCP_BUF_SIZE];
+char TcpClient::m_Input[TCP_BUF_SIZE-16];
 // END STATIC DECLARATIONS
 
 bool TcpClient::Setup(const char* ip, short port) {
@@ -72,24 +72,24 @@ void TcpClient::SendRaw(const char* msg) {
   if (msg[msgLen-1] == '\n') {
     memset((char*)msg+msgLen-(1+cr), 0, 1+cr);
   }
-  snprintf(m_WriteBuffer, BUF_SIZE, "%s", msg);
+  snprintf(m_WriteBuffer, TCP_BUF_SIZE, "%s", msg);
   write(m_Socket, m_WriteBuffer, msgLen);
-  memset(m_WriteBuffer, 0, BUF_SIZE);
+  memset(m_WriteBuffer, 0, TCP_BUF_SIZE);
 }
 
 void TcpClient::SendMessage(const char* msg) {
-  char buf[BUF_SIZE-16];
+  char buf[TCP_BUF_SIZE-16];
 
   snprintf(buf, sizeof(buf), "%s%s", FPX_INCOMING, msg);
   SendRaw(buf);
 }
 
 void* TcpClient::pvt_ReaderLoop(void*) {
-  memset(&m_ReadBuffer, 0, BUF_SIZE);
+  memset(&m_ReadBuffer, 0, TCP_BUF_SIZE);
 
   if (m_ThreadData.fn) {
     while (1) {
-      if (read(m_Socket, m_ReadBuffer, BUF_SIZE) == -1) {
+      if (read(m_Socket, m_ReadBuffer, TCP_BUF_SIZE) == -1) {
         //handle errors
       }
       if (!(short)m_ReadBuffer[0]) {
@@ -100,11 +100,11 @@ void* TcpClient::pvt_ReaderLoop(void*) {
       }
       // m_ReadBuffer[strcspn(m_ReadBuffer, "\r\n")] = 0;
       m_ThreadData.fn((const char*)m_ReadBuffer);
-      memset(m_ReadBuffer, 0, BUF_SIZE);
+      memset(m_ReadBuffer, 0, TCP_BUF_SIZE);
     }
   } else {
     while (1) {
-      if (read(m_Socket, m_ReadBuffer, BUF_SIZE) == -1) {
+      if (read(m_Socket, m_ReadBuffer, TCP_BUF_SIZE) == -1) {
         // handle read error
       }
       if (!(short)m_ReadBuffer[0]) {
@@ -117,7 +117,7 @@ void* TcpClient::pvt_ReaderLoop(void*) {
       else
         printf("\r%s>> ", m_ReadBuffer);
       fflush(stdout);
-      memset(m_ReadBuffer, 0, BUF_SIZE);
+      memset(m_ReadBuffer, 0, TCP_BUF_SIZE);
     }
   }
 }
@@ -125,11 +125,11 @@ void* TcpClient::pvt_ReaderLoop(void*) {
 void* TcpClient::pvt_WriterLoop(void* arg) {
   bool preventPrompt = 0;
   const char* name = (const char*)arg;
-  memset(&m_WriteBuffer, 0, BUF_SIZE);
+  memset(&m_WriteBuffer, 0, TCP_BUF_SIZE);
 
   while (1) {
     memset(m_Input, 0, sizeof(m_Input));
-    memset(m_WriteBuffer, 0, BUF_SIZE);
+    memset(m_WriteBuffer, 0, TCP_BUF_SIZE);
     if (!preventPrompt)
       printf(">> "); fflush(stdout);
     preventPrompt = 0;

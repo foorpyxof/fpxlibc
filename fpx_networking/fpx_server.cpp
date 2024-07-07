@@ -8,20 +8,19 @@
 namespace fpx {
 
 // STATIC DECLARATIONS
-unsigned short TcpServer::m_Port;
 
+//TCPserver
+unsigned short TcpServer::m_Port;
 int TcpServer::m_Socket4;
 
 struct pollfd TcpServer::m_Sockets[];
 struct TcpServer::client TcpServer::m_Clients[];
 
 struct sockaddr_in TcpServer::m_SocketAddress4;
-
 struct sockaddr TcpServer::m_ClientAddress;
 socklen_t TcpServer::m_ClientAddressSize;
 
 short TcpServer::m_ConnectedClients;
-
 bool TcpServer::m_IsListening;
 
 pthread_t TcpServer::m_AcceptThread;
@@ -47,10 +46,10 @@ bool TcpServer::Setup(const char* ip, unsigned short port) {
 void TcpServer::Listen() {
   int optvalTrue = 1;
 
-  char readBuffer[BUF_SIZE];
-  char writeBuffer[BUF_SIZE];
-  memset(readBuffer, 0, BUF_SIZE);
-  memset(writeBuffer, 0, BUF_SIZE);
+  char readBuffer[TCP_BUF_SIZE];
+  char writeBuffer[TCP_BUF_SIZE];
+  memset(readBuffer, 0, TCP_BUF_SIZE);
+  memset(writeBuffer, 0, TCP_BUF_SIZE);
 
   m_Socket4 = socket(AF_INET, SOCK_STREAM, 0);
   if (m_Socket4 < 0) {
@@ -109,7 +108,7 @@ void TcpServer::Listen() {
       if (m_Sockets[i].revents & POLLIN) {
         //ready to receive from device
 
-        ssize_t bytesRead = read(m_Sockets[i].fd, readBuffer, BUF_SIZE);
+        ssize_t bytesRead = read(m_Sockets[i].fd, readBuffer, TCP_BUF_SIZE);
         if (bytesRead > 0) {
           if (!strncmp(readBuffer, FPX_INCOMING, strlen(FPX_INCOMING))) {
             char* cleanMsg = (char*)fpx_substr_replace(readBuffer, FPX_INCOMING, "");
@@ -154,7 +153,7 @@ void TcpServer::Listen() {
                   else {
                     const char* args = fpx_substr_replace(cleanMsg, "!pm ", "");
                     const char* argsCpy = args;
-                    char recIDchars[4], message[BUF_SIZE], messageCpy[BUF_SIZE];
+                    char recIDchars[4], message[TCP_BUF_SIZE], messageCpy[TCP_BUF_SIZE];
                     int recID;
 
                     memcpy(recIDchars, args, (strspn(args, "0123456789") > 4) ? 4 : strspn(args, "0123456789"));
@@ -165,8 +164,8 @@ void TcpServer::Listen() {
                     else {
                       args++;
                       sprintf(message, "Private from [%s (%d)]: ", m_Clients[i-1].Name, i);
-                      memcpy(messageCpy, message, BUF_SIZE);
-                      snprintf(message, BUF_SIZE, "%s%s\n", messageCpy, args);
+                      memcpy(messageCpy, message, TCP_BUF_SIZE);
+                      snprintf(message, TCP_BUF_SIZE, "%s%s\n", messageCpy, args);
                       write(m_Sockets[recID].fd, message, strlen(message));
                       free((char*)argsCpy);
                     }
@@ -197,7 +196,7 @@ void TcpServer::Listen() {
           if(!strncmp(readBuffer, FPX_DISCONNECT, strlen(FPX_DISCONNECT))) {
             pvt_HandleDisconnect(m_Sockets[i], i);
             j+=1;
-            memset(readBuffer, 0, BUF_SIZE);
+            memset(readBuffer, 0, TCP_BUF_SIZE);
             continue;
           } else
 
@@ -212,12 +211,12 @@ void TcpServer::Listen() {
           } else
           if (!strncmp(readBuffer, FPX_ECHO, strlen(FPX_ECHO))) {
             const char* cleanMsg = fpx_substr_replace(readBuffer, FPX_ECHO, "");
-            snprintf(writeBuffer, BUF_SIZE, "%s", cleanMsg);
+            snprintf(writeBuffer, TCP_BUF_SIZE, "%s", cleanMsg);
             write(m_Sockets[i].fd, writeBuffer, strlen(writeBuffer));
-            memset(writeBuffer, 0, BUF_SIZE);
+            memset(writeBuffer, 0, TCP_BUF_SIZE);
           }
 
-          memset(readBuffer, 0, BUF_SIZE);
+          memset(readBuffer, 0, TCP_BUF_SIZE);
           handled = 1;
 
         } else {

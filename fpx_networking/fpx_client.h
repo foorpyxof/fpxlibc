@@ -6,9 +6,9 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "../../fpx_cpp-utils/fpx_cpp-utils.h"
+#include "../fpx_cpp-utils/fpx_cpp-utils.h"
 extern "C"{
-#include "../../fpx_string/fpx_string.h"
+#include "../fpx_string/fpx_string.h"
 }
 
 #include <arpa/inet.h>
@@ -22,8 +22,8 @@ extern "C"{
 #include <sched.h>
 #include <signal.h>
 
-#define BUF_SIZE 1024
-#define DEFAULTPORT 8080
+#define TCP_BUF_SIZE 1024
+#define TCP_DEFAULTPORT 8080
 
 #define FPX_ECHO "ECHO:"
 #define FPX_PRIVATE "PRIVATE_FOR_"
@@ -47,7 +47,7 @@ class TcpClient {
     /**
      * Takes an IP and a PORT to set, prior to connecting.
      */
-    static bool Setup(const char* ip, short port = DEFAULTPORT);
+    static bool Setup(const char* ip, short port = TCP_DEFAULTPORT);
 
     /**
      * Connect to the fpx::TcpServer instance

@@ -20,11 +20,11 @@ extern "C" {
 #endif // __FPX_COMPILE_DEFAULT
 
 #ifdef __FPX_COMPILE_TCP_SERVER
-  #include "fpx_networking/fpx_server/fpx_server.h"
+  #include "fpx_networking/fpx_server.h"
 #endif // __FPX_COMPILE_TCP_SERVER
 
 #ifdef __FPX_COMPILE_TCP_CLIENT
-  #include "fpx_networking/fpx_client/fpx_client.h"
+  #include "fpx_networking/fpx_client.h"
 
   void ReadCallback(const char* theMessage) {
     printf("%s", theMessage);
