@@ -19,17 +19,12 @@ extern "C" {
 
 #endif // __FPX_COMPILE_DEFAULT
 
-#ifdef __FPX_COMPILE_TCP_SERVER
+#if defined __FPX_COMPILE_TCP_SERVER || defined __FPX_COMPILE_HTTP_SERVER
   #include "fpx_networking/fpx_server.h"
-#endif // __FPX_COMPILE_TCP_SERVER
+#endif // __FPX_COMPILE_TCP_SERVER || __FPX_COMPILE_HTTP_SERVER
 
 #ifdef __FPX_COMPILE_TCP_CLIENT
   #include "fpx_networking/fpx_client.h"
-
-  void ReadCallback(const char* theMessage) {
-    printf("%s", theMessage);
-    fflush(stdout);
-  }
 #endif // __FPX_COMPILE_TCP_CLIENT
 
 using namespace fpx;
@@ -173,9 +168,10 @@ int main(int argc, const char** argv) {
 ////////////////////////////////////////////////////////
 
   #ifdef __FPX_COMPILE_TCP_SERVER
-  TcpServer::Setup("0.0.0.0", 9999);
+  TcpServer tcpServ("0.0.0.0", 9999);
+
   try {
-    TcpServer::Listen();
+    tcpServ.Listen();
   } catch (NetException& exc) {
     exc.Print();
   }
@@ -184,14 +180,22 @@ int main(int argc, const char** argv) {
 ////////////////////////////////////////////////////////
 
   #ifdef __FPX_COMPILE_TCP_CLIENT
+
+  void ReadCallback(const char* theMessage) {
+    printf("%s", theMessage);
+    fflush(stdout);
+  }
+
   TcpClient::Setup("127.0.0.1", 9999);
   try {
     // if string is empty, username is 'Anonymous'.
     // Also, a maximum of 16 characters is enforced by both the server and this specific client.
-    TcpClient::Connect(TcpClient::Mode::Background, ReadCallback, "testUser");
+    TcpClient::Connect(TcpClient::Mode::Interactive, ReadCallback, "testUser");
   } catch (Exception& exc) {
     exc.Print();
   }
+
+  // simple way to send messages when Mode::Background is selected
   char sendbuf[32];
   while (1) {
     memset(sendbuf, 0, 32);
@@ -202,6 +206,12 @@ int main(int argc, const char** argv) {
   
 ////////////////////////////////////////////////////////
 
+  #ifdef __FPX_COMPILE_HTTP_SERVER
+  HttpServer httpServ("0.0.0.0");
+  #endif // __FPX_COMPILE_HTTP_SERVER
+
+////////////////////////////////////////////////////////
+  
   return 0;
 
 }

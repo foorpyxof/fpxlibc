@@ -5,51 +5,59 @@
 
 #include "fpx_server.h"
 
+// loose methods declared here
+namespace fpx::Server {
+
+void* AcceptLoop(void* arguments) {
+  acceptargs_t* args = (acceptargs_t*)arguments;
+  const char welcomeMessage[] = "Welcome to fpx_TCP! :)\nSend '!help' for a list of commands.\n\n";
+  while (1) {
+    if (*(args->ClientCountPtr) < MAX_CONNECTIONS) {
+      int client = accept(*(args->ListenSocketPtr), args->ClientAddressBlockPtr, args->ClientAddressSizePtr);
+      if (client < 0) {
+        close(client);
+        continue;
+      }
+      for (short i = 1; i < MAX_CONNECTIONS+1; i++) {
+        pollfd& socket = args->ConnectedSockets[i];
+        if (socket.fd == -1) {
+          socket = { client, POLLIN, 0 };
+          args->ConnectedClients[i-1] = { "Anonymous" };
+          *(args->ClientCountPtr)++;
+          printf("A new client (%d) has connected!\n", i);
+          write(client, welcomeMessage, sizeof(welcomeMessage));
+          break;
+        }
+      }
+    }
+  }
+  return NULL;
+}
+
+}
+
 namespace fpx {
 
-// STATIC DECLARATIONS
-
-//TCPserver
-unsigned short TcpServer::m_Port;
-int TcpServer::m_Socket4;
-
-struct pollfd TcpServer::m_Sockets[];
-struct TcpServer::client TcpServer::m_Clients[];
-
-struct sockaddr_in TcpServer::m_SocketAddress4;
-struct sockaddr TcpServer::m_ClientAddress;
-socklen_t TcpServer::m_ClientAddressSize;
-
-short TcpServer::m_ConnectedClients;
-bool TcpServer::m_IsListening;
-
-pthread_t TcpServer::m_AcceptThread;
-// END STATIC DECLARATIONS
-
-bool TcpServer::Setup(const char* ip, unsigned short port) {
-  if (m_IsListening) {
-    throw NetException("Server is listening.");
-  }
-  m_Port = port;
-  m_Socket4 = 0;
-  m_SocketAddress4 = { AF_INET, htons(port), {  } };
-
-  m_IsListening = false;
-  
-  m_ConnectedClients = 0;
-
+TcpServer::TcpServer(const char* ip, unsigned short port):
+m_Port(port), m_Socket4(0),
+m_SocketAddress4{ AF_INET, htons(port), {  } },
+m_ClientAddressSize(sizeof(struct sockaddr)),
+m_ConnectedClients(0),
+m_IsListening(false),
+m_AcceptThread(0)
+{
   memset(m_Sockets, -1, sizeof(m_Sockets));
   memset(m_Clients, 0, sizeof(m_Clients));
-  return inet_aton(ip, &(m_SocketAddress4.sin_addr));
+  if (!inet_aton(ip, &(m_SocketAddress4.sin_addr))) perror("Invalid IP address");
 }
 
 void TcpServer::Listen() {
   int optvalTrue = 1;
 
-  char readBuffer[TCP_BUF_SIZE];
-  char writeBuffer[TCP_BUF_SIZE];
-  memset(readBuffer, 0, TCP_BUF_SIZE);
-  memset(writeBuffer, 0, TCP_BUF_SIZE);
+  char readBuffer[BUF_SIZE];
+  char writeBuffer[BUF_SIZE];
+  memset(readBuffer, 0, BUF_SIZE);
+  memset(writeBuffer, 0, BUF_SIZE);
 
   m_Socket4 = socket(AF_INET, SOCK_STREAM, 0);
   if (m_Socket4 < 0) {
@@ -74,7 +82,14 @@ void TcpServer::Listen() {
 
   printf("TCPserver listening on %s:%d\n", inet_ntoa(m_SocketAddress4.sin_addr), ntohs(m_SocketAddress4.sin_port));
   
-  int threadCreation = pthread_create(&m_AcceptThread, NULL, pvt_AcceptLoop, NULL);
+  acceptargs_t accepterArguments = { 
+    &m_ConnectedClients,
+    &m_Socket4, &m_ClientAddress,
+    &m_ClientAddressSize,
+    m_Sockets, m_Clients
+  };
+
+  int threadCreation = pthread_create(&m_AcceptThread, NULL, Server::AcceptLoop, &accepterArguments);
   switch (threadCreation) {
     case 0:
       //thread started successfully
@@ -108,7 +123,7 @@ void TcpServer::Listen() {
       if (m_Sockets[i].revents & POLLIN) {
         //ready to receive from device
 
-        ssize_t bytesRead = read(m_Sockets[i].fd, readBuffer, TCP_BUF_SIZE);
+        ssize_t bytesRead = read(m_Sockets[i].fd, readBuffer, BUF_SIZE);
         if (bytesRead > 0) {
           if (!strncmp(readBuffer, FPX_INCOMING, strlen(FPX_INCOMING))) {
             char* cleanMsg = (char*)fpx_substr_replace(readBuffer, FPX_INCOMING, "");
@@ -120,7 +135,7 @@ void TcpServer::Listen() {
                   memset(temp, 0, sizeof(temp));
                   sprintf(writeBuffer, "\nHere is a list of connected clients (%d/%d):\n\n", m_ConnectedClients, MAX_CONNECTIONS);
                   short k=1;
-                  for (client& cnt : m_Clients) {
+                  for (ClientData& cnt : m_Clients) {
                     if (*cnt.Name != 0) {
                       sprintf(temp, "%s (%d)", cnt.Name, k);
                       if (k==i)
@@ -153,7 +168,7 @@ void TcpServer::Listen() {
                   else {
                     const char* args = fpx_substr_replace(cleanMsg, "!pm ", "");
                     const char* argsCpy = args;
-                    char recIDchars[4], message[TCP_BUF_SIZE], messageCpy[TCP_BUF_SIZE];
+                    char recIDchars[4], message[BUF_SIZE], messageCpy[BUF_SIZE];
                     int recID;
 
                     memcpy(recIDchars, args, (strspn(args, "0123456789") > 4) ? 4 : strspn(args, "0123456789"));
@@ -164,8 +179,8 @@ void TcpServer::Listen() {
                     else {
                       args++;
                       sprintf(message, "Private from [%s (%d)]: ", m_Clients[i-1].Name, i);
-                      memcpy(messageCpy, message, TCP_BUF_SIZE);
-                      snprintf(message, TCP_BUF_SIZE, "%s%s\n", messageCpy, args);
+                      memcpy(messageCpy, message, BUF_SIZE);
+                      snprintf(message, BUF_SIZE, "%s%s\n", messageCpy, args);
                       write(m_Sockets[recID].fd, message, strlen(message));
                       free((char*)argsCpy);
                     }
@@ -196,7 +211,7 @@ void TcpServer::Listen() {
           if(!strncmp(readBuffer, FPX_DISCONNECT, strlen(FPX_DISCONNECT))) {
             pvt_HandleDisconnect(m_Sockets[i], i);
             j+=1;
-            memset(readBuffer, 0, TCP_BUF_SIZE);
+            memset(readBuffer, 0, BUF_SIZE);
             continue;
           } else
 
@@ -211,12 +226,12 @@ void TcpServer::Listen() {
           } else
           if (!strncmp(readBuffer, FPX_ECHO, strlen(FPX_ECHO))) {
             const char* cleanMsg = fpx_substr_replace(readBuffer, FPX_ECHO, "");
-            snprintf(writeBuffer, TCP_BUF_SIZE, "%s", cleanMsg);
+            snprintf(writeBuffer, BUF_SIZE, "%s", cleanMsg);
             write(m_Sockets[i].fd, writeBuffer, strlen(writeBuffer));
-            memset(writeBuffer, 0, TCP_BUF_SIZE);
+            memset(writeBuffer, 0, BUF_SIZE);
           }
 
-          memset(readBuffer, 0, TCP_BUF_SIZE);
+          memset(readBuffer, 0, BUF_SIZE);
           handled = 1;
 
         } else {
@@ -241,6 +256,7 @@ void TcpServer::Listen() {
   }
 
   pthread_kill(m_AcceptThread, SIGTERM);
+  pthread_join(m_AcceptThread, NULL);
 
   return;
 }
@@ -254,42 +270,26 @@ void TcpServer::Close() {
   return;
 }
 
-void* TcpServer::pvt_AcceptLoop(void*) {
-  const char welcomeMessage[] = "Welcome to fpx_TCP! :)\nSend '!help' for a list of commands.\n\n";
-  while (1) {
-    if (m_ConnectedClients < MAX_CONNECTIONS) {
-      int client = accept(m_Socket4, &m_ClientAddress, &m_ClientAddressSize);
-      if (client < 0) {
-        close(client);
-        continue;
-      }
-      short i = -1;
-      for (pollfd& socket : m_Sockets) {
-        if (socket.fd == -1) {
-          socket = { client, POLLIN, 0 };
-          m_Clients[i] = { "Anonymous" };
-          m_ConnectedClients++;
-          printf("A new client (%d) has connected!\n", i+1);
-          write(client, welcomeMessage, sizeof(welcomeMessage));
-          break;
-        }
-        i++;
-      }
-    }
-  }
-  return NULL;
-}
-
-bool TcpServer::pvt_DropConnection() {
-  return 0;
-}
-
 void TcpServer::pvt_HandleDisconnect(pollfd& client, short& clientNumber) {
   m_ConnectedClients--;
   close(client.fd);
   printf("[%s (%d)] disconnected.\n", m_Clients[clientNumber-1].Name, clientNumber);
   client = { -1, -1, 0 };
   memset(&m_Clients[clientNumber-1], 0, sizeof(m_Clients[clientNumber-1]));
+}
+
+}
+
+namespace fpx {
+
+HttpServer::HttpServer(const char* ip, unsigned short port):
+  TcpServer(ip, port),
+  m_ResThreadsBusyPtr((char*)calloc(1, 1))
+{}
+HttpServer::~HttpServer() { free(m_ResThreadsBusyPtr); }
+
+void HttpServer::Listen() {
+  char readBuffer[BUF_SIZE];
 }
 
 }
