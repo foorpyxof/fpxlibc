@@ -17,17 +17,30 @@ extern "C" {
   #include "fpx_string/fpx_string.h"
 }
 
+
 #endif // __FPX_COMPILE_DEFAULT
+
+using namespace fpx;
 
 #if defined __FPX_COMPILE_TCP_SERVER || defined __FPX_COMPILE_HTTP_SERVER
   #include "fpx_networking/fpx_server.h"
 #endif // __FPX_COMPILE_TCP_SERVER || __FPX_COMPILE_HTTP_SERVER
 
+#ifdef __FPX_COMPILE_HTTP_SERVER
+  Server::http_response_t RootCallback(Server::http_request_t*) {
+    printf("HELLO FROM THE CALLBACK\n");
+  }
+#endif // __FPX_COMPILE_HTTP_SERVER
+
 #ifdef __FPX_COMPILE_TCP_CLIENT
   #include "fpx_networking/fpx_client.h"
-#endif // __FPX_COMPILE_TCP_CLIENT
 
-using namespace fpx;
+  void ReadCallback(const char* theMessage) {
+    printf("%s", theMessage);
+    fflush(stdout);
+  }
+
+#endif // __FPX_COMPILE_TCP_CLIENT
 
 int main(int argc, const char** argv) {
 
@@ -181,11 +194,6 @@ int main(int argc, const char** argv) {
 
   #ifdef __FPX_COMPILE_TCP_CLIENT
 
-  void ReadCallback(const char* theMessage) {
-    printf("%s", theMessage);
-    fflush(stdout);
-  }
-
   TcpClient::Setup("127.0.0.1", 9999);
   try {
     // if string is empty, username is 'Anonymous'.
@@ -207,7 +215,9 @@ int main(int argc, const char** argv) {
 ////////////////////////////////////////////////////////
 
   #ifdef __FPX_COMPILE_HTTP_SERVER
-  HttpServer httpServ("0.0.0.0");
+  HttpServer httpServ("0.0.0.0", 9999);
+  httpServ.CreateEndpoint("/", 1, RootCallback);
+  httpServ.Listen(HttpServer::ServerType::Http);
   #endif // __FPX_COMPILE_HTTP_SERVER
 
 ////////////////////////////////////////////////////////
