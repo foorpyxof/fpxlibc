@@ -1,15 +1,50 @@
+////////////////////////////////////////////////////////////////
+//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
+//  Author: Erynn 'foorpyxof' Scholtes                        //
+////////////////////////////////////////////////////////////////
+
 #define EMPTY_LINE std::cout << std::endl;
 
+#include <unistd.h>
 #include "fpx_cpp-utils/fpx_cpp-utils.h"
+
+#ifdef __FPX_COMPILE_DEFAULT
+
 #include "fpx_linkedlist/fpx_linkedlist.h"
 #include "fpx_vector/fpx_vector.h"
+
 extern "C" {
   #include "fpx_string/fpx_string.h"
 }
 
+
+#endif // __FPX_COMPILE_DEFAULT
+
 using namespace fpx;
 
+#if defined __FPX_COMPILE_TCP_SERVER || defined __FPX_COMPILE_HTTP_SERVER
+  #include "fpx_networking/fpx_server.h"
+#endif // __FPX_COMPILE_TCP_SERVER || __FPX_COMPILE_HTTP_SERVER
+
+#ifdef __FPX_COMPILE_HTTP_SERVER
+  Server::http_response_t RootCallback(Server::http_request_t*) {
+    printf("HELLO FROM THE CALLBACK\n");
+  }
+#endif // __FPX_COMPILE_HTTP_SERVER
+
+#ifdef __FPX_COMPILE_TCP_CLIENT
+  #include "fpx_networking/fpx_client.h"
+
+  void ReadCallback(const char* theMessage) {
+    printf("%s", theMessage);
+    fflush(stdout);
+  }
+
+#endif // __FPX_COMPILE_TCP_CLIENT
+
 int main(int argc, const char** argv) {
+
+  #ifdef __FPX_COMPILE_DEFAULT
 
   std::cout << "Starting exception tests:\n" << std::endl;
 
@@ -135,15 +170,58 @@ int main(int argc, const char** argv) {
 
   v2.PushBack(v3);
 
-  for (char& obj : v2) std::cout << obj; // expect: v3 appended to v2
+  for (char& obj : v3) std::cout << obj; // expect: v3 appended to v2
   std::cout << std::endl;
 
+
   EMPTY_LINE
+  
+  #endif // __FPX_COMPILE_DEFAULT
 
-  // EMPTY_LINE
+////////////////////////////////////////////////////////
 
-  // std::cout << fpx_math_ceiling(1.12) << std::endl;
+  #ifdef __FPX_COMPILE_TCP_SERVER
+  TcpServer tcpServ("0.0.0.0", 9999);
 
+  try {
+    tcpServ.Listen();
+  } catch (NetException& exc) {
+    exc.Print();
+  }
+  #endif // __FPX_COMPILE_TCP_SERVER
+
+////////////////////////////////////////////////////////
+
+  #ifdef __FPX_COMPILE_TCP_CLIENT
+
+  TcpClient::Setup("127.0.0.1", 9999);
+  try {
+    // if string is empty, username is 'Anonymous'.
+    // Also, a maximum of 16 characters is enforced by both the server and this specific client.
+    TcpClient::Connect(TcpClient::Mode::Interactive, ReadCallback, "testUser");
+  } catch (Exception& exc) {
+    exc.Print();
+  }
+
+  // simple way to send messages when Mode::Background is selected
+  char sendbuf[32];
+  while (1) {
+    memset(sendbuf, 0, 32);
+    fgets(sendbuf, sizeof(sendbuf), stdin);
+    TcpClient::SendRaw(sendbuf);
+  }
+  #endif // __FPX_COMPILE_TCP_CLIENT
+  
+////////////////////////////////////////////////////////
+
+  #ifdef __FPX_COMPILE_HTTP_SERVER
+  HttpServer httpServ("0.0.0.0", 9999);
+  httpServ.CreateEndpoint("/", 1, RootCallback);
+  httpServ.Listen(HttpServer::ServerType::Http);
+  #endif // __FPX_COMPILE_HTTP_SERVER
+
+////////////////////////////////////////////////////////
+  
   return 0;
 
 }
