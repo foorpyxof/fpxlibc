@@ -27,8 +27,14 @@ using namespace fpx;
 #endif // __FPX_COMPILE_TCP_SERVER || __FPX_COMPILE_HTTP_SERVER
 
 #ifdef __FPX_COMPILE_HTTP_SERVER
-  Server::http_response_t RootCallback(Server::http_request_t*) {
-    printf("HELLO FROM THE CALLBACK\n");
+  HttpServer::http_response_t* RootCallback(HttpServer::http_request_t*) {
+    HttpServer::http_response_t* res = (HttpServer::http_response_t*)malloc(sizeof(HttpServer::http_response_t));
+    res->SetCode("200");
+    res->SetStatus("OK");
+    res->SetHeaders("Content-Type: application/json\r\n");
+    res->SetPayload("{\"Key\": \"Value\"}");
+
+    return res;
   }
 #endif // __FPX_COMPILE_HTTP_SERVER
 
@@ -216,7 +222,8 @@ int main(int argc, const char** argv) {
 
   #ifdef __FPX_COMPILE_HTTP_SERVER
   HttpServer httpServ("0.0.0.0", 9999);
-  httpServ.CreateEndpoint("/", 1, RootCallback);
+  httpServ.SetDefaultHeaders("Server: fpxHTTP\r\n");
+  httpServ.CreateEndpoint("/", HttpServer::GET, RootCallback);
   httpServ.Listen(HttpServer::ServerType::Http);
   #endif // __FPX_COMPILE_HTTP_SERVER
 

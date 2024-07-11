@@ -1,0 +1,5 @@
+# To do:
+
+- Add keepalive to HTTPserver
+- Add custom 404 page compatibility
+- finish the HTTPserver lel

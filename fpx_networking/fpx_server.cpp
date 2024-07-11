@@ -6,7 +6,7 @@
 #include "fpx_server.h"
 
 // loose functions declared here
-namespace fpx::Server {
+namespace fpx::ServerProperties {
 
 void* TcpAcceptLoop(void* arguments) {
   tcp_acceptargs_t* args = (tcp_acceptargs_t*)arguments;
@@ -36,23 +36,12 @@ void* TcpAcceptLoop(void* arguments) {
 
 void* HttpProcessingThread(void* threadpack) {
   // printf("An HTTP-processing thread has started!\n");
-  http_threadpackage_t* package = (http_threadpackage_t*)threadpack;
+  HttpServer::http_threadpackage_t* package = (HttpServer::http_threadpackage_t*)threadpack;
 
   char readBuffer[FPX_HTTP_READ_BUF];
   char writeBuffer[FPX_HTTP_WRITE_BUF];
-
-  method_mapper_t methodMap[] = {
-    { GET, HandleGet },
-    { HEAD, HandleHead },
-    { POST, HandlePost },
-    { PUT, HandlePut },
-    { DELETE, HandleDelete },
-    { CONNECT, HandleConnect },
-    { OPTIONS, HandleOptions },
-    { TRACE, HandleTrace },
-    { PATCH, HandlePatch },
-    { NONE, HandleUnknown }
-  };
+  // char headWriteBuffer[FPX_HTTP_WRITE_BUF*(1/4)];
+  // char bodyWriteBuffer[FPX_HTTP_WRITE_BUF*(3/4)];
 
   while (1) {
     pthread_mutex_lock(&package->TalkingStick);
@@ -60,13 +49,11 @@ void* HttpProcessingThread(void* threadpack) {
 
     printf("SERVING CLIENT\n");
 
-    char defaultHeaders[] = "Server: fpxHTTP\r\n";
-
     char method[8];
-
     long totalWritten;
+    bool heap = false;
 
-    http_endpoint_t* endpointPtr = nullptr;
+    HttpServer::http_endpoint_t* endpointPtr = nullptr;
     pollfd client = { package->ClientFD, POLLIN, 0 };
 
     while(1) {
@@ -76,118 +63,77 @@ void* HttpProcessingThread(void* threadpack) {
       else if (result == -1)
         perror("Could not poll client socket");
             
-      ssize_t amountRead = 0;
-      do {
-        amountRead = recv(package->ClientFD, readBuffer, FPX_HTTP_READ_BUF, 0);
-      } while (amountRead == FPX_HTTP_READ_BUF);
+      ssize_t amountRead = recv(package->ClientFD, readBuffer, FPX_HTTP_READ_BUF, 0);
       
-      http_request_t request;
-      http_response_t response;
-      sscanf(readBuffer, "%s %255s %15s", method, request.URI, request.Version);
-      request.Method = ParseMethod(method);
-
-      if ((strcmp(request.Version, "HTTP/1.1"))) {
-        response.Status = (char*)malloc(27);
-        response.Headers = (char*)malloc(strlen(defaultHeaders)+47);
-        response.Body = (char*)malloc(41);
-
-        sprintf(response.Version, "HTTP/1.1");
-        sprintf(response.Code, "505");
-        sprintf(response.Status, "HTTP Version Not Supported");
-        sprintf(response.Headers, "%sContent-Length: 40\r\nContent-Type: text/plain\r\n", defaultHeaders);
-        sprintf(response.Body, "HTTP version not supported. Try HTTP/1.1");
+      if (amountRead == FPX_HTTP_READ_BUF) {
+        // request payload too large.
+        // send error 413 'Payload Too Large'
       }
 
-      if (!endpointPtr) {
-        for (short i=0; (!endpointPtr) && i<FPX_HTTP_ENDPOINTS; i++) {
-          if (!strcmp(package->Endpoints[i].URI, request.URI)) {
-            endpointPtr = &package->Endpoints[i];
-            break;
+      HttpServer::http_request_t request;
+      HttpServer::http_response_t* response = nullptr;
+      sscanf(readBuffer, "%s %255s %15s", method, request.URI, request.Version);
+      request.Method = HttpServer::ParseMethod(method);
+
+      // printf("%s\n", request.Version);
+      if ((strcmp(request.Version, "HTTP/1.1"))) {
+        response = &package->Caller->Response505;
+      }
+      else {
+
+        if (!endpointPtr) {
+          for (short i=0; (!endpointPtr) && i<FPX_HTTP_ENDPOINTS; i++) {
+            if (!strcmp(package->Endpoints[i].URI, request.URI)) {
+              endpointPtr = &package->Endpoints[i];
+              break;
+            }
           }
         }
-      }
-      if (!endpointPtr) {
-        // 404 not found
-        break;
-      }
+        if (!endpointPtr) {
+          // 404 not found
+          response = &package->Caller->Response404;
+          goto sendit;
+        }
 
-      if (request.Method & endpointPtr->AllowedMethods) {
-        endpointPtr->Callback(&request);
-      }
+        if (request.Method & endpointPtr->AllowedMethods) {
+          heap = true;
+          response = endpointPtr->Callback(&request);
+        }
 
-      short amountWritten = snprintf(writeBuffer, FPX_HTTP_WRITE_BUF, "%s %s %s\r\n%s\r\n%s",
-        response.Version,
-        response.Code,
-        response.Status,
-        response.Headers,
-        response.Body
+      }
+      
+      sendit:
+
+      sprintf(response->Version, "HTTP/1.1");
+
+      short amountWritten = snprintf(writeBuffer, FPX_HTTP_WRITE_BUF, "%s %s %s\r\n%s%s\r\n%s",
+        response->Version,
+        response->Code,
+        response->Status,
+        package->Caller->GetDefaultHeaders(),
+        response->Headers,
+        response->Payload
       );
       totalWritten += amountWritten;
-      // if (amountWritten < HTTP_WRITE_BUF) break;
-      break;
+      if (amountWritten < FPX_HTTP_WRITE_BUF) {
+        if (heap) {
+          free(response->Headers);
+          free(response->Payload);
+          free(response);
+        }
+        break;
+      }
 
       // switch (request.Method);
 
     }
+
     send(package->ClientFD, writeBuffer, totalWritten, 0);
 
     pthread_mutex_unlock(&package->TalkingStick);
   }
 
   return NULL;
-}
-
-HttpMethod ParseMethod(const char* method) {
-  if (!strcmp(method, "GET")) return GET;
-  if (!strcmp(method, "HEAD")) return HEAD;
-  if (!strcmp(method, "POST")) return POST;
-  if (!strcmp(method, "PUT")) return PUT;
-  if (!strcmp(method, "DELETE")) return DELETE;
-  if (!strcmp(method, "CONNECT")) return CONNECT;
-  if (!strcmp(method, "OPTIONS")) return OPTIONS;
-  if (!strcmp(method, "TRACE")) return TRACE;
-  if (!strcmp(method, "PATCH")) return PATCH;
-  return NONE;
-}
-
-bool HandleGet(int socket, http_request_t* request) {
-  return true;
-}
-
-bool HandleHead(int socket, http_request_t* request) {
-  return true;
-}
-
-bool HandlePost(int socket, http_request_t* request) {
-  return true;
-}
-
-bool HandlePut(int socket, http_request_t* request) {
-  return true;
-}
-
-bool HandleDelete(int socket, http_request_t* request) {
-  return true;
-}
-
-bool HandleConnect(int socket, http_request_t* request) {
-  return true;
-}
-
-bool HandleOptions(int socket, http_request_t* request) {
-  return true;
-}
-
-bool HandleTrace(int socket, http_request_t* request) {
-  return true;
-}
-
-bool HandlePatch(int socket, http_request_t* request) {
-  return true;
-}
-
-bool HandleUnknown(int socket, http_request_t* request) {
-  return true;
 }
 
 }
@@ -245,7 +191,7 @@ void TcpServer::Listen() {
     m_Sockets, m_Clients
   };
 
-  int threadCreation = pthread_create(&m_AcceptThread, NULL, Server::TcpAcceptLoop, &accepterArguments);
+  int threadCreation = pthread_create(&m_AcceptThread, NULL, ServerProperties::TcpAcceptLoop, &accepterArguments);
   switch (threadCreation) {
     case 0:
       //thread started successfully
@@ -461,12 +407,40 @@ namespace fpx {
 
 HttpServer::HttpServer(const char* ip, unsigned short port):
   TcpServer(ip, port), m_EndpointCount(0),
-  m_RequestHandlers((Server::http_threadpackage_t*)calloc(FPX_HTTP_THREADS, sizeof(Server::http_threadpackage_t))),
-  // m_WebsocketThreads((Server::threadpackage_t*)calloc(FPX_WEBSOCKETS_THREADS, sizeof(Server::threadpackage_t))),
-  m_Endpoints((Server::http_endpoint_t*)calloc(FPX_HTTP_ENDPOINTS, sizeof(Server::http_endpoint_t)))
-  {}
+  m_RequestHandlers((http_threadpackage_t*)calloc(FPX_HTTP_THREADS, sizeof(http_threadpackage_t))),
+  // m_WebsocketThreads((ServerProperties::threadpackage_t*)calloc(FPX_WEBSOCKETS_THREADS, sizeof(ServerProperties::threadpackage_t))),
+  m_Endpoints((http_endpoint_t*)calloc(FPX_HTTP_ENDPOINTS, sizeof(http_endpoint_t))),
+  m_DefaultHeaders(nullptr),
+  Response404{  },
+  Response505{  }
+  {
+    Response404.SetCode("404");
+    Response404.SetStatus("Not Found");
+    Response404.SetHeaders("Content-Type: text/plain\r\n");
+    Response404.SetPayload("Endpoint not found.");
 
-void HttpServer::CreateEndpoint(const char* uri,short methods, Server::http_callback_t endpointCallback) {
+    Response505.SetCode("505");
+    Response505.SetStatus("HTTP Version Not Supported");
+    Response505.SetHeaders("Content-Type: text/plain\r\n");
+    Response505.SetPayload("HTTP version not supported. Try HTTP/1.1");
+  }
+
+const char* HttpServer::GetDefaultHeaders() {
+  return m_DefaultHeaders;
+}
+
+void HttpServer::SetDefaultHeaders(const char* headers) {
+  if (m_DefaultHeaders) {
+    free(m_DefaultHeaders);
+  }
+  if(int len = fpx_getstringlength(headers)) {
+    m_DefaultHeaders = (char*)malloc(len);
+    memcpy(m_DefaultHeaders, headers, len);
+  }
+  return;
+}
+
+void HttpServer::CreateEndpoint(const char* uri,short methods, http_callback_t endpointCallback) {
   if (m_EndpointCount == FPX_HTTP_ENDPOINTS)
     throw Exception("Maximum endpoint count reached!");
 
@@ -509,7 +483,8 @@ void HttpServer::Listen(ServerType mode) {
   // create 2 threads to handle incoming HTTP requests
   for(short i = 0; i<FPX_HTTP_THREADS; i++) {
     m_RequestHandlers[i].Endpoints = m_Endpoints;
-    pthread_create(&m_RequestHandlers[i].Thread, NULL, Server::HttpProcessingThread, &m_RequestHandlers[i]);
+    m_RequestHandlers[i].Caller = this;
+    pthread_create(&m_RequestHandlers[i].Thread, NULL, ServerProperties::HttpProcessingThread, &m_RequestHandlers[i]);
   }
 
 
@@ -553,6 +528,58 @@ void HttpServer::Close() {
   m_IsListening = false;
 
   return;
+}
+
+bool HttpServer::http_response_t::SetCode(const char* code) {
+  if(fpx_getstringlength(code) != 3) return false;
+  memcpy(this->Code, code, 4);
+  return true;
+}
+
+bool HttpServer::http_response_t::SetStatus(const char* status) {
+  if(fpx_getstringlength(status) > 31) return false;
+  memcpy(this->Status, status, 32);
+  return true;
+}
+
+bool HttpServer::http_response_t::SetHeaders(const char* headers) {
+  m_HeaderLen = fpx_getstringlength(headers);
+  if (m_HeaderLen < 1) return false;
+  char* finalHeaders = (this->Headers) ? (char*)realloc(this->Headers, m_HeaderLen+1) : (char*)malloc(m_HeaderLen+1);
+  memcpy(finalHeaders, headers, m_HeaderLen);
+  finalHeaders[m_HeaderLen] = 0;
+  this->Headers = finalHeaders;
+  return true;
+}
+
+bool HttpServer::http_response_t::SetPayload(const char* payload) {
+  int len = fpx_getstringlength(payload);
+  if (len < 1) return false;
+  char* finalPayload = (this->Payload) ? (char*)realloc(this->Payload, len) : (char*)malloc(len);
+  memcpy(finalPayload, payload, len);
+  this->Payload = finalPayload;
+
+  if (fpx_substringindex(this->Headers, "Content-Length: ") < 0) {
+    char clHeader[32];
+    sprintf(clHeader, "Content-Length: %d\r\n", len);
+    this->Headers = (char*)realloc(this->Headers, m_HeaderLen+fpx_getstringlength(clHeader));
+    memcpy(this->Headers+m_HeaderLen, clHeader, fpx_getstringlength(clHeader));
+  }
+
+  return true;
+}
+
+HttpServer::HttpMethod HttpServer::ParseMethod(const char* method) {
+  if (!strcmp(method, "GET")) return HttpServer::GET;
+  if (!strcmp(method, "HEAD")) return HttpServer::HEAD;
+  if (!strcmp(method, "POST")) return HttpServer::POST;
+  if (!strcmp(method, "PUT")) return HttpServer::PUT;
+  if (!strcmp(method, "DELETE")) return HttpServer::DELETE;
+  if (!strcmp(method, "CONNECT")) return HttpServer::CONNECT;
+  if (!strcmp(method, "OPTIONS")) return HttpServer::OPTIONS;
+  if (!strcmp(method, "TRACE")) return HttpServer::TRACE;
+  if (!strcmp(method, "PATCH")) return HttpServer::PATCH;
+  return HttpServer::NONE;
 }
 
 }
