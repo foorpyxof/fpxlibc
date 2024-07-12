@@ -141,8 +141,8 @@ typedef struct {
 
 #define FPX_HTTP_ENDPOINTS 64
 
-#define FPX_HTTP_READ_BUF 2048
-#define FPX_HTTP_WRITE_BUF 4096
+#define FPX_HTTP_READ_BUF 4096
+#define FPX_HTTP_WRITE_BUF 8192
 
 #define FPX_HTTP_DEFAULTPORT 8080
 
@@ -169,29 +169,32 @@ class HttpServer : public TcpServer {
 
     typedef struct {
       HttpMethod Method;
-      char URI[256];
-      char Version[16];
-      short BodySize;
-      char* Body;
+      char URI[256], Version[16], Headers[1024], Body[2800];
+      char* GetHeaderValue(const char*);
     } http_request_t;
 
     typedef struct {
       public:
         char Version[16], Code[4], Status[32];
         char* Headers = nullptr;
-        char* Payload = nullptr;
+        char* Body = nullptr;
 
         bool SetCode(const char*);
         bool SetStatus(const char*);
         bool SetHeaders(const char*);
-        bool SetPayload(const char*);
+        bool SetBody(const char*);
+
+        int GetHeaderLength();
+        int GetBodyLength();
+
+        int AddHeader(const char*);
 
       private:
-        int m_HeaderLen;
+        int m_HeaderLen = 0, m_BodyLen = 0;
     } http_response_t;
 
     typedef bool (*http_handler_method)(int, http_request_t*);
-    typedef http_response_t* (*http_callback_t)(http_request_t*);
+    typedef void (*http_callback_t)(http_request_t*, http_response_t*);
 
     typedef struct {
       HttpMethod Name;
@@ -220,7 +223,11 @@ class HttpServer : public TcpServer {
       http_endpoint_t* Endpoints;
     } http_threadpackage_t;
 
+    http_response_t Response101;
     http_response_t Response404;
+    http_response_t Response405;
+    http_response_t Response413;
+    http_response_t Response426;
     http_response_t Response505;
   public:
     const char* GetDefaultHeaders();

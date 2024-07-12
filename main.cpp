@@ -8,17 +8,12 @@
 #include <unistd.h>
 #include "fpx_cpp-utils/fpx_cpp-utils.h"
 
-#ifdef __FPX_COMPILE_DEFAULT
-
-#include "fpx_linkedlist/fpx_linkedlist.h"
-#include "fpx_vector/fpx_vector.h"
-
 extern "C" {
   #include "fpx_string/fpx_string.h"
 }
 
-
-#endif // __FPX_COMPILE_DEFAULT
+#include "fpx_linkedlist/fpx_linkedlist.h"
+#include "fpx_vector/fpx_vector.h"
 
 using namespace fpx;
 
@@ -27,14 +22,24 @@ using namespace fpx;
 #endif // __FPX_COMPILE_TCP_SERVER || __FPX_COMPILE_HTTP_SERVER
 
 #ifdef __FPX_COMPILE_HTTP_SERVER
-  HttpServer::http_response_t* RootCallback(HttpServer::http_request_t*) {
-    HttpServer::http_response_t* res = (HttpServer::http_response_t*)malloc(sizeof(HttpServer::http_response_t));
+  void UserAgentCallback(HttpServer::http_request_t* req, HttpServer::http_response_t* res) {
+    int userAgentIndex = fpx_substringindex(req->Headers, "User-Agent: ") + 12;
+    
     res->SetCode("200");
     res->SetStatus("OK");
-    res->SetHeaders("Content-Type: application/json\r\n");
-    res->SetPayload("{\"Key\": \"Value\"}");
+    res->SetHeaders("Content-Type: text/plain\r\n");
+    if (userAgentIndex > -1) {
+      char tempBuf[256];
+      snprintf(tempBuf, strcspn(&req->Headers[userAgentIndex], "\r\n")+1, "%s", &req->Headers[userAgentIndex]);
+      res->SetBody(tempBuf);
+    }
+  }
 
-    return res;
+  void RootCallback(HttpServer::http_request_t* req, HttpServer::http_response_t* res) {
+    res->SetCode("200");
+    res->SetStatus("OK");
+    res->SetHeaders("Content-Type: text/plain\r\n");
+    res->SetBody("Hello from fpxHTTP :D");
   }
 #endif // __FPX_COMPILE_HTTP_SERVER
 
@@ -224,6 +229,7 @@ int main(int argc, const char** argv) {
   HttpServer httpServ("0.0.0.0", 9999);
   httpServ.SetDefaultHeaders("Server: fpxHTTP\r\n");
   httpServ.CreateEndpoint("/", HttpServer::GET, RootCallback);
+  httpServ.CreateEndpoint("/useragent", HttpServer::GET | HttpServer::HEAD, UserAgentCallback);
   httpServ.Listen(HttpServer::ServerType::Http);
   #endif // __FPX_COMPILE_HTTP_SERVER
 

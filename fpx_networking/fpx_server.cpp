@@ -38,7 +38,7 @@ void* HttpProcessingThread(void* threadpack) {
   // printf("An HTTP-processing thread has started!\n");
   HttpServer::http_threadpackage_t* package = (HttpServer::http_threadpackage_t*)threadpack;
 
-  char readBuffer[FPX_HTTP_READ_BUF];
+  char readBuffer[FPX_HTTP_READ_BUF+1];
   char writeBuffer[FPX_HTTP_WRITE_BUF];
   // char headWriteBuffer[FPX_HTTP_WRITE_BUF*(1/4)];
   // char bodyWriteBuffer[FPX_HTTP_WRITE_BUF*(3/4)];
@@ -46,41 +46,62 @@ void* HttpProcessingThread(void* threadpack) {
   while (1) {
     pthread_mutex_lock(&package->TalkingStick);
     pthread_cond_wait(&package->Condition, &package->TalkingStick);
-
-    printf("SERVING CLIENT\n");
-
+    
     char method[8];
     long totalWritten;
-    bool heap = false;
+    char closeWhenDone = 0;
 
     HttpServer::http_endpoint_t* endpointPtr = nullptr;
     pollfd client = { package->ClientFD, POLLIN, 0 };
-
     while(1) {
-      int result = poll(&client, 1, 1);
+      int result = poll(&client, 1, 7000);
       if (result == 0)
         break;
-      else if (result == -1)
+      else
+      if (result == -1)
         perror("Could not poll client socket");
             
-      ssize_t amountRead = recv(package->ClientFD, readBuffer, FPX_HTTP_READ_BUF, 0);
+      ssize_t amountRead = recv(package->ClientFD, readBuffer, FPX_HTTP_READ_BUF+1, 0);
+      if (!(amountRead)) break;
+      HttpServer::http_request_t request;
+      HttpServer::http_response_t response;
       
-      if (amountRead == FPX_HTTP_READ_BUF) {
-        // request payload too large.
-        // send error 413 'Payload Too Large'
+      HttpServer::http_response_t tempResponse = {  };
+      
+
+      if (amountRead == FPX_HTTP_READ_BUF+1) {
+        tempResponse = package->Caller->Response413;
+        response = tempResponse;
+        closeWhenDone = 1;
+        goto buildFromPreset;
       }
 
-      HttpServer::http_request_t request;
-      HttpServer::http_response_t* response = nullptr;
-      sscanf(readBuffer, "%s %255s %15s", method, request.URI, request.Version);
+      int firstLineRead, headerLength;
+      sscanf(readBuffer, "%s %255s %15s\r\n%n", method, request.URI, request.Version, &firstLineRead);
+      for(int i = firstLineRead; i < 1024+firstLineRead;) {
+        int newRead;
+        char tempBuf[256];
+        if (sscanf(&readBuffer[i], "%255[^\r\n]\r\n%n", tempBuf, &newRead) > 0) {
+          if (1024 - strlen(request.Headers) < newRead) break; //header section too large
+          memcpy(request.Headers+(i-firstLineRead), &readBuffer[i], newRead);
+          memset(tempBuf, 0, sizeof(tempBuf));
+          i += newRead;
+          headerLength += newRead;
+        } else break;
+      }
+      memset(request.Headers+(headerLength-2), 0, 2);
+
+      int bodyRead;
+      sscanf(&readBuffer[firstLineRead+fpx_getstringlength(request.Headers)+2], "%2799s%n", request.Body, &bodyRead);
       request.Method = HttpServer::ParseMethod(method);
 
-      // printf("%s\n", request.Version);
+      printf("Serving '%s' to client.\n", request.URI);
+
       if ((strcmp(request.Version, "HTTP/1.1"))) {
-        response = &package->Caller->Response505;
+        tempResponse = package->Caller->Response505;
+        response = tempResponse;
       }
       else {
-
         if (!endpointPtr) {
           for (short i=0; (!endpointPtr) && i<FPX_HTTP_ENDPOINTS; i++) {
             if (!strcmp(package->Endpoints[i].URI, request.URI)) {
@@ -89,46 +110,91 @@ void* HttpProcessingThread(void* threadpack) {
             }
           }
         }
-        if (!endpointPtr) {
-          // 404 not found
-          response = &package->Caller->Response404;
-          goto sendit;
+        if (endpointPtr && (request.Method & endpointPtr->AllowedMethods)) {
+          endpointPtr->Callback(&request, &response);
+        } else {
+          if (endpointPtr && !(request.Method & endpointPtr->AllowedMethods)) {
+            tempResponse = package->Caller->Response405;
+          } else {
+            // 404 not found
+            tempResponse = package->Caller->Response404;
+          }
+          response = tempResponse;
         }
-
-        if (request.Method & endpointPtr->AllowedMethods) {
-          heap = true;
-          response = endpointPtr->Callback(&request);
-        }
-
       }
       
-      sendit:
+      buildFromPreset:
 
-      sprintf(response->Version, "HTTP/1.1");
+      sprintf(response.Version, "HTTP/1.1");
 
-      short amountWritten = snprintf(writeBuffer, FPX_HTTP_WRITE_BUF, "%s %s %s\r\n%s%s\r\n%s",
-        response->Version,
-        response->Code,
-        response->Status,
-        package->Caller->GetDefaultHeaders(),
-        response->Headers,
-        response->Payload
-      );
-      totalWritten += amountWritten;
-      if (amountWritten < FPX_HTTP_WRITE_BUF) {
-        if (heap) {
-          free(response->Headers);
-          free(response->Payload);
-          free(response);
-        }
-        break;
+      if (tempResponse.Headers) {
+        response.Headers = (char*)malloc(tempResponse.GetHeaderLength());
+        // printf("response.Headers: 0x%x\n", response.Headers);
+        memcpy(response.Headers, tempResponse.Headers, tempResponse.GetHeaderLength());
+      }
+      if (tempResponse.Body) {
+        response.Body = (char*)malloc(tempResponse.GetBodyLength());
+        // printf("response.Body: 0x%x\n", response.Body);
+        memcpy(response.Body, tempResponse.Body, tempResponse.GetBodyLength());
       }
 
-      // switch (request.Method);
+      char* connectionHeader = request.GetHeaderValue("Connection");
 
+      // printf("Checking keepalive\n");
+      if (!strcmp(connectionHeader, "close")) {
+        // printf("Found 'close'\n");
+        closeWhenDone = 1;
+        response.AddHeader("Connection: close");
+      }
+      else {
+        // printf("Found 'keep-alive'\n");
+        response.AddHeader("Connection: keep-alive");
+        response.AddHeader("Keep-Alive: timeout=7");
+      }
+
+      free(connectionHeader);
+
+      short amountWritten;
+      char tempHeaderBuf[256];
+      sprintf(tempHeaderBuf, "Content-Length: %d", response.GetBodyLength());
+      response.AddHeader(tempHeaderBuf);
+      memset(tempHeaderBuf, 0, 256);
+
+      if (request.Method & HttpServer::HttpMethod::HEAD) {
+        amountWritten = snprintf(writeBuffer, FPX_HTTP_WRITE_BUF, "%s %s %s\r\n%s%s\r\n",
+          response.Version,
+          response.Code,
+          response.Status,
+          package->Caller->GetDefaultHeaders(),
+          response.Headers
+        );
+      } else {
+        amountWritten = snprintf(writeBuffer, FPX_HTTP_WRITE_BUF, "%s %s %s\r\n%s%s\r\n%s",
+          response.Version,
+          response.Code,
+          response.Status,
+          package->Caller->GetDefaultHeaders(),
+          response.Headers,
+          response.Body
+        );
+      }
+
+      if (response.Headers) free(response.Headers);
+      if (response.Body) free(response.Body);
+      memset(&request, 0, sizeof(request));
+      memset(&response, 0, sizeof(response));
+      totalWritten += amountWritten;
+
+      send(package->ClientFD, writeBuffer, totalWritten, 0);
+      endpointPtr = nullptr;
+
+      memset(readBuffer, 0, sizeof(readBuffer));
+      memset(writeBuffer, 0, sizeof(writeBuffer));
+      
+      if (closeWhenDone) break;
     }
 
-    send(package->ClientFD, writeBuffer, totalWritten, 0);
+    close(package->ClientFD);
 
     pthread_mutex_unlock(&package->TalkingStick);
   }
@@ -411,18 +477,37 @@ HttpServer::HttpServer(const char* ip, unsigned short port):
   // m_WebsocketThreads((ServerProperties::threadpackage_t*)calloc(FPX_WEBSOCKETS_THREADS, sizeof(ServerProperties::threadpackage_t))),
   m_Endpoints((http_endpoint_t*)calloc(FPX_HTTP_ENDPOINTS, sizeof(http_endpoint_t))),
   m_DefaultHeaders(nullptr),
+  Response101{  },
   Response404{  },
+  Response405{  },
+  Response413{  },
+  Response426{  },
   Response505{  }
   {
+    Response101.SetCode("101");
+    Response101.SetStatus("Switching Protocols");
+    Response101.SetHeaders("Connection: Upgrade\r\n");
+
+    Response413.SetCode("413");
+    Response413.SetStatus("Payload Too Large");
+
     Response404.SetCode("404");
     Response404.SetStatus("Not Found");
     Response404.SetHeaders("Content-Type: text/plain\r\n");
-    Response404.SetPayload("Endpoint not found.");
+    Response404.SetBody("Endpoint not found.");
+
+    Response405.SetCode("405");
+    Response405.SetStatus("Method Not Allowed");
+    Response405.SetHeaders("Content-Type: text/plain\r\n");
+
+    Response426.SetCode("426");
+    Response426.SetStatus("Upgrade Required");
+    Response426.SetHeaders("Connection: Upgrade\r\nContent-Type: text/plain");
 
     Response505.SetCode("505");
     Response505.SetStatus("HTTP Version Not Supported");
     Response505.SetHeaders("Content-Type: text/plain\r\n");
-    Response505.SetPayload("HTTP version not supported. Try HTTP/1.1");
+    Response505.SetBody("HTTP version not supported. Try HTTP/1.1");
   }
 
 const char* HttpServer::GetDefaultHeaders() {
@@ -497,6 +582,7 @@ void HttpServer::Listen(ServerType mode) {
     int newClient = accept(m_Socket4, &m_ClientAddress, &m_ClientAddressSize);
     for (short i=0; i < FPX_HTTP_THREADS; i++) {
       if (!pthread_mutex_trylock(&m_RequestHandlers[i].TalkingStick)) {
+        // printf("Sending client to thread %d (0-indexed)!\n", i);
         m_RequestHandlers[i].ClientFD = newClient;
         pthread_cond_signal(&m_RequestHandlers[i].Condition);
         pthread_mutex_unlock(&m_RequestHandlers[i].TalkingStick);
@@ -538,36 +624,81 @@ bool HttpServer::http_response_t::SetCode(const char* code) {
 
 bool HttpServer::http_response_t::SetStatus(const char* status) {
   if(fpx_getstringlength(status) > 31) return false;
-  memcpy(this->Status, status, 32);
+  memcpy(this->Status, status, fpx_getstringlength(status));
   return true;
 }
 
 bool HttpServer::http_response_t::SetHeaders(const char* headers) {
+  // printf("Call set!\n");
   m_HeaderLen = fpx_getstringlength(headers);
+  char* newAlloc;
   if (m_HeaderLen < 1) return false;
-  char* finalHeaders = (this->Headers) ? (char*)realloc(this->Headers, m_HeaderLen+1) : (char*)malloc(m_HeaderLen+1);
-  memcpy(finalHeaders, headers, m_HeaderLen);
-  finalHeaders[m_HeaderLen] = 0;
-  this->Headers = finalHeaders;
+  // printf("Old: %x\n", this->Headers);
+  if ((this->Headers = (this->Headers) ? (char*)realloc(this->Headers, m_HeaderLen+1) : (char*)malloc(m_HeaderLen+1)) == NULL) return false;
+  // printf("this->Headers in SetHeaders: 0x%x\n", this->Headers);
+  // printf("New: %x\n", newAlloc);
+  memcpy(this->Headers, headers, m_HeaderLen);
+  this->Headers[m_HeaderLen] = 0;
   return true;
 }
 
-bool HttpServer::http_response_t::SetPayload(const char* payload) {
-  int len = fpx_getstringlength(payload);
-  if (len < 1) return false;
-  char* finalPayload = (this->Payload) ? (char*)realloc(this->Payload, len) : (char*)malloc(len);
-  memcpy(finalPayload, payload, len);
-  this->Payload = finalPayload;
+bool HttpServer::http_response_t::SetBody(const char* body) {
+  m_BodyLen = fpx_getstringlength(body);
+  if (m_BodyLen < 1) return false;
+  this->Body = (this->Body) ? (char*)realloc(this->Body, m_BodyLen) : (char*)malloc(m_BodyLen);
+  // printf("this->Body in SetBody: 0x%x\n", this->Body);
+  memcpy(this->Body, body, m_BodyLen);
 
-  if (fpx_substringindex(this->Headers, "Content-Length: ") < 0) {
-    char clHeader[32];
-    sprintf(clHeader, "Content-Length: %d\r\n", len);
-    this->Headers = (char*)realloc(this->Headers, m_HeaderLen+fpx_getstringlength(clHeader));
-    memcpy(this->Headers+m_HeaderLen, clHeader, fpx_getstringlength(clHeader));
+  return true;
+}
+
+char* HttpServer::http_request_t::GetHeaderValue(const char* headerName) {
+  char* headerLowercase = fpx_string_to_lower(headerName);
+  char* allHeadersLowercase = fpx_string_to_lower(this->Headers);
+
+  char* returnedString;
+  
+  int foundIndex;
+  if ((foundIndex = fpx_substringindex(allHeadersLowercase, headerLowercase)) > -1) {
+    char temp[256] = { 0 };
+    int written = snprintf(temp, strcspn(this->Headers+foundIndex+fpx_getstringlength(headerName)+1, "\r\n"), "%s\r\n", this->Headers+foundIndex+fpx_getstringlength(headerName)+2);
+    returnedString = (char*)malloc(written+1);
+    // printf("returnedString in GetHeaderValue: 0x%x\n", returnedString);
+    memcpy(returnedString, temp, written);
+    returnedString[written] = 0;
+  } else {
+    return (char*)"Header not found";
   }
 
-  return true;
+  free(headerLowercase);
+  free(allHeadersLowercase);
+
+  return returnedString;
 }
+
+int HttpServer::http_response_t::GetHeaderLength() { return m_HeaderLen; }
+
+int HttpServer::http_response_t::GetBodyLength() { return m_BodyLen; }
+
+int HttpServer::http_response_t::AddHeader(const char* newHeader) {
+  // printf("Call add!\n");
+  int addedLen = fpx_getstringlength(newHeader);
+  char* newAlloc;
+  if (!this->Headers) {
+    this->Headers = (char*)malloc(fpx_getstringlength(newHeader)+2);
+    // printf("this->Headers in AddHeader: 0x%x\n", this->Headers);
+  } else
+  if (fpx_substringindex(this->Headers, newHeader) < 0) {
+    // printf("Old: %x\n", this->Headers);
+    if ((this->Headers = (char*)realloc(this->Headers, m_HeaderLen + addedLen + 2)) == NULL) return -1;
+    // printf("New: %x\n", newAlloc);
+  } else return -1;
+  memcpy(this->Headers + m_HeaderLen, newHeader, addedLen);
+  memcpy(this->Headers + m_HeaderLen + addedLen, "\r\n", 2);
+  m_HeaderLen += addedLen+2;
+  return (addedLen + 2);
+}
+
 
 HttpServer::HttpMethod HttpServer::ParseMethod(const char* method) {
   if (!strcmp(method, "GET")) return HttpServer::GET;

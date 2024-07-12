@@ -49,7 +49,7 @@ int fpx_substringindex(const char* haystack, const char* needle) {
   return -1;
 }
 
-const char* fpx_substr_replace(const char* haystack, const char* needle, const char* replacement) {
+char* fpx_substr_replace(const char* haystack, const char* needle, const char* replacement) {
   /**
    * Replaces the *first* occurence of the given "needle" string
    * within the "haystack" string with the given replacement string.
@@ -107,7 +107,7 @@ const char* fpx_substr_replace(const char* haystack, const char* needle, const c
 //   return input;
 // }
 
-const char* fpx_string_to_upper(const char* input) {
+char* fpx_string_to_upper(const char* input) {
   /**
    * Converts the whole string to its uppercase variant.
    * 
@@ -139,7 +139,7 @@ const char* fpx_string_to_upper(const char* input) {
 //   return input;
 // }
 
-const char* fpx_string_to_lower(const char* input) {
+char* fpx_string_to_lower(const char* input) {
   /**
    * Converts the whole string to its lowercase variant.
    * 
