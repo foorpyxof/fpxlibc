@@ -152,7 +152,8 @@ void* HttpProcessingThread(void* threadpack) {
         response.AddHeader("Keep-Alive: timeout=7");
       }
 
-      free(connectionHeader);
+      if (strcmp(connectionHeader, "Header not found")) free(connectionHeader); 
+
 
       short amountWritten;
       char tempHeaderBuf[256];
