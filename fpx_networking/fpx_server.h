@@ -43,8 +43,6 @@ namespace fpx::ServerProperties {
 #define FPX_BUF_SIZE 1024
 
 typedef struct {
-  int ClientFD;
-  struct sockaddr ClientDetails;
   pthread_t Thread;
   pthread_mutex_t TalkingStick;
   pthread_cond_t Condition;
@@ -149,6 +147,8 @@ typedef struct {
 #define FPX_HTTP_THREADS 2
 #define FPX_WEBSOCKETS_THREADS 2
 
+#define FPX_HTTPSERVER_VERSION "alpha:07-2024"
+
 class HttpServer : public TcpServer {
   public:
     HttpServer(const char* ip, unsigned short port = FPX_HTTP_DEFAULTPORT);
@@ -170,7 +170,7 @@ class HttpServer : public TcpServer {
     typedef struct {
       HttpMethod Method;
       char URI[256], Version[16], Headers[1024], Body[2800];
-      char* GetHeaderValue(const char*);
+      short GetHeaderValue(const char*, char*&, bool = true);
     } http_request_t;
 
     typedef struct {
@@ -219,16 +219,33 @@ class HttpServer : public TcpServer {
     } http_endpoint_t;
 
     typedef struct : ServerProperties::threadpackage_t {
+      int ClientFD;
+      struct sockaddr ClientDetails;
       HttpServer* Caller;
       http_endpoint_t* Endpoints;
     } http_threadpackage_t;
 
+    #define FPX_WEBSOCKETS_MAX_CLIENTS 8
+
+    typedef struct : ServerProperties::threadpackage_t {
+      HttpServer* Caller;
+      pollfd Clients[FPX_WEBSOCKETS_MAX_CLIENTS];
+      short ClientCount = 0;
+      void HandleDisconnect(pollfd&);
+    } websocket_threadpackage_t;
+    
+    http_threadpackage_t* RequestHandlers;
+    websocket_threadpackage_t* WebsocketThreads;
+
     http_response_t Response101;
+    http_response_t Response400;
     http_response_t Response404;
     http_response_t Response405;
     http_response_t Response413;
     http_response_t Response426;
     http_response_t Response505;
+
+    ServerType Mode;
   public:
     const char* GetDefaultHeaders();
     void SetDefaultHeaders(const char*);
@@ -239,15 +256,11 @@ class HttpServer : public TcpServer {
 
     static HttpServer::HttpMethod ParseMethod(const char* method);
 
-
   private:
     char* m_DefaultHeaders;
 
     short m_EndpointCount;
     http_endpoint_t* m_Endpoints;
-
-    http_threadpackage_t* m_RequestHandlers;
-    // ServerProperties::threadpackage_t* m_WebsocketThreads;
 };
 
 }

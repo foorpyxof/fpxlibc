@@ -227,10 +227,9 @@ int main(int argc, const char** argv) {
 
   #ifdef __FPX_COMPILE_HTTP_SERVER
   HttpServer httpServ("0.0.0.0", 9999);
-  httpServ.SetDefaultHeaders("Server: fpxHTTP\r\n");
   httpServ.CreateEndpoint("/", HttpServer::GET, RootCallback);
   httpServ.CreateEndpoint("/useragent", HttpServer::GET | HttpServer::HEAD, UserAgentCallback);
-  httpServ.Listen(HttpServer::ServerType::Http);
+  httpServ.Listen(HttpServer::ServerType::Both);
   #endif // __FPX_COMPILE_HTTP_SERVER
 
 ////////////////////////////////////////////////////////
