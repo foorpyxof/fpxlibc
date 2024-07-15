@@ -121,22 +121,35 @@ void* HttpProcessingThread(void* threadpack) {
         }
         if (endpointPtr && (request.Method & endpointPtr->AllowedMethods)) {
           char* connHeader = nullptr;
-          short connFound = request.GetHeaderValue("Connection", connHeader);
           char* upHeader = nullptr;
+          char* keyHeader = nullptr;
+          char* verHeader = nullptr;
+          char* protHeader = nullptr;
+          short connFound = request.GetHeaderValue("Connection", connHeader);
           short upFound = request.GetHeaderValue("Upgrade", upHeader);
+          short keyFound = request.GetHeaderValue("Sec-WebSocket-Key", keyHeader);
+          short verFound = request.GetHeaderValue("Sec-WebSocket-Version", verHeader);
+          short protFound = request.GetHeaderValue("Sec-WebSocket-Protocol", protHeader);
+
+          if (connFound && upFound && keyFound) {
+
+          }
+
           if(!strcmp(connHeader, "Upgrade")) {
             if((!strcmp(upHeader, "websocket")) && package->Caller->Mode == HttpServer::ServerType::Both) {
               // request wants to upgrade to websocket! poggies!
               tempResponse = package->Caller->Response101;
               response = tempResponse;
               wsUpgrade = true;
-              free(connHeader);
-              free(upHeader);
-              goto buildFromPreset;
             }
           }
-          if (connFound) free(connHeader);
-          if (upFound) free(upHeader);
+
+          free(connHeader);
+          free(upHeader);
+          free(keyHeader);
+          free(verHeader);
+          free(protHeader);
+          if (wsUpgrade) goto buildFromPreset;
 
           endpointPtr->Callback(&request, &response);
 
