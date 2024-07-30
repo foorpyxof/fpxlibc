@@ -1,6 +1,6 @@
 .PHONY: debug tcpserver tcpclient setup breakdown
 
-debug: setup _debug _breakdown
+debug: _setup _debug _breakdown
 tcpserver: _setup _tcpserver _breakdown
 tcpclient: _setup _tcpclient _breakdown
 httpserver: _setup _httpserver _breakdown
