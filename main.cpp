@@ -227,6 +227,9 @@ int main(int argc, const char** argv) {
 
   #ifdef __FPX_COMPILE_HTTP_SERVER
   HttpServer httpServ("0.0.0.0", 9999);
+  // httpServ.SetOption(HttpServer::HttpServerOptions::ManualWebSocket);
+  // ^^^ this line allows the programmer to handle the websocket connection themselves. ^^^
+  // this does however add proper headers to response before going to the callback.
   httpServ.CreateEndpoint("/", HttpServer::GET, RootCallback);
   httpServ.CreateEndpoint("/useragent", HttpServer::GET | HttpServer::HEAD, UserAgentCallback);
   httpServ.Listen(HttpServer::ServerType::Both);

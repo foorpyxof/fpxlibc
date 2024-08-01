@@ -25,9 +25,7 @@
 int fpx_getstringlength(const char*);
 int fpx_substringindex(const char* haystack, const char* needle);
 char* fpx_substr_replace(const char* haystack, const char* needle, const char* replacement);
-// const char* fpx_string_to_upper_STACK(char*);
-char* fpx_string_to_upper(const char*);
-// const char* fpx_string_to_lower_STACK(char*);
-char* fpx_string_to_lower(const char*);
+char* fpx_string_to_upper(const char* input, int doReturn);
+char* fpx_string_to_lower(const char* input, int doReturn);
 
 #endif /* FPX_STRING_H */

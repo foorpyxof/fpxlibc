@@ -92,66 +92,50 @@ char* fpx_substr_replace(const char* haystack, const char* needle, const char* r
   return returnedHaystack;
 }
 
-// const char* fpx_string_to_upper_STACK(char* input) {
-//   /**
-//    * Converts the whole string to its uppercase variant.
-//    * 
-//    * Returns the old char[] when finished.
-//   */
-//   const int inputLength = fpx_getstringlength(input);
-
-//   for (int i=0; i<inputLength; i++) {
-//     input[i] = (input[i] > 96 && input[i] < 123) ? (input[i] - 32) : input[i];
-//   }
-
-//   return input;
-// }
-
-char* fpx_string_to_upper(const char* input) {
+char* fpx_string_to_upper(const char* input, int doReturn) {
   /**
    * Converts the whole string to its uppercase variant.
    * 
-   * Returns new heap-allocated, null-terminated char[] when finished.
+   * Depending on user choice, either:
+   * Returns new heap-allocated, null-terminated char[] when finished
+   *  || 
+   * Modifies input string and returns NULL (will not allocate heap)
   */
   const int inputLength = fpx_getstringlength(input);
-  char* inputCopy = (char*) malloc(inputLength + 1);
+  char* inputCopy = (doReturn) ? (char*)malloc(inputLength + 1) : (char*)input;
 
   for (int i=0; i<inputLength; i++) {
     inputCopy[i] = (input[i] > 96 && input[i] < 123) ? (input[i] - 32) : input[i];
   }
 
-  inputCopy[inputLength] = '\0';
-  return inputCopy;
+  if (doReturn) {
+    inputCopy[inputLength] = '\0';
+    return inputCopy;
+  }
+
+  return NULL;
 }
 
-// const char* fpx_string_to_lower_STACK(char* input) {
-//   /**
-//    * Converts the whole string to its lowercase variant.
-//    * 
-//    * Returns the old char[] when finished.
-//   */
-//   const int inputLength = fpx_getstringlength(input);
-
-//   for(int i=0; i<inputLength; i++) {
-//     input[i] = (input[i] > 64 && input[i] < 91) ? (input[i] + 32) : input[i];
-//   }
-
-//   return input;
-// }
-
-char* fpx_string_to_lower(const char* input) {
+char* fpx_string_to_lower(const char* input, int doReturn) {
   /**
    * Converts the whole string to its lowercase variant.
    * 
-   * Returns new heap-allocated, null-terminated char[] when finished.
+   * Depending on user choice, either:
+   * Returns new heap-allocated, null-terminated char[] when finished
+   *  || 
+   * Modifies input string and returns NULL (will not allocate heap)
   */
   const int inputLength = fpx_getstringlength(input);
-  char* inputCopy = (char*) malloc(inputLength + 1);
+  char* inputCopy = (doReturn) ? (char*)malloc(inputLength + 1) : (char*)input;
 
   for(int i=0; i<inputLength; i++) {
     inputCopy[i] = (input[i] > 64 && input[i] < 91) ? (input[i] + 32) : input[i];
   }
 
-  inputCopy[inputLength] = '\0';
-  return inputCopy;
+  if (doReturn) {
+    inputCopy[inputLength] = '\0';
+    return inputCopy;
+  }
+
+  return NULL;
 }

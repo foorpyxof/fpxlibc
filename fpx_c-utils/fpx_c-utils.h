@@ -19,18 +19,17 @@ typedef struct {
 
 void fpx_endian_swap(void* input, int bytes);
 
-uint32_t __fpx_sha1_varfunc1(int i, uint32_t B, uint32_t C, uint32_t D);
-uint32_t __fpx_sha1_varfunc2(int i);
-
-void fpx_sha1_0to19(uint32_t*, uint32_t*, int8_t);
-void fpx_sha1_20to39(uint32_t*, uint32_t*, int8_t);
-void fpx_sha1_40to59(uint32_t*, uint32_t*, int8_t);
-void fpx_sha1_60to79(uint32_t*, uint32_t*, int8_t);
+void __fpx_sha1_0to19(uint32_t*, uint32_t*, int8_t);
+void __fpx_sha1_20to39(uint32_t*, uint32_t*, int8_t);
+void __fpx_sha1_40to59(uint32_t*, uint32_t*, int8_t);
+void __fpx_sha1_60to79(uint32_t*, uint32_t*, int8_t);
 
 void fpx_sha1_init(SHA1_Context*);
 void fpx_sha1_transform(SHA1_Context*, const uint8_t[64]);
 void fpx_sha1_update(SHA1_Context*, const uint8_t*, size_t);
 void fpx_sha1_final(SHA1_Context*, uint8_t[20]);
-void fpx_sha1_digest(const char* input, size_t lengthBytes, char output[40]);
+void fpx_sha1_digest(const char* input, size_t lengthBytes, char* output, uint8_t printable);
+
+char* fpx_base64_encode(const char* input, int lengthBytes);
 
 #endif // FPX_CUTILS_H

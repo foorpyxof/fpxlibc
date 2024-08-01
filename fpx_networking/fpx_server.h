@@ -9,13 +9,13 @@
 #include "../fpx_cpp-utils/fpx_cpp-utils.h"
 extern "C"{
   #include "../fpx_string/fpx_string.h"
+  #include "../fpx_c-utils/fpx_c-utils.h"
 }
 
 #include <sys/types.h>
 #include <sys/socket.h>
 
 #include <netinet/in.h>
-
 #include <arpa/inet.h>
 
 #include <poll.h>
@@ -30,15 +30,15 @@ extern "C"{
 
 namespace fpx::ServerProperties {
 
-#define FPX_HTTP_GET      0b000000001
-#define FPX_HTTP_HEAD     0b000000010
-#define FPX_HTTP_POST     0b000000100
-#define FPX_HTTP_PUT      0b000001000
-#define FPX_HTTP_DELETE   0b000010000
-#define FPX_HTTP_CONNECT  0b000100000
-#define FPX_HTTP_OPTIONS  0b001000000
-#define FPX_HTTP_TRACE    0b010000000
-#define FPX_HTTP_PATCH    0b100000000
+#define FPX_HTTP_GET      0x1
+#define FPX_HTTP_HEAD     0x2
+#define FPX_HTTP_POST     0x4
+#define FPX_HTTP_PUT      0x8
+#define FPX_HTTP_DELETE   0x10
+#define FPX_HTTP_CONNECT  0x20
+#define FPX_HTTP_OPTIONS  0x40
+#define FPX_HTTP_TRACE    0x80
+#define FPX_HTTP_PATCH    0x100
 
 #define FPX_BUF_SIZE 1024
 
@@ -58,7 +58,6 @@ void* HttpProcessingThread(void* threadpack);
 #define FPX_MAX_CONNECTIONS 32
 
 namespace fpx {
-
 
 #define FPX_TCP_DEFAULTPORT 9090
 
@@ -147,7 +146,7 @@ typedef struct {
 #define FPX_HTTP_THREADS 2
 #define FPX_WEBSOCKETS_THREADS 2
 
-#define FPX_HTTPSERVER_VERSION "alpha:07-2024"
+#define FPX_HTTPSERVER_VERSION "alpha:aug-2024"
 
 class HttpServer : public TcpServer {
   public:
@@ -167,17 +166,37 @@ class HttpServer : public TcpServer {
       PATCH =   0b100000000,
     };
 
+    enum HttpServerOption {
+      ManualWebSocket = 0x1
+    };
+
     typedef struct {
       HttpMethod Method;
       char URI[256], Version[16], Headers[1024], Body[2800];
-      short GetHeaderValue(const char*, char*&, bool = true);
+
+      /**
+       * Returns the header value matching the given name.
+       * 
+       * First bool asks if you want it returned in lowercase. This is nice for case-insensitive headers,
+       * but not for headers such as Sec-WebSocket-Key (for which you will want to pass 'false').
+       * Second bool asks for whether to store the value in the char*, of which the address is passed using the second argument.
+       * 
+       * Returns:
+       *  true ON SUCCESS
+       *  false ON FAILURE
+       * 
+       * ! Also on failure: the char* from the second argument is set to 'nullptr' !
+       */
+      bool GetHeaderValue(const char*, char**, bool lowercase = true, bool storeValue = true);
     } http_request_t;
 
-    typedef struct {
+    typedef struct Http_Response {
       public:
         char Version[16], Code[4], Status[32];
         char* Headers = nullptr;
         char* Body = nullptr;
+
+        void CopyFrom(struct Http_Response*);
 
         bool SetCode(const char*);
         bool SetStatus(const char*);
@@ -187,7 +206,7 @@ class HttpServer : public TcpServer {
         int GetHeaderLength();
         int GetBodyLength();
 
-        int AddHeader(const char*);
+        int AddHeader(const char*, bool = false);
 
       private:
         int m_HeaderLen = 0, m_BodyLen = 0;
@@ -202,7 +221,7 @@ class HttpServer : public TcpServer {
     } method_mapper_t;
 
     enum class ServerType {
-      Http,
+      HttpOnly,
       WebSockets,
       Both
     };
@@ -243,6 +262,7 @@ class HttpServer : public TcpServer {
     http_response_t Response405;
     http_response_t Response413;
     http_response_t Response426;
+    http_response_t Response501;
     http_response_t Response505;
 
     ServerType Mode;
@@ -253,13 +273,17 @@ class HttpServer : public TcpServer {
     void Listen(ServerType);
     void ListenSecure(ServerType, const char*, const char*);
     void Close();
+    
+    void SetOption(HttpServerOption, bool = true);
+    uint8_t GetOptions();
 
     static HttpServer::HttpMethod ParseMethod(const char* method);
-
+    
   private:
     char* m_DefaultHeaders;
 
     short m_EndpointCount;
+    uint8_t m_Options;
     http_endpoint_t* m_Endpoints;
 };
 
