@@ -97,9 +97,9 @@ char* fpx_string_to_upper(const char* input, int doReturn) {
    * Converts the whole string to its uppercase variant.
    * 
    * Depending on user choice, either:
-   * Returns new heap-allocated, null-terminated char[] when finished
+   * (doReturn != 0) Returns new heap-allocated, null-terminated char[] when finished
    *  || 
-   * Modifies input string and returns NULL (will not allocate heap)
+   * (doReturn == 0) Modifies input string and returns NULL (will not allocate heap)
   */
   const int inputLength = fpx_getstringlength(input);
   char* inputCopy = (doReturn) ? (char*)malloc(inputLength + 1) : (char*)input;
@@ -121,9 +121,9 @@ char* fpx_string_to_lower(const char* input, int doReturn) {
    * Converts the whole string to its lowercase variant.
    * 
    * Depending on user choice, either:
-   * Returns new heap-allocated, null-terminated char[] when finished
+   * (doReturn != 0) Returns new heap-allocated, null-terminated char[] when finished
    *  || 
-   * Modifies input string and returns NULL (will not allocate heap)
+   * (doReturn == 0) Modifies input string and returns NULL (will not allocate heap)
   */
   const int inputLength = fpx_getstringlength(input);
   char* inputCopy = (doReturn) ? (char*)malloc(inputLength + 1) : (char*)input;

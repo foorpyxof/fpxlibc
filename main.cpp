@@ -22,6 +22,10 @@ using namespace fpx;
 #endif // __FPX_COMPILE_TCP_SERVER || __FPX_COMPILE_HTTP_SERVER
 
 #ifdef __FPX_COMPILE_HTTP_SERVER
+  void WebSocketCallback(HttpServer::websocket_client_t* client, uint16_t metadata, uint64_t len, uint32_t mask_key, uint8_t* data) {
+    printf("MESSAGE: %s\n", data);
+  }
+
   void UserAgentCallback(HttpServer::http_request_t* req, HttpServer::http_response_t* res) {
     int userAgentIndex = fpx_substringindex(req->Headers, "User-Agent: ") + 12;
     
@@ -46,9 +50,12 @@ using namespace fpx;
 #ifdef __FPX_COMPILE_TCP_CLIENT
   #include "fpx_networking/fpx_client.h"
 
-  void ReadCallback(const char* theMessage) {
-    printf("%s", theMessage);
-    fflush(stdout);
+  void ReadCallback(uint8_t* theBytes) {
+    printf("\nNew message:\n");
+    for(int i=0; i<fpx_getstringlength((char*)theBytes); i++) {
+      printf("%02x", (theBytes)[i]);
+    }
+    printf("\nMessage over.\n");
   }
 
 #endif // __FPX_COMPILE_TCP_CLIENT
@@ -205,21 +212,23 @@ int main(int argc, const char** argv) {
 
   #ifdef __FPX_COMPILE_TCP_CLIENT
 
-  TcpClient::Setup("127.0.0.1", 9999);
+  TcpClient tcpClient("127.0.0.1", 9999);
+  bool background = true;
   try {
     // if string is empty, username is 'Anonymous'.
     // Also, a maximum of 16 characters is enforced by both the server and this specific client.
-    TcpClient::Connect(TcpClient::Mode::Interactive, ReadCallback, "testUser");
+    tcpClient.Connect((background) ? TcpClient::Mode::Background : TcpClient::Mode::Interactive, ReadCallback);
+    tcpClient.SendRaw("GET / HTTP/1.1\r\nHost: 127.0.0.1:9999\r\nUser-Agent: fpxTCPclient\r\nAccept: */*\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: dQKSfB/ZOzYjAxrWReKghQ==\r\nSec-WebSocket-Version: 13\r\n\r\n");
   } catch (Exception& exc) {
     exc.Print();
   }
 
   // simple way to send messages when Mode::Background is selected
   char sendbuf[32];
-  while (1) {
+  while (background) {
     memset(sendbuf, 0, 32);
     fgets(sendbuf, sizeof(sendbuf), stdin);
-    TcpClient::SendRaw(sendbuf);
+    tcpClient.SendRaw(sendbuf);
   }
   #endif // __FPX_COMPILE_TCP_CLIENT
   
@@ -228,11 +237,12 @@ int main(int argc, const char** argv) {
   #ifdef __FPX_COMPILE_HTTP_SERVER
   HttpServer httpServ("0.0.0.0", 9999);
   // httpServ.SetOption(HttpServer::HttpServerOptions::ManualWebSocket);
-  // ^^^ this line allows the programmer to handle the websocket connection themselves. ^^^
-  // this does however add proper headers to response before going to the callback.
+  // ^^^ this line allows the programmer to handle the websocket connection themselves via the callback. ^^^
+  // this does however add the WS handshake headers to the response BEFORE going to the callback.
+  httpServ.SetWebSocketTimeout(60);
   httpServ.CreateEndpoint("/", HttpServer::GET, RootCallback);
   httpServ.CreateEndpoint("/useragent", HttpServer::GET | HttpServer::HEAD, UserAgentCallback);
-  httpServ.Listen(HttpServer::ServerType::Both);
+  httpServ.Listen(HttpServer::ServerType::Both, WebSocketCallback);
   #endif // __FPX_COMPILE_HTTP_SERVER
 
 ////////////////////////////////////////////////////////

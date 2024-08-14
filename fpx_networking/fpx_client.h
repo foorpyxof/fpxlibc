@@ -19,7 +19,6 @@ extern "C"{
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <sched.h>
 #include <signal.h>
 
 #define TCP_BUF_SIZE 1024
@@ -31,12 +30,18 @@ extern "C"{
 #define FPX_DISCONNECT "DISCONNECT"
 #define FPX_INIT "NAME:"
 
+namespace fpx::ClientProperties {
+
+typedef void (*fn_ptr)(uint8_t*);
+
+void* TcpReaderLoop(void*);
+void* TcpWriterLoop(void*);
+
+}
+
 namespace fpx {
 
-
 class TcpClient {
-  typedef void (*fn_ptr)(const char*);
-
   public:
     enum class Mode {
       Interactive,
@@ -45,13 +50,14 @@ class TcpClient {
   
   public:
     /**
-     * Takes an IP and a PORT to set, prior to connecting.
+     * Takes an IP and a PORT to set.
      */
-    static bool Setup(const char* ip, short port = TCP_DEFAULTPORT);
+    TcpClient(const char* ip, short port = TCP_DEFAULTPORT);
 
     /**
      * Connect to the fpx::TcpServer instance
-     * Takes an fpx::TcpClient::Mode, 
+     * Takes: 
+     * an fpx::TcpClient::Mode, 
      * a callback method for passing strings incoming over the socket, 
      * a username for connecting to an fpx::TcpServer instance.
      * ---
@@ -59,51 +65,48 @@ class TcpClient {
      * - Interactive - Opens a terminal prompt allowing the user to read and write messages
      * - Background - Messages must be manually sent using SendRaw() and SendMessage()
      * ---
-     * The callback is ignored and can be set to NULL when the Mode
+     * The callback is ignored and should be set to NULL when the Mode
      * is interactive.
      */
-    static void Connect(Mode mode, void (*readerCallback)(const char*), const char* name = "");
+    void Connect(Mode mode, void (*readerCallback)(uint8_t*), const char* name = nullptr);
     
     /**
      * Gracefully close the socket. Takes no arguments.
      */
-    static bool Disconnect();
+    bool Disconnect();
 
     /**
      * Send a raw string over the socket.
      */
-    static void SendRaw(const char*);
+    void SendRaw(const char*);
 
     /**
      * Invokes 'SendRaw' to send a plain message to
      * an instance of fpx::TcpServer
      */
-    static void SendMessage(const char*);
+    void SendMessage(const char*);
+
+    typedef struct {
+      TcpClient* Caller;
+      ClientProperties::fn_ptr fn;
+      pthread_t ReaderThread, WriterThread;    
+
+      int Socket;
+
+      char ReadBuffer[TCP_BUF_SIZE];
+
+      char WriterName[17];
+      char WriteBuffer[TCP_BUF_SIZE];
+      char Input[TCP_BUF_SIZE-16];
+    } threaddata_t;
   
   private:
-    struct threaddata {
-      fn_ptr fn;
-    };
+    threaddata_t m_ThreadData;
 
-    static struct threaddata m_ThreadData;
-    static pthread_t m_ReaderThread, m_WriterThread;
+    const char* m_SrvIp;
+    short m_SrvPort;
 
-    static const char* m_SrvIp;
-    static short m_SrvPort;
-
-    static struct sockaddr_in m_SrvAddress;
-
-    static int m_Socket;
-
-    static char m_ReadBuffer[];
-    static char m_WriteBuffer[];
-    static char m_Input[];
-    
-  private:
-    static void* pvt_ReaderLoop(void*);
-    static void* pvt_WriterLoop(void*);
-
-
+    struct sockaddr_in m_SrvAddress;
 };
 
 }

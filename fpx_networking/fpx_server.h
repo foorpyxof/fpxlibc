@@ -27,6 +27,7 @@ extern "C"{
 #include <unistd.h>
 #include <regex.h>
 #include <signal.h>
+#include <time.h>
 
 namespace fpx::ServerProperties {
 
@@ -53,6 +54,10 @@ void* TcpAcceptLoop(void* arguments);
 
 // Takes a pointer to an fpx::threadpackage_t object.
 void* HttpProcessingThread(void* threadpack);
+
+// Takes a pointer to an fpx::websocket_threadpackage_t object.
+void* WebSocketThread(void* threadpack);
+
 }
 
 #define FPX_MAX_CONNECTIONS 32
@@ -99,9 +104,7 @@ class TcpServer {
      */
     virtual void Close();
   public:
-    struct ClientData { 
-      char Name[16];
-    };
+    struct ClientData { char Name[16]; };
 
   protected:
     unsigned short m_Port;
@@ -144,13 +147,14 @@ typedef struct {
 #define FPX_HTTP_DEFAULTPORT 8080
 
 #define FPX_HTTP_THREADS 2
-#define FPX_WEBSOCKETS_THREADS 2
+#define FPX_WS_THREADS 2
 
 #define FPX_HTTPSERVER_VERSION "alpha:aug-2024"
 
 class HttpServer : public TcpServer {
   public:
     HttpServer(const char* ip, unsigned short port = FPX_HTTP_DEFAULTPORT);
+    ~HttpServer();
   public:
 
     enum HttpMethod {
@@ -166,9 +170,7 @@ class HttpServer : public TcpServer {
       PATCH =   0b100000000,
     };
 
-    enum HttpServerOption {
-      ManualWebSocket = 0x1
-    };
+    enum HttpServerOption { ManualWebSocket = 0x1 };
 
     typedef struct {
       HttpMethod Method;
@@ -215,27 +217,13 @@ class HttpServer : public TcpServer {
     typedef bool (*http_handler_method)(int, http_request_t*);
     typedef void (*http_callback_t)(http_request_t*, http_response_t*);
 
-    typedef struct {
-      HttpMethod Name;
-      http_handler_method Handler;
-    } method_mapper_t;
+    typedef struct { HttpMethod Name; http_handler_method Handler; } method_mapper_t;
 
-    enum class ServerType {
-      HttpOnly,
-      WebSockets,
-      Both
-    };
+    enum class ServerType { HttpOnly, WebSockets, Both };
 
-    typedef struct {
-      const char* Name;
-      const char* Value;
-    } http_header_t;
+    typedef struct { const char* Name; const char* Value; } http_header_t;
 
-    typedef struct {
-      char URI[256];
-      http_callback_t Callback;
-      short AllowedMethods;
-    } http_endpoint_t;
+    typedef struct { char URI[256]; http_callback_t Callback; short AllowedMethods; } http_endpoint_t;
 
     typedef struct : ServerProperties::threadpackage_t {
       int ClientFD;
@@ -244,13 +232,51 @@ class HttpServer : public TcpServer {
       http_endpoint_t* Endpoints;
     } http_threadpackage_t;
 
-    #define FPX_WEBSOCKETS_MAX_CLIENTS 8
+    #define FPX_WS_MAX_CLIENTS 8
+    #define FPX_WS_BUFFER 0xffff
+
+    #define WS_FIN    0b10000000
+    #define WS_RSV1   0b01000000
+    #define WS_RSV2   0b00100000
+    #define WS_RSV3   0b00010000
+
+    #define FPX_WS_SEND_CLOSE 0x1
+    #define FPX_WS_RECV_CLOSE 0x2
+
+    typedef struct {
+      // 0x1: Sent "close"
+      // 0x2: Received "close"
+      uint8_t Flags;
+      bool Fragmented, PendingClose;
+      int BytesRead;
+      uint8_t ControlReadBuffer[128];
+      size_t ReadBufSize;
+      uint8_t* ReadBufferPTR;
+      time_t LastActiveSeconds;
+    } websocket_client_t;
+    
+    typedef void (*ws_callback_t)(websocket_client_t*, uint16_t, uint64_t, uint32_t, uint8_t*);
+
+    typedef struct {
+      public:
+        void SetBit(uint8_t bit, bool value = true);
+        void SetOpcode(uint8_t opcode);
+        bool SetPayload(char* payload, uint16_t len);
+      private:
+        uint8_t m_MetaByte = 0;
+        uint16_t m_PayloadLen = 0;
+        char* m_Payload = nullptr;
+    } websocket_frame_t;
 
     typedef struct : ServerProperties::threadpackage_t {
       HttpServer* Caller;
-      pollfd Clients[FPX_WEBSOCKETS_MAX_CLIENTS];
+      pollfd PollFDs[FPX_WS_MAX_CLIENTS];
+      websocket_client_t Clients[FPX_WS_MAX_CLIENTS];
+      ws_callback_t Callback;
       short ClientCount = 0;
-      void HandleDisconnect(pollfd&);
+      void HandleDisconnect(int clientIndex);
+      void SendFrame(int index, websocket_frame_t*);
+      void SendClose(int index, uint16_t status, uint8_t* message = nullptr);
     } websocket_threadpackage_t;
     
     http_threadpackage_t* RequestHandlers;
@@ -270,9 +296,12 @@ class HttpServer : public TcpServer {
     const char* GetDefaultHeaders();
     void SetDefaultHeaders(const char*);
     void CreateEndpoint(const char* uri, short methods, http_callback_t endpointCallback);
-    void Listen(ServerType);
-    void ListenSecure(ServerType, const char*, const char*);
+    void Listen(ServerType, ws_callback_t = nullptr);
+    void ListenSecure(ServerType, const char*, const char*, ws_callback_t = nullptr);
     void Close();
+
+    void SetWebSocketTimeout(uint16_t minutes);
+    uint16_t GetWebSocketTimeout();
     
     void SetOption(HttpServerOption, bool = true);
     uint8_t GetOptions();
@@ -282,6 +311,7 @@ class HttpServer : public TcpServer {
   private:
     char* m_DefaultHeaders;
 
+    uint16_t m_WebSocketTimeout;
     short m_EndpointCount;
     uint8_t m_Options;
     http_endpoint_t* m_Endpoints;
