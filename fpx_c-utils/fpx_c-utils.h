@@ -6,6 +6,13 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
+#ifndef STR_HELPER
+  #define STR_HELPER(x) #x
+#endif
+#ifndef STR
+  #define STR(x) STR_HELPER(x)
+#endif
+
 #define ROL(v, n) ((v << n) | (v >> (32 - n)))
 
 #include "../fpx_string/fpx_string.h"

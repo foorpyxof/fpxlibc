@@ -53,10 +53,15 @@ typedef struct {
 void* TcpAcceptLoop(void* arguments);
 
 // Takes a pointer to an fpx::threadpackage_t object.
+void* HttpProcessingThreadNew(void* threadpack);
 void* HttpProcessingThread(void* threadpack);
 
 // Takes a pointer to an fpx::websocket_threadpackage_t object.
 void* WebSocketThread(void* threadpack);
+
+// Takes an instance of fpx::HttpServer as an argument
+// Kills idle keepalive connections after the timeout has passed
+void* HttpKillerThread(void* hs);
 
 }
 
@@ -146,10 +151,13 @@ typedef struct {
 
 #define FPX_HTTP_DEFAULTPORT 8080
 
-#define FPX_HTTP_THREADS 2
+#define FPX_HTTP_KEEPALIVE 7
+
+#define FPX_HTTP_MAX_CLIENTS 16
+#define FPX_HTTP_THREADS 8
 #define FPX_WS_THREADS 2
 
-#define FPX_HTTPSERVER_VERSION "alpha:aug-2024"
+#define FPX_HTTPSERVER_VERSION "alpha:sep-2024"
 
 class HttpServer : public TcpServer {
   public:
@@ -225,10 +233,22 @@ class HttpServer : public TcpServer {
 
     typedef struct { char URI[256]; http_callback_t Callback; short AllowedMethods; } http_endpoint_t;
 
+    typedef struct {
+      bool Keepalive = false, WsUpgrade = false, WsFail = false;
+      http_request_t Request;
+      http_response_t Response;
+      size_t ReadBufSize;
+      char* ReadBufferPTR = nullptr;
+      time_t LastActiveSeconds;
+    } http_client_t;
+
     typedef struct : ServerProperties::threadpackage_t {
-      int ClientFD;
-      struct sockaddr ClientDetails;
       HttpServer* Caller;
+      pollfd PollFDs[FPX_HTTP_MAX_CLIENTS];
+      http_client_t Clients[FPX_HTTP_MAX_CLIENTS];
+      short ClientCount;
+      void HandleDisconnect(int clientIndex);
+      struct sockaddr ClientDetails;
       http_endpoint_t* Endpoints;
     } http_threadpackage_t;
 
@@ -251,7 +271,7 @@ class HttpServer : public TcpServer {
       int BytesRead;
       uint8_t ControlReadBuffer[128];
       size_t ReadBufSize;
-      uint8_t* ReadBufferPTR;
+      uint8_t* ReadBufferPTR = nullptr;
       time_t LastActiveSeconds;
     } websocket_client_t;
     
@@ -279,6 +299,8 @@ class HttpServer : public TcpServer {
       void SendClose(int index, uint16_t status, uint8_t* message = nullptr);
     } websocket_threadpackage_t;
     
+    int HttpClients[FPX_HTTP_MAX_CLIENTS * FPX_HTTP_THREADS];
+    pthread_t HttpKillerThread;
     http_threadpackage_t* RequestHandlers;
     websocket_threadpackage_t* WebsocketThreads;
 

@@ -1,7 +1,0 @@
-HTTP/1.1 101 Switching Protocols
-Server: fpxHTTP (alpha:aug-2024)
-Sec-WebSocket-Accept: 4QmeQ4g/iKt271Rkoi7I1oc5lW0=
-Upgrade: websocket
-Connection: Upgrade
-
-Åabc
