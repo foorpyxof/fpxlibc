@@ -12,6 +12,7 @@
 #define FPX_NOTIMPLEMENTED_ERRMSG "This functionality has not been implemented yet!"
 #define FPX_INDEXOUTOFRANGE_ERRMSG "The index you tried to reach is not in range!"
 #define FPX_NET_ERRMSG "A NetException has occured!"
+#define FPX_ARG_ERRMSG "An ArgumentException has occured!"
 
 namespace fpx {
 
@@ -62,6 +63,20 @@ namespace fpx {
     public:
       NetException(int);
       NetException(const char* = FPX_NET_ERRMSG, int = -4);
+
+      int Code() const;
+      const char* Message() const;
+      void Print() const;
+
+    private:
+      int m_ErrCode;
+      const char* m_ErrMessage;
+  };
+
+  class ArgumentException : public Exception {
+    public:
+      ArgumentException(int);
+      ArgumentException(const char* = FPX_ARG_ERRMSG, int = -4);
 
       int Code() const;
       const char* Message() const;

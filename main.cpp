@@ -1,15 +1,75 @@
+////////////////////////////////////////////////////////////////
+//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
+//  Author: Erynn 'foorpyxof' Scholtes                        //
+////////////////////////////////////////////////////////////////
+
 #define EMPTY_LINE std::cout << std::endl;
 
+#include <unistd.h>
 #include "fpx_cpp-utils/fpx_cpp-utils.h"
-#include "fpx_linkedlist/fpx_linkedlist.h"
-#include "fpx_vector/fpx_vector.h"
+
 extern "C" {
   #include "fpx_string/fpx_string.h"
 }
 
+#include "fpx_linkedlist/fpx_linkedlist.h"
+#include "fpx_vector/fpx_vector.h"
+
 using namespace fpx;
 
+#if defined __FPX_COMPILE_TCP_SERVER || defined __FPX_COMPILE_HTTP_SERVER
+  #include "fpx_networking/fpx_server.h"
+#endif // __FPX_COMPILE_TCP_SERVER || __FPX_COMPILE_HTTP_SERVER
+
+#ifdef __FPX_COMPILE_HTTP_SERVER
+  void WebSocketCallback(HttpServer::websocket_client_t* client, uint16_t metadata, uint64_t len, uint32_t mask_key, uint8_t* data) {
+    printf("MESSAGE: %s\n", data);
+  }
+
+  void UserAgentCallback(HttpServer::http_request_t* req, HttpServer::http_response_t* res) {
+    int userAgentIndex = fpx_substringindex(req->Headers, "User-Agent: ") + 12;
+    
+    res->SetCode("200");
+    res->SetStatus("OK");
+    res->SetHeaders("Content-Type: text/plain\r\n");
+    if (userAgentIndex > -1) {
+      char tempBuf[256];
+      snprintf(tempBuf, strcspn(&req->Headers[userAgentIndex], "\r\n")+1, "%s", &req->Headers[userAgentIndex]);
+      res->SetBody(tempBuf);
+    }
+  }
+
+  void BenchmarkCallback(HttpServer::http_request_t* req, HttpServer::http_response_t* res) {
+    res->SetCode("200");
+    res->SetStatus("OK");
+    res->SetHeaders("Content-Type: text/plain\r\n");
+    res->SetBody("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+  }
+
+  void RootCallback(HttpServer::http_request_t* req, HttpServer::http_response_t* res) {
+    res->SetCode("200");
+    res->SetStatus("OK");
+    res->SetHeaders("Content-Type: text/plain\r\n");
+    res->SetBody("Hello from fpxHTTP :D");
+  }
+#endif // __FPX_COMPILE_HTTP_SERVER
+
+#ifdef __FPX_COMPILE_TCP_CLIENT
+  #include "fpx_networking/fpx_client.h"
+
+  void ReadCallback(uint8_t* theBytes) {
+    printf("\nNew message:\n");
+    for(int i=0; i<fpx_getstringlength((char*)theBytes); i++) {
+      printf("%02x", (theBytes)[i]);
+    }
+    printf("\nMessage over.\n");
+  }
+
+#endif // __FPX_COMPILE_TCP_CLIENT
+
 int main(int argc, const char** argv) {
+
+  #ifdef __FPX_COMPILE_DEFAULT
 
   std::cout << "Starting exception tests:\n" << std::endl;
 
@@ -53,13 +113,11 @@ int main(int argc, const char** argv) {
 
   // test fpx_string
   const char* testString = "hELLo friENd";
-  const char* testLowercase = fpx_string_to_lower(testString);
 
   std::cout << "String: " << testString << std::endl; // expected output: hELLo friENd
   std::cout << "String length: " << fpx_getstringlength(testString) << std::endl; // expected output: 12
-  std::cout << "String in lowercase: " << testLowercase << std::endl; // expected output: hello friend
-
-  delete[] testLowercase;
+  fpx_string_to_lower(testString, false);
+  std::cout << "String in lowercase: " << testString << std::endl; // expected output: hello friend
 
   EMPTY_LINE
 
@@ -135,15 +193,66 @@ int main(int argc, const char** argv) {
 
   v2.PushBack(v3);
 
-  for (char& obj : v2) std::cout << obj; // expect: v3 appended to v2
+  for (char& obj : v3) std::cout << obj; // expect: v3 appended to v2
   std::cout << std::endl;
 
+
   EMPTY_LINE
+  
+  #endif // __FPX_COMPILE_DEFAULT
 
-  // EMPTY_LINE
+////////////////////////////////////////////////////////
 
-  // std::cout << fpx_math_ceiling(1.12) << std::endl;
+  #ifdef __FPX_COMPILE_TCP_SERVER
+  TcpServer tcpServ("0.0.0.0", 9999);
 
+  try {
+    tcpServ.Listen();
+  } catch (NetException& exc) {
+    exc.Print();
+  }
+  #endif // __FPX_COMPILE_TCP_SERVER
+
+////////////////////////////////////////////////////////
+
+  #ifdef __FPX_COMPILE_TCP_CLIENT
+
+  TcpClient tcpClient("127.0.0.1", 9999);
+  bool background = true;
+  try {
+    // if string is empty, username is 'Anonymous'.
+    // Also, a maximum of 16 characters is enforced by both the server and this specific client.
+    tcpClient.Connect((background) ? TcpClient::Mode::Background : TcpClient::Mode::Interactive, ReadCallback);
+    tcpClient.SendRaw("GET / HTTP/1.1\r\nHost: 127.0.0.1:9999\r\nUser-Agent: fpxTCPclient\r\nAccept: */*\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: dQKSfB/ZOzYjAxrWReKghQ==\r\nSec-WebSocket-Version: 13\r\n\r\n");
+  } catch (Exception& exc) {
+    exc.Print();
+  }
+
+  // simple way to send messages when Mode::Background is selected
+  char sendbuf[32];
+  while (background) {
+    memset(sendbuf, 0, 32);
+    fgets(sendbuf, sizeof(sendbuf), stdin);
+    tcpClient.SendRaw(sendbuf);
+  }
+  #endif // __FPX_COMPILE_TCP_CLIENT
+  
+////////////////////////////////////////////////////////
+
+  #ifdef __FPX_COMPILE_HTTP_SERVER
+  HttpServer httpServ("0.0.0.0", 9999);
+  // httpServ.SetOption(HttpServer::HttpServerOptions::ManualWebSocket);
+  // ^^^ this line allows the programmer to handle the websocket connection themselves via the callback. ^^^
+  // this does however add the WS handshake headers to the response BEFORE going to the callback.
+  httpServ.SetWebSocketTimeout(60);
+  httpServ.CreateEndpoint("/", HttpServer::GET, RootCallback);
+  httpServ.CreateEndpoint("/useragent", HttpServer::GET | HttpServer::HEAD, UserAgentCallback);
+  httpServ.CreateEndpoint("/benchmark", HttpServer::GET | HttpServer::HEAD, BenchmarkCallback);
+  httpServ.Listen(HttpServer::ServerType::Both, WebSocketCallback);
+  #endif // __FPX_COMPILE_HTTP_SERVER
+
+////////////////////////////////////////////////////////
+  
   return 0;
 
 }
