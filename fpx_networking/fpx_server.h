@@ -53,7 +53,6 @@ typedef struct {
 void* TcpAcceptLoop(void* arguments);
 
 // Takes a pointer to an fpx::threadpackage_t object.
-void* HttpProcessingThreadNew(void* threadpack);
 void* HttpProcessingThread(void* threadpack);
 
 // Takes a pointer to an fpx::websocket_threadpackage_t object.

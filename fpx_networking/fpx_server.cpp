@@ -35,7 +35,7 @@ void* TcpAcceptLoop(void* arguments) {
   return NULL;
 }
 
-void* HttpProcessingThreadNew(void* threadpack) {
+void* HttpProcessingThread(void* threadpack) {
   if (!threadpack) return nullptr;
 
   HttpServer::http_threadpackage_t* package = (HttpServer::http_threadpackage_t*)threadpack;
@@ -196,7 +196,7 @@ void* HttpProcessingThreadNew(void* threadpack) {
             cli->Response.CopyFrom(&package->Caller->Response404);
           } else if (!(cli->Request.Method & endpointPtr->AllowedMethods)) {
             cli->Response.CopyFrom(&package->Caller->Response405);
-          } else {
+          } else if (!cli->WsUpgrade) {
             endpointPtr->Callback(&cli->Request, &cli->Response);
           }
         }
@@ -212,7 +212,7 @@ void* HttpProcessingThreadNew(void* threadpack) {
 
         char* connectionHeader = nullptr;
 
-        if (cli->Request.GetHeaderValue("Connection", &connectionHeader) && cli->Response.Headers) {
+        if (!cli->WsUpgrade && cli->Request.GetHeaderValue("Connection", &connectionHeader) && cli->Response.Headers) {
           char* respHeadersLower = fpx_string_to_lower(cli->Response.Headers, 1);
           if (fpx_substringindex(respHeadersLower, "connection: ") == -1 && !strcmp(connectionHeader, "close")) {
             cli->Keepalive = false;
@@ -263,7 +263,7 @@ void* HttpProcessingThreadNew(void* threadpack) {
           if (cli->WsUpgrade) {
             short lowestCount = FPX_WS_MAX_CLIENTS;
             short lowestIndex = 1;
-            for (short j = 0; j < FPX_HTTP_THREADS; j++) {
+            for (short j = 0; j < FPX_WS_THREADS; j++) {
               if (package->Caller->WebsocketThreads[j].ClientCount < lowestCount) {
                 lowestCount = package->Caller->WebsocketThreads[j].ClientCount;
                 lowestIndex = i;
@@ -325,287 +325,6 @@ void* HttpProcessingThreadNew(void* threadpack) {
   }
 }
 
-/*
-void* HttpProcessingThread(void* threadpack) {
-  if (!threadpack) return nullptr;
-  // printf("An HTTP-processing thread has started!\n");
-  HttpServer::http_threadpackage_t* package = (HttpServer::http_threadpackage_t*)threadpack;
-
-  char readBuffer[FPX_HTTP_READ_BUF+1];
-  char writeBuffer[FPX_HTTP_WRITE_BUF];
-
-  char* voidpointer = nullptr;
-
-  while (1) {
-    printf("waaa");
-    pthread_mutex_lock(&package->TalkingStick);
-    pthread_cond_wait(&package->Condition, &package->TalkingStick);
-    
-    char method[8];
-    long totalWritten;
-    char clientUpgraded = 0;
-    bool keepalive = true, done = false, wsUpgrade = false, wsFail = false;
-
-    HttpServer::http_endpoint_t* endpointPtr = nullptr;
-    pollfd client = { package->ClientFD, POLLIN, 0 };
-    while(package->ClientFD) {
-      printf("YO %d\n", package->ClientFD);
-      int result = poll(&client, 1, 7000);
-      if (result == 0) {
-        keepalive = false;
-        printf("CLosing\n");
-        break;
-      }
-      else if (result == -1)
-        perror("Could not poll client socket");
-
-      keepalive = true;
-            
-      ssize_t amountRead = recv(package->ClientFD, readBuffer, FPX_HTTP_READ_BUF+1, 0);
-      if (!amountRead) continue;
-      HttpServer::http_request_t request;
-      HttpServer::http_response_t response;
-
-      if (amountRead == FPX_HTTP_READ_BUF+1) {
-        response.CopyFrom(&package->Caller->Response413);
-        keepalive = false;
-        goto buildFromPreset;
-      }
-
-      int firstLineRead, headerLength;
-      sscanf(readBuffer, "%s %255s %15s\r\n%n", method, request.URI, request.Version, &firstLineRead);
-      for(int i = firstLineRead; i < 1024+firstLineRead;) {
-        int newRead;
-        char tempBuf[256];
-        if (sscanf(&readBuffer[i], "%255[^\r\n]\r\n%n", tempBuf, &newRead) > 0) {
-          if (1024 - strlen(request.Headers) < newRead) break; //header section too large
-          memcpy(request.Headers+(i-firstLineRead), &readBuffer[i], newRead);
-          memset(tempBuf, 0, sizeof(tempBuf));
-          i += newRead;
-          headerLength += newRead;
-        } else break;
-      }
-
-      // vvv This line was the cause of so much anguish </3
-      // memset(&request.Headers[headerLength-2], 0, 2);
-
-      int bodyRead;
-      sscanf(&readBuffer[firstLineRead+fpx_getstringlength(request.Headers)+2], "%2799s%n", request.Body, &bodyRead);
-      request.Method = HttpServer::ParseMethod(method);
-
-      if (!request.GetHeaderValue("Host", &voidpointer, true, false)) {
-        response.CopyFrom(&package->Caller->Response400);
-        goto buildFromPreset;
-      }
-
-      printf("Serving '%s' to client. ", request.URI); fflush(stdout);
-
-      if (strcmp(request.Version, "HTTP/1.1") && strcmp(request.Version, "HTTP/1.0")) {
-        response.CopyFrom(&package->Caller->Response505);
-      }
-      else {
-        if (!endpointPtr) {
-          for (short i=0; (!endpointPtr) && i<FPX_HTTP_ENDPOINTS; i++) {
-            if (!strcmp(package->Endpoints[i].URI, request.URI)) {
-              endpointPtr = &package->Endpoints[i];
-              break;
-            }
-          }
-        }
-        {
-          char* connHeader = nullptr;
-          request.GetHeaderValue("Connection", &connHeader);
-
-          char* upHeader = nullptr;
-          request.GetHeaderValue("Upgrade", &upHeader);
-
-          if(upHeader && ((connHeader) ? fpx_substringindex(connHeader, "upgrade") > -1 : 0)) {
-            // we be upgrading :nydance:
-            if(!strcmp(upHeader, "websocket")) {// && keyHeader && (!strcmp(verHeader, "13")) &&
-              // package->Caller->Mode != HttpServer::ServerType::HttpOnly
-              // request wants to upgrade to websocket! poggies!
-              char* keyHeader = nullptr;
-              request.GetHeaderValue("Sec-WebSocket-Key", &keyHeader, false);
-
-              char* verHeader = nullptr;
-              request.GetHeaderValue("Sec-WebSocket-Version", &verHeader);
-
-              char* protHeader = nullptr;
-              request.GetHeaderValue("Sec-WebSocket-Protocol", &protHeader);
-              
-              if (keyHeader && ((verHeader) ? !strcmp(verHeader, "13") : false) && package->Caller->Mode != HttpServer::ServerType::HttpOnly) {
-                response.CopyFrom(&package->Caller->Response101);
-                char* accept_part_1 = fpx_substr_replace(keyHeader, "==", "==258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
-                char* accept_part_2 = (char*)calloc(21, 1);
-                fpx_sha1_digest(accept_part_1, fpx_getstringlength(accept_part_1), accept_part_2, 0);
-                char* accept_part_3 = fpx_base64_encode(accept_part_2, 20);
-                char* accept_part_4 = (char*)calloc(51, 1);
-                strcpy(accept_part_4, "Sec-WebSocket-Accept: ");
-                strncat(accept_part_4, accept_part_3, 28);
-                response.AddHeader(accept_part_4);
-                wsUpgrade = true;
-                free(accept_part_1);
-                free(accept_part_2);
-                free(accept_part_3);
-                free(accept_part_4);
-              } else if (package->Caller->Mode == HttpServer::ServerType::HttpOnly) {
-                // 501 - Not Implemented | https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/501
-                // because server does not support WebSocket
-                response.CopyFrom(&package->Caller->Response501);
-                wsFail = true;
-              } else {
-                // 400 - Bad Request | https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
-                // because missing key or wrong version (should be 13)
-                response.CopyFrom(&package->Caller->Response400);
-                response.SetBody("Could not upgrade request because of incorrect request header composition.\nRefer to [RFC-6455] for information about the required request headers and their validity.");
-                wsFail = true;
-              }
-              if (keyHeader) {
-                free(keyHeader);
-                keyHeader = nullptr;
-              }
-              if (verHeader) {
-                free(verHeader);
-                verHeader = nullptr;
-              }
-              if (protHeader) {
-                free(protHeader);
-                protHeader = nullptr;
-              }
-              done = true;
-            }
-          }
-
-          if (connHeader) {
-            free(connHeader);
-            connHeader = nullptr;
-          }
-          if (upHeader) {
-            free(upHeader);
-            upHeader = nullptr;
-          }
-        }
-
-        if (endpointPtr && (request.Method & endpointPtr->AllowedMethods)) {
-          if (!done || (package->Caller->GetOptions() & HttpServer::HttpServerOption::ManualWebSocket))
-            endpointPtr->Callback(&request, &response);
-        } else if (endpointPtr) {
-          response.CopyFrom(&package->Caller->Response405);
-        } else if (package->Caller->GetOptions() & HttpServer::HttpServerOption::ManualWebSocket) {
-          // 404 not found
-          response.CopyFrom(&package->Caller->Response404);
-        }
-      }
-      
-      buildFromPreset:
-
-      sprintf(response.Version, "HTTP/1.1");
-
-      if (wsUpgrade) {
-        response.AddHeader("Upgrade: websocket");
-        response.AddHeader("Connection: Upgrade");
-      }
-
-      char* connectionHeader = nullptr;
-
-      if (request.GetHeaderValue("Connection", &connectionHeader) && response.Headers) {
-        char* respHeadersLower = fpx_string_to_lower(response.Headers, 1);
-        if (fpx_substringindex(respHeadersLower, "connection: ") == -1) {
-          // printf("Checking keepalive\n");
-          if (!strcmp(connectionHeader, "close")) {
-            // printf("Found 'close'\n");
-            keepalive = false;
-          }
-        }
-        free(respHeadersLower);
-      }
-
-      free(connectionHeader); 
-
-      short amountWritten;
-
-      if (!keepalive) {
-        response.AddHeader("Connection: close");
-      } else {
-        response.AddHeader("Connection: keep-alive");
-        response.AddHeader("Keep-Alive: timeout=7");
-      }
-
-      if (response.GetBodyLength()) {
-        char tempHeaderBuf[256];
-        sprintf(tempHeaderBuf, "Content-Length: %d", response.GetBodyLength());
-        response.AddHeader(tempHeaderBuf);
-      }
-
-      amountWritten = snprintf(writeBuffer, FPX_HTTP_WRITE_BUF, "%s %s %s\r\n",
-        response.Version, response.Code, response.Status
-      );
-      memcpy(writeBuffer+amountWritten, package->Caller->GetDefaultHeaders(), fpx_getstringlength(package->Caller->GetDefaultHeaders()));
-      amountWritten+=fpx_getstringlength(package->Caller->GetDefaultHeaders());
-      if (response.Headers) {
-        memcpy(writeBuffer+amountWritten, response.Headers, fpx_getstringlength(response.Headers));
-        amountWritten+=fpx_getstringlength(response.Headers);
-      }
-      memcpy(writeBuffer+amountWritten, "\r\n", 2);
-      amountWritten+=2;
-      if (response.Body) {
-        memcpy(writeBuffer+amountWritten, response.Body, fpx_getstringlength(response.Body));
-        amountWritten+=fpx_getstringlength(response.Body);
-      }
-
-      if (response.Headers) free(response.Headers);
-      if (response.Body) free(response.Body);
-      memset(&request, 0, sizeof(request));
-      memset(&response, 0, sizeof(response));
-      totalWritten += amountWritten;
-
-      endpointPtr = nullptr;
-
-      if (wsUpgrade) {
-        short lowestCount = FPX_WS_MAX_CLIENTS;
-        short lowestIndex = 1;
-        for (short i=0; i < FPX_HTTP_THREADS; i++) {
-          if (package->Caller->WebsocketThreads[i].ClientCount < lowestCount) {
-            lowestCount = package->Caller->WebsocketThreads[i].ClientCount;
-            lowestIndex = i;
-          }
-        }
-        short* ccPTR = &package->Caller->WebsocketThreads[lowestIndex].ClientCount;
-        pthread_mutex_lock(&package->Caller->WebsocketThreads[lowestIndex].TalkingStick) && !(package->Caller->GetOptions() & HttpServer::HttpServerOption::ManualWebSocket && endpointPtr);
-        printf("(Upgrading to WebSocket)\n");
-        send(package->ClientFD, writeBuffer, totalWritten, 0);
-        send(package->ClientFD, "\x81\x03\x61\x62\x63", 5, 0);
-        package->Caller->WebsocketThreads[lowestIndex].PollFDs[package->Caller->WebsocketThreads[lowestIndex].ClientCount] = client;
-        package->Caller->WebsocketThreads[lowestIndex].Clients[*ccPTR].LastActiveSeconds = time(NULL);
-        (*ccPTR)++;
-        pthread_cond_signal(&package->Caller->WebsocketThreads[lowestIndex].Condition);
-        pthread_mutex_unlock(&package->Caller->WebsocketThreads[lowestIndex].TalkingStick);
-        
-        keepalive = false;
-      } else {
-        send(package->ClientFD, writeBuffer, totalWritten, 0);
-        printf("\n");
-      }
-      
-      memset(readBuffer, 0, sizeof(readBuffer));
-      memset(writeBuffer, 0, sizeof(writeBuffer));
-      totalWritten = 0;
-
-      if (!keepalive) {
-        if (!(wsUpgrade)) {
-          close(package->ClientFD);
-        }
-        package->ClientFD = 0;
-      }
-      printf("%d\n", package->ClientFD);
-    }
-    pthread_mutex_unlock(&package->TalkingStick);
-    printf("wooo\n");
-  }
-
-  return NULL;
-}
-*/
 void* WebSocketThread(void* threadpack) {
   if (!threadpack) return nullptr;
   HttpServer::websocket_threadpackage_t* package = (HttpServer::websocket_threadpackage_t*)threadpack;
@@ -619,6 +338,7 @@ void* WebSocketThread(void* threadpack) {
   while (1) {
     // printf("locking\n");
     pthread_mutex_lock(&package->TalkingStick);
+    // printf("[thread 0x%x] ws clients: %d\n", package->Thread, package->ClientCount);
     if (!package->ClientCount)
       pthread_cond_wait(&package->Condition, &package->TalkingStick);
 
@@ -795,7 +515,7 @@ void* WebSocketThread(void* threadpack) {
               //     // binary frame
               //     break;
               // }
-              if (package->Callback && (package->Caller->GetOptions() & HttpServer::HttpServerOption::ManualWebSocket)) package->Callback(&package->Clients[i], metadata, len, mask_key, package->Clients[i].ReadBufferPTR);
+              if (package->Callback /*&& (package->Caller->GetOptions() & HttpServer::HttpServerOption::ManualWebSocket)*/) package->Callback(&package->Clients[i], metadata, len, mask_key, package->Clients[i].ReadBufferPTR);
               // printf("\n");
               if (fin) {
                 package->Clients[i].Fragmented = false;
@@ -1243,14 +963,14 @@ void HttpServer::Listen(ServerType mode, ws_callback_t websocketCallback) {
   for(short i = 0; i<FPX_HTTP_THREADS; i++) {
     RequestHandlers[i].Endpoints = m_Endpoints;
     RequestHandlers[i].Caller = this;
-    pthread_create(&RequestHandlers[i].Thread, NULL, ServerProperties::HttpProcessingThreadNew, &RequestHandlers[i]);
+    pthread_create(&RequestHandlers[i].Thread, NULL, ServerProperties::HttpProcessingThread, &RequestHandlers[i]);
   }
 
   // create an HTTP connection-killer thread
   pthread_create(&HttpKillerThread, NULL, ServerProperties::HttpKillerThread, this);
 
   // create 2 threadpackages for WebSocket threads
-  for(short i = 0; i<FPX_HTTP_THREADS; i++) {
+  for(short i = 0; i<FPX_WS_THREADS; i++) {
     WebsocketThreads[i].Caller = this;
     WebsocketThreads[i].Callback = websocketCallback;
     pthread_create(&WebsocketThreads[i].Thread, NULL, ServerProperties::WebSocketThread, &WebsocketThreads[i]);
