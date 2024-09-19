@@ -13,6 +13,7 @@ Includes a lil' main.cpp test program that you can build using 'make'.
 
 - ```make tcpserver``` will make just the TCP server
 - ```make tcpclient``` will make just the TCP client
+- ```make httpserver``` will make just the HTTP server
 
 All make targets have the '-g' debug flag enabled.
 
