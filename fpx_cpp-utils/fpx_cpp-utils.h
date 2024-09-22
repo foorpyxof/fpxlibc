@@ -22,8 +22,17 @@ namespace fpx {
       Exception(int);
       Exception(const char* = FPX_GENERIC_ERRMSG, int = -1);
 
+      /**
+       * Returns the error code.
+       */
       virtual int Code() const;
+      /**
+       * Returns the error message.
+       */
       virtual const char* Message() const;
+      /**
+       * Prints exception metadata (code + message).
+       */
       virtual void Print() const;
 
     protected:

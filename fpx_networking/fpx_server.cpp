@@ -84,13 +84,14 @@ void* HttpProcessingThread(void* threadpack) {
 
         int firstLineRead, headerLen;
         char method[8];
-        cli->ReadBufSize += sscanf(cli->ReadBufferPTR, "%s %255s %15s\r\n%n", method, cli->Request.URI, cli->Request.Version, &firstLineRead);
-        for(int i = firstLineRead; i < 1024+firstLineRead; ) {
+        sscanf(cli->ReadBufferPTR, "%s %255s %15s\r\n%n", method, cli->Request.URI, cli->Request.Version, &firstLineRead);
+        cli->ReadBufSize += firstLineRead;
+        for(int i = cli->ReadBufSize; i < 1024+firstLineRead; ) {
           int newRead;
           char tempBuf[256];
-          int readSize = sscanf(&cli->ReadBufferPTR[i], "%255[^\r\n]\r\n%n", tempBuf, &newRead);
-          cli->ReadBufSize += readSize;
-          if (readSize > 0) {
+          sscanf(&cli->ReadBufferPTR[i], "%255[^\r\n]\r\n%n", tempBuf, &newRead);
+          if (newRead > 0 && !strncmp(&cli->ReadBufferPTR[i+newRead-2], "\r\n", 2)) {
+            cli->ReadBufSize += newRead;
             if (1024 - strlen(cli->Request.Headers) < newRead) break; //header section too large
             memcpy(&cli->Request.Headers[i-firstLineRead], &cli->ReadBufferPTR[i], newRead);
             memset(tempBuf, 0, sizeof(tempBuf));
@@ -98,9 +99,16 @@ void* HttpProcessingThread(void* threadpack) {
             headerLen += newRead;
           } else break;
         }
-
-        int bodyRead;
-        cli->ReadBufSize += sscanf(&cli->ReadBufferPTR[firstLineRead+fpx_getstringlength(cli->Request.Headers)+2], "%2788s%n", cli->Request.Body, &bodyRead);
+        
+        {
+          char* cl = nullptr;
+          if (cli->Request.GetHeaderValue("Content-Length", &cl, false, true) && atol(cl) > 0 && atol(cl) < 2048) {
+            cli->Request.Body = (char*)malloc(atol(cl)+1);
+            cli->ReadBufSize += snprintf(cli->Request.Body, atol(cl)+1, &cli->ReadBufferPTR[cli->ReadBufSize]) + 1;
+          }
+          if (cl) free(cl);
+        }
+        
         cli->Request.Method = HttpServer::ParseMethod(method);
 
         if (!cli->Request.GetHeaderValue("Host", &voidpointer, true, false)) {
@@ -196,7 +204,7 @@ void* HttpProcessingThread(void* threadpack) {
             cli->Response.CopyFrom(&package->Caller->Response404);
           } else if (!(cli->Request.Method & endpointPtr->AllowedMethods)) {
             cli->Response.CopyFrom(&package->Caller->Response405);
-          } else if (!cli->WsUpgrade) {
+          } else if (!cli->Response.Finalized) {
             endpointPtr->Callback(&cli->Request, &cli->Response);
           }
         }
@@ -231,9 +239,10 @@ void* HttpProcessingThread(void* threadpack) {
             cli->Response.AddHeader("Connection: keep-alive");
             cli->Response.AddHeader("Keep-Alive: timeout=" STR(FPX_HTTP_KEEPALIVE));
           }
-
-          if (int blen = cli->Response.GetBodyLength()) {
+          
+          if (cli->Response.Headers && fpx_substringindex(cli->Response.Headers, "Content-Length: ") == -1) {
             char tempHeaderBuf[256];
+            int blen = cli->Response.GetBodyLength();
             sprintf(tempHeaderBuf, "Content-Length: %d", blen);
             cli->Response.AddHeader(tempHeaderBuf);
           }
@@ -624,7 +633,7 @@ void TcpServer::Listen() {
 
   printf("TCPserver listening on %s:%d\n", inet_ntoa(m_SocketAddress4.sin_addr), ntohs(m_SocketAddress4.sin_port));
   
-  tcp_acceptargs_t accepterArguments = { 
+  ServerProperties::tcp_acceptargs_t accepterArguments = { 
     &m_ConnectedClients,
     &m_Socket4, &m_ClientAddress,
     &m_ClientAddressSize,
@@ -856,9 +865,7 @@ HttpServer::HttpServer(const char* ip, unsigned short port):
   Response505{  }
   {
     SetDefaultHeaders(
-      "Server: fpxHTTP ("
-      FPX_HTTPSERVER_VERSION
-      ")\r\n"
+      "Server: fpxHTTP (" FPX_HTTPSERVER_VERSION ")\r\n"
     );
 
     Response101.SetCode("101");
@@ -1007,7 +1014,7 @@ void HttpServer::Listen(ServerType mode, ws_callback_t websocketCallback) {
 
 }
 
-void HttpServer::ListenSecure(ServerType mode, const char* keypath, const char* certpath, ws_callback_t websocketCallback) {
+void HttpServer::ListenSecure(const char* keypath, const char* certpath, ServerType mode, ws_callback_t websocketCallback) {
   throw NotImplementedException();
 }
 
@@ -1057,6 +1064,7 @@ void HttpServer::http_response_t::CopyFrom(struct HttpServer::Http_Response* oth
     memcpy(Body, other->Body, otherBLen);
     m_BodyLen = otherBLen;
   }
+  Finalized = true;
 }
 
 bool HttpServer::http_response_t::SetCode(const char* code) {
@@ -1088,9 +1096,10 @@ bool HttpServer::http_response_t::SetHeaders(const char* headers) {
 bool HttpServer::http_response_t::SetBody(const char* body) {
   m_BodyLen = fpx_getstringlength(body);
   if (m_BodyLen < 1) return false;
-  this->Body = (this->Body) ? (char*)realloc(this->Body, m_BodyLen) : (char*)malloc(m_BodyLen);
+  this->Body = (this->Body) ? (char*)realloc(this->Body, m_BodyLen+1) : (char*)malloc(m_BodyLen+1);
   // printf("this->Body in SetBody: 0x%x\n", this->Body);
   memcpy(this->Body, body, m_BodyLen);
+  this->Body[m_BodyLen] = 0;
 
   return true;
 }

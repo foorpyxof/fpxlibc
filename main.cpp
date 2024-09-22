@@ -113,11 +113,13 @@ int main(int argc, const char** argv) {
 
   // test fpx_string
   const char* testString = "hELLo friENd";
+  char* lowercaseTestString = fpx_string_to_lower(testString, true);
 
   std::cout << "String: " << testString << std::endl; // expected output: hELLo friENd
   std::cout << "String length: " << fpx_getstringlength(testString) << std::endl; // expected output: 12
-  fpx_string_to_lower(testString, false);
-  std::cout << "String in lowercase: " << testString << std::endl; // expected output: hello friend
+  std::cout << "String in lowercase: " << lowercaseTestString << std::endl; // expected output: hello friend
+
+  free(lowercaseTestString);
 
   EMPTY_LINE
 
@@ -218,7 +220,7 @@ int main(int argc, const char** argv) {
   #ifdef __FPX_COMPILE_TCP_CLIENT
 
   TcpClient tcpClient("127.0.0.1", 9999);
-  bool background = true;
+  bool background = false;
   try {
     // if string is empty, username is 'Anonymous'.
     // Also, a maximum of 16 characters is enforced by both the server and this specific client.
@@ -254,5 +256,4 @@ int main(int argc, const char** argv) {
 ////////////////////////////////////////////////////////
   
   return 0;
-
 }

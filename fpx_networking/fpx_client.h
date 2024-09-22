@@ -34,7 +34,15 @@ namespace fpx::ClientProperties {
 
 typedef void (*fn_ptr)(uint8_t*);
 
+/**
+ * The background thread that will read incoming TCP messages
+ */
 void* TcpReaderLoop(void*);
+
+/**
+ * The background thread that will send written TCP messages,
+ * if background mode is enabled.
+ */
 void* TcpWriterLoop(void*);
 
 }
@@ -43,6 +51,11 @@ namespace fpx {
 
 class TcpClient {
   public:
+
+    /**
+     * Interactive spawns a TCP shell, built to work with fpx::TcpServer.
+     * Background allows a callback to send TCP messages.
+     */
     enum class Mode {
       Interactive,
       Background
@@ -50,7 +63,7 @@ class TcpClient {
   
   public:
     /**
-     * Takes an IP and a PORT to set.
+     * Takes an IP and a PORT to connect to.
      */
     TcpClient(const char* ip, short port = TCP_DEFAULTPORT);
 
@@ -86,6 +99,9 @@ class TcpClient {
      */
     void SendMessage(const char*);
 
+    /**
+     * A struct containing data about all the current running threads.
+     */
     typedef struct {
       TcpClient* Caller;
       ClientProperties::fn_ptr fn;
