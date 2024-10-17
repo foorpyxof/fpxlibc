@@ -28,6 +28,7 @@ extern "C"{
 #include <regex.h>
 #include <signal.h>
 #include <time.h>
+#include <limits.h>
 
 #define FPX_HTTP_GET      0x1
 #define FPX_HTTP_HEAD     0x2
@@ -175,9 +176,9 @@ void* HttpKillerThread(void* hs);
 
 #define FPX_HTTP_KEEPALIVE 7
 
-#define FPX_HTTP_MAX_CLIENTS 16
-#define FPX_HTTP_THREADS 8
-#define FPX_WS_THREADS 2
+#define FPX_HTTP_MAX_CLIENTS 32
+#define FPX_HTTP_THREADS_DEFAULT 16
+#define FPX_WS_THREADS_DEFAULT 2
 
 #define FPX_HTTPSERVER_VERSION "alpha:sep-2024"
 
@@ -189,7 +190,7 @@ class HttpServer : public TcpServer {
      * 
      * It also takes a port to listen on that is a number from 0 to 65535
      */
-    HttpServer(const char* ip, unsigned short port = FPX_HTTP_DEFAULTPORT);
+    HttpServer(const char*, unsigned short = FPX_HTTP_DEFAULTPORT, uint8_t = FPX_HTTP_THREADS_DEFAULT, uint8_t = FPX_WS_THREADS_DEFAULT);
 
     ~HttpServer();
   public:
@@ -208,7 +209,11 @@ class HttpServer : public TcpServer {
     };
 
     /**
-     * This enum currently goes unused.
+     * Set options for the HttpServer:
+     * 
+     * - ManualWebSocket: Instead of the main thread accepting the WebSocket request,
+     * the programmer can do this themselves. After setting proper headers, the request
+     * will automatically be upgraded to WebSocket after the response is sent.
      */
     enum HttpServerOption { ManualWebSocket = 0x1 };
 
@@ -368,7 +373,7 @@ class HttpServer : public TcpServer {
       /**
        * Disconnects the client with the given index from the HTTP server.
        */
-      void HandleDisconnect(int clientIndex);
+      void HandleDisconnect(int clientIndex, bool closeSocket = true);
       struct sockaddr ClientDetails;
       http_endpoint_t* Endpoints;
     } http_threadpackage_t;
@@ -388,6 +393,13 @@ class HttpServer : public TcpServer {
      * Contains WebSocket client data, for the WebSocket request processing threads.
      */
     typedef struct {
+      public:
+        /**
+         * Send a WebSocket PING frame
+         */
+        void Ping();
+
+      public:
       // 0x1: Sent "close"
       // 0x2: Received "close"
       uint8_t Flags;
@@ -397,6 +409,7 @@ class HttpServer : public TcpServer {
       size_t ReadBufSize;
       uint8_t* ReadBufferPTR = nullptr;
       time_t LastActiveSeconds;
+      int FileDescriptor;
     } websocket_client_t;
     
     /**
@@ -423,10 +436,15 @@ class HttpServer : public TcpServer {
         /**
          * Sets the WS frame's payload
          */
-        bool SetPayload(char* payload, uint16_t len);
+        bool SetPayload(const char* payload, uint16_t len = 0);
+
+        /**
+         * Send the WS frame to the given socket file descriptor
+         */
+        void Send(int fd);
       private:
         uint8_t m_MetaByte = 0;
-        uint16_t m_PayloadLen = 0;
+        uint64_t m_PayloadLen = 0;
         char* m_Payload = nullptr;
     } websocket_frame_t;
 
@@ -443,7 +461,7 @@ class HttpServer : public TcpServer {
       /**
        * Disconnects the client with the given index from the WebSocket server.
        */
-      void HandleDisconnect(int clientIndex);
+      void HandleDisconnect(int clientIndex, bool closeSocket = true);
       
       /**
        * Sends a WebSocket frame to the client whose index was passed.
@@ -453,7 +471,7 @@ class HttpServer : public TcpServer {
       /**
        * Specifically sends a WS closing frame to the client whose index was passed.
        */
-      void SendClose(int index, uint16_t status, uint8_t* message = nullptr);
+      void SendClose(int index, uint16_t status, bool bigEndian, uint8_t* message = nullptr);
     } websocket_threadpackage_t;
     
     /**
@@ -481,6 +499,8 @@ class HttpServer : public TcpServer {
     http_response_t Response505;
 
     ServerType Mode;
+
+    uint8_t HttpThreads, WsThreads;
   public:
     /**
      * Gets the currently set default server headers.

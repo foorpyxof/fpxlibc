@@ -1,7 +1,12 @@
 # build stuff
 /build/
 
-#vs/vscode files
+# image files
+*.png
+*.jpg
+*.gif
+
+# vs/vscode files
 .vs/
 .vscode/
 
@@ -19,3 +24,7 @@
 *.la
 *.a
 *.lib
+
+# specific files
+curlout.txt
+curlscript_ws.sh

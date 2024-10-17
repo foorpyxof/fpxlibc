@@ -105,12 +105,24 @@ bool Vector<T>::Shrink(const int& less) {
     newArray[i] = m_Array[i];
 
   for(int i=m_Size; i < m_Capacity; i++)
-    newArray[i] = 0;
+    newArray[i] = T();
 
   delete[] m_Array;
   m_Array = newArray;
 
   return true;
+}
+
+template<typename T>
+T Vector<T>::PopFront() {
+  if (!m_Size) return T();
+  T firstEle = m_Array[0];
+  for(int i=0; i<m_Size; i++) {
+    m_Array[i] = (i == m_Size-1) ? T() : m_Array[i+1];
+  }
+  m_Size--;
+
+  return firstEle;
 }
 
 template<typename T>
@@ -163,6 +175,18 @@ T Vector<T>::PopBack() {
   m_Size--;
 
   return object;
+}
+
+template<typename T>
+T Vector<T>::Pop(unsigned int index) {
+  if (m_Size <= index) return T();
+  T theEle = m_Array[index];
+  for(int i=index; i<m_Size; i++) {
+    m_Array[i] = (i == m_Size-1) ? T() : m_Array[i+1];
+  }
+  m_Size--;
+
+  return theEle;
 }
 
 template<typename T>

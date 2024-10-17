@@ -90,7 +90,12 @@ class Vector {
     // bool PushFront(const T&);
     // bool PushFront(T&&) noexcept;
     // bool PushFront(const Vector<T>&);
-    // T PopFront();
+
+    /**
+     * Return the first element of the vector, also removing it.
+     * All the following elements will be shifted to compensate.
+     */
+    T PopFront();
 
     /**
      * Add an element to the back of the Vector.
@@ -104,6 +109,8 @@ class Vector {
      */
     bool PushBack(const Vector<T>&);
     T PopBack();
+
+    T Pop(unsigned int);
 
     /**
      * Shift all of the elements to the left by x spots.
@@ -142,7 +149,7 @@ class Vector {
     };
 
     Iterator begin() { return Iterator((*this)[0]); }
-    Iterator end() { return Iterator((*this)[m_Size]); }
+    Iterator end() { return Iterator((*this)[(m_Size) ? m_Size : 1]); }
 
   private:
     const static unsigned int m_MaxSize = 2048;
