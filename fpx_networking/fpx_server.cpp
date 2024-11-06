@@ -100,7 +100,7 @@ void* HttpProcessingThread(void* threadpack) {
         
         {
           char* cl = nullptr;
-          if (cli->Request.GetHeaderValue("Content-Length", &cl, false, true) && atol(cl) > 0 && atol(cl) < 2048) {
+          if (cli->Request.GetHeaderValue("Content-Length", &cl, false, true) && atol(cl) > 0 && atol(cl) < package->Caller->GetMaxBodySize()) {
             cli->Request.Body = (char*)malloc(atol(cl)+1);
             cli->ReadBufSize += snprintf(cli->Request.Body, atol(cl)+1, &cli->ReadBufferPTR[cli->ReadBufSize]) + 1;
           }
@@ -210,9 +210,11 @@ void* HttpProcessingThread(void* threadpack) {
           } else if (!cli->Response.Finalized) {
             endpointPtr->Callback(&cli->Request, &cli->Response);
           }
-          char* lowercaseHeaders = fpx_string_to_lower(cli->Response.Headers, true);
-          if (!strcmp(cli->Response.Code, "101") && fpx_substringindex(lowercaseHeaders, "sec-websocket-accept: ") > -1 && fpx_substringindex(lowercaseHeaders, "connection: upgrade") > -1) { cli->WsUpgrade = true; }
-          free(lowercaseHeaders);
+          if (cli->Response.Headers) {
+            char* lowercaseHeaders = fpx_string_to_lower(cli->Response.Headers, true);
+            if (!strcmp(cli->Response.Code, "101") && fpx_substringindex(lowercaseHeaders, "sec-websocket-accept: ") > -1 && fpx_substringindex(lowercaseHeaders, "connection: upgrade") > -1) cli->WsUpgrade = true;
+            free(lowercaseHeaders);
+          }
         }
 
         if (!fpx_getstringlength(cli->Response.Code)) cli->Response.SetCode("200");
@@ -873,7 +875,7 @@ HttpServer::HttpServer(const char* ip, unsigned short port, uint8_t http_threads
   WebsocketThreads((websocket_threadpackage_t*)calloc(ws_threads, sizeof(websocket_threadpackage_t))),
   HttpThreads(http_threads), WsThreads(ws_threads),
   m_Endpoints((http_endpoint_t*)calloc(FPX_HTTP_ENDPOINTS, sizeof(http_endpoint_t))),
-  m_DefaultHeaders(nullptr), m_Options(0), m_WebSocketTimeout(0)
+  m_DefaultHeaders(nullptr), m_MaxBodyLen(4096), m_Options(0), m_WebSocketTimeout(0)
   {
     SetDefaultHeaders(
       "Server: fpxHTTP (" FPX_HTTPSERVER_VERSION ")\r\n"
@@ -936,6 +938,14 @@ void HttpServer::SetDefaultHeaders(const char* headers) {
     memcpy(m_DefaultHeaders, headers, len);
   }
   return;
+}
+
+uint16_t HttpServer::GetMaxBodySize() {
+  return m_MaxBodyLen;
+}
+
+void HttpServer::SetMaxBodySize(uint16_t len) {
+  m_MaxBodyLen = len;
 }
 
 void HttpServer::CreateEndpoint(const char* uri,short methods, http_callback_t endpointCallback) {

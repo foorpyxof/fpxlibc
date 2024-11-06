@@ -521,6 +521,22 @@ class HttpServer : public TcpServer {
     void SetDefaultHeaders(const char*);
 
     /**
+     * Gets the currently set maximum body length for this server.
+     * 
+     * Default is 4096 bytes;
+     * 
+     * Also see fpx::HttpServer::SetMaxBodySize()
+     */
+    uint16_t GetMaxBodySize();
+
+    /**
+     * Sets the maximum body length for this server.
+     * 
+     * Also see fpx::HttpServer::GetMaxBodySize()
+     */
+    void SetMaxBodySize(uint16_t);
+
+    /**
      * Creates a valid HTTP endpoint with the given URI, allowed methods, and endpoint-callback.
      */
     void CreateEndpoint(const char* uri, short methods, http_callback_t endpointCallback);
@@ -580,6 +596,7 @@ class HttpServer : public TcpServer {
     
   private:
     char* m_DefaultHeaders;
+    uint16_t m_MaxBodyLen;
 
     uint16_t m_WebSocketTimeout;
     short m_EndpointCount;
