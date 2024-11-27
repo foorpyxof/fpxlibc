@@ -6,20 +6,23 @@
 #define EMPTY_LINE std::cout << std::endl;
 
 #include <unistd.h>
-#include "fpx_cpp-utils/fpx_cpp-utils.h"
+#include "fpx_cpp-utils/exceptions.h"
 
 extern "C" {
-  #include "fpx_string/fpx_string.h"
+  #include "fpx_string/string.h"
 }
 
-#include "fpx_linkedlist/fpx_linkedlist.h"
-#include "fpx_vector/fpx_vector.h"
+#include "fpx_structures/linkedlist.h"
+#include "fpx_structures/vector.h"
 
 using namespace fpx;
 
-#if defined __FPX_COMPILE_TCP_SERVER || defined __FPX_COMPILE_HTTP_SERVER
-  #include "fpx_networking/fpx_server.h"
-#endif // __FPX_COMPILE_TCP_SERVER || __FPX_COMPILE_HTTP_SERVER
+#ifdef __FPX_COMPILE_TCP_SERVER
+  #include "fpx_networking/tcp/tcpserver.h"
+#endif // __FPX_COMPILE_TCP_SERVER
+#ifdef __FPX_COMPILE_HTTP_SERVER
+  #include "fpx_networking/http/httpserver.h"
+#endif // __FPX_COMPILE_HTTP_SERVER
 
 #ifdef __FPX_COMPILE_HTTP_SERVER
   void WebSocketCallback(HttpServer::websocket_client_t* client, uint16_t metadata, uint64_t len, uint32_t mask_key, uint8_t* data) {
@@ -44,13 +47,6 @@ using namespace fpx;
     }
   }
 
-  void BenchmarkCallback(HttpServer::http_request_t* req, HttpServer::http_response_t* res) {
-    res->SetCode("200");
-    res->SetStatus("OK");
-    res->SetHeaders("Content-Type: text/plain\r\n");
-    res->SetBody("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-  }
-
   void RootCallback(HttpServer::http_request_t* req, HttpServer::http_response_t* res) {
 //    res->SetCode("200");
 //    res->SetStatus("OK");
@@ -60,7 +56,7 @@ using namespace fpx;
 #endif // __FPX_COMPILE_HTTP_SERVER
 
 #ifdef __FPX_COMPILE_TCP_CLIENT
-  #include "fpx_networking/fpx_client.h"
+  #include "fpx_networking/tcp/tcpclient.h"
 
   void ReadCallback(uint8_t* theBytes) {
     printf("\nNew message:\n");
@@ -211,7 +207,7 @@ int main(int argc, const char** argv) {
 ////////////////////////////////////////////////////////
 
   #ifdef __FPX_COMPILE_TCP_SERVER
-  TcpServer tcpServ("0.0.0.0", 9999);
+  TcpServer tcpServ("0.0.0.0", 7777);
 
   try {
     tcpServ.Listen();
@@ -224,13 +220,12 @@ int main(int argc, const char** argv) {
 
   #ifdef __FPX_COMPILE_TCP_CLIENT
 
-  TcpClient tcpClient("127.0.0.1", 9999);
+  TcpClient tcpClient("127.0.0.1", 7777);
   bool background = false;
   try {
     // if string is empty, username is 'Anonymous'.
     // Also, a maximum of 16 characters is enforced by both the server and this specific client.
     tcpClient.Connect((background) ? TcpClient::Mode::Background : TcpClient::Mode::Interactive, ReadCallback);
-    tcpClient.SendRaw("GET / HTTP/1.1\r\nHost: 127.0.0.1:9999\r\nUser-Agent: fpxTCPclient\r\nAccept: */*\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: dQKSfB/ZOzYjAxrWReKghQ==\r\nSec-WebSocket-Version: 13\r\n\r\n");
   } catch (Exception& exc) {
     exc.Print();
   }
@@ -254,7 +249,6 @@ int main(int argc, const char** argv) {
   httpServ.SetWebSocketTimeout(60);
   httpServ.CreateEndpoint("/", HttpServer::GET, RootCallback);
   httpServ.CreateEndpoint("/useragent", HttpServer::GET | HttpServer::HEAD, UserAgentCallback);
-  httpServ.CreateEndpoint("/benchmark", HttpServer::GET | HttpServer::HEAD, BenchmarkCallback);
   httpServ.Listen(HttpServer::ServerType::Both, WebSocketCallback);
   #endif // __FPX_COMPILE_HTTP_SERVER
 

@@ -1,5 +1,5 @@
-#ifndef FPX_CPPUTILS_H
-#define FPX_CPPUTILS_H
+#ifndef FPX_EXCEPTIONS_H
+#define FPX_EXCEPTIONS_H
 
 ////////////////////////////////////////////////////////////////
 //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
@@ -15,17 +15,6 @@
 #define FPX_ARG_ERRMSG "An ArgumentException has occured!"
 
 namespace fpx {
-
-  template<typename T1, typename T2>
-  struct Pair {
-    public:
-      Pair(): Key(T1()), Value(T2()){};
-      Pair(T1 k, T2 v): Key(k), Value(v){};
-      
-    public:
-      T1 Key;
-      T2 Value;
-  };
 
   // Custom exceptions declared below
   class Exception {
@@ -109,4 +98,4 @@ namespace fpx {
 
 }
 
-#endif /* FPX_CPPUTILS_H */
+#endif /* FPX_EXCEPTIONS_H */

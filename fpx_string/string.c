@@ -3,7 +3,7 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "fpx_string.h"
+#include "string.h"
 
 int fpx_getstringlength(const char* stringToCheck) {
   /**

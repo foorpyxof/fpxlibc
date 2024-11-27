@@ -3,7 +3,7 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "fpx_client.h"
+#include "tcpclient.h"
 
 namespace fpx::ClientProperties {
 
@@ -81,22 +81,6 @@ void* TcpWriterLoop(void* pack) {
 }
 
 namespace fpx {
-
-// // STATIC DECLARATIONS
-// struct TcpClient::threaddata TcpClient::m_ThreadData;
-// pthread_t TcpClient::m_ReaderThread, TcpClient::m_WriterThread;
-
-// const char* TcpClient::m_SrvIp;
-// short TcpClient::m_SrvPort = 0;
-
-// struct sockaddr_in TcpClient::m_SrvAddress;
-
-// int TcpClient::m_Socket;
-
-// char TcpClient::m_ReadBuffer[TCP_BUF_SIZE];
-// char TcpClient::m_WriteBuffer[TCP_BUF_SIZE];
-// char TcpClient::m_Input[TCP_BUF_SIZE-16];
-// // END STATIC DECLARATIONS
 
 TcpClient::TcpClient(const char* ip, short port):
 m_SrvIp(ip), m_SrvPort(port),

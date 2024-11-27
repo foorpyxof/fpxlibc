@@ -7,7 +7,7 @@
 ////////////////////////////////////////////////////////////////
 
 #include <iostream>
-#include "../fpx_cpp-utils/fpx_cpp-utils.h"
+#include "../fpx_cpp-utils/exceptions.h"
 #include <cmath>
 
 namespace fpx {
@@ -149,7 +149,7 @@ class Vector {
     };
 
     Iterator begin() { return Iterator((*this)[0]); }
-    Iterator end() { return Iterator((*this)[(m_Size) ? m_Size : 1]); }
+    Iterator end() { return Iterator((*this)[m_Size-1]); }
 
   private:
     const static unsigned int m_MaxSize = 2048;
@@ -160,6 +160,6 @@ class Vector {
 
 }
 
-#include "fpx_vector.hpp"
+#include "vector.hpp"
 
 #endif

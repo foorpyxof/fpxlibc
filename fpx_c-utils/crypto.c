@@ -3,21 +3,8 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "fpx_c-utils.h"
-#include "../fpx_string/fpx_string.h"
-#include <string.h>
-
-void fpx_endian_swap (void* input, int bytes) {  
-  uint8_t* tempBuf = (uint8_t*)malloc(bytes);
-  void* originalInput = input;
-  for (int i=bytes-1; i>-1; i--) {
-    memcpy(tempBuf+i, input, 1);
-    input++;
-  }
-  input = originalInput;
-  memcpy(input, tempBuf, bytes);
-  free(tempBuf);
-}
+#include "crypto.h"
+#include "endian.h"
 
 void fpx_sha1_init(SHA1_Context* ctx_ptr) {
   ctx_ptr->state[0] = 0x67452301;

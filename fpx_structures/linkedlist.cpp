@@ -3,7 +3,7 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "fpx_linkedlist.h"
+#include "linkedlist.h"
 
 namespace fpx {
 

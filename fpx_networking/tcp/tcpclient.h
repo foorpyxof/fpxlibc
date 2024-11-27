@@ -1,14 +1,14 @@
-#ifndef FPX_CLIENT_H
-#define FPX_CLIENT_H
+#ifndef FPX_CLIENT_TCP_H
+#define FPX_CLIENT_TCP_H
 
 ////////////////////////////////////////////////////////////////
 //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "../fpx_cpp-utils/fpx_cpp-utils.h"
+#include "../../fpx_cpp-utils/exceptions.h"
 extern "C"{
-#include "../fpx_string/fpx_string.h"
+#include "../../fpx_string/string.h"
 }
 
 #include <arpa/inet.h>
@@ -30,7 +30,9 @@ extern "C"{
 #define FPX_DISCONNECT "DISCONNECT"
 #define FPX_INIT "NAME:"
 
-namespace fpx::ClientProperties {
+namespace fpx {
+
+namespace ClientProperties {
 
 typedef void (*fn_ptr)(uint8_t*);
 
@@ -46,8 +48,6 @@ void* TcpReaderLoop(void*);
 void* TcpWriterLoop(void*);
 
 }
-
-namespace fpx {
 
 class TcpClient {
   public:
@@ -127,4 +127,4 @@ class TcpClient {
 
 }
 
-#endif // FPX_CLIENT_H
+#endif // FPX_CLIENT_TCP_H

@@ -3,7 +3,7 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "fpx_vector.h"
+#include "vector.h"
 
 namespace fpx {
 
