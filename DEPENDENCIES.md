@@ -10,11 +10,10 @@ tcpserver.o depends on:
 
 httpserver.o depends on:
 - tcpserver.o
+	- exceptions.o
+	- string.o
 - crypto.o
 - endian.o
 
 linkedlist.o depends on:
-- exceptions.o
-
-vector.o depends on:
 - exceptions.o

@@ -1,36 +1,46 @@
 ARGS = -I$(shell pwd)
 
-.PHONY: debug _debug tcpserver _tcpserver tcpclient _tcpclient _setup _breakdown clean
+.PHONY: test debug _test compile compile_dbg setup clean
 
-debug: _setup _debug _breakdown
-tcpserver: _setup _tcpserver _breakdown
-tcpclient: _setup _tcpclient _breakdown
-httpserver: _setup _httpserver _breakdown
+test: compile
+	find . -type f \( -name "test_*.cpp" \) -exec g++ $(ARGS) -std=c++17 -c {} \;
+	@make _test
 
-_debug:
-	find . -type f \( -name "*.c" \) -exec gcc $(ARGS) -D __FPX_COMPILE_DEFAULT -g -c {} \;
-	find . -type f \( -name "*.cpp" \) -exec g++ $(ARGS) -std=c++17 -D __FPX_COMPILE_DEFAULT -g -c {} \;
+debug: compile_dbg
+	find . -type f \( -name "test_*.cpp" \) -exec g++ $(ARGS) -std=c++17 -g -c {} \;
+	@make _test
 
-_tcpserver:
-	find . -type f \( -name "*.c" \) -exec gcc $(ARGS) -D __FPX_COMPILE_TCP_SERVER -g -c {} \;
-	find . -type f \( -name "*.cpp" \) -exec g++ $(ARGS) -std=c++17 -D __FPX_COMPILE_TCP_SERVER -g -c {} \;
+_test:
+	@if ! test -d "./build/testing" ; then \
+		mkdir -p ./build/testing; \
+	fi
 
-_tcpclient:
-	find . -type f \( -name "*.c" \) -exec gcc $(ARGS) -D __FPX_COMPILE_TCP_CLIENT -g -c {} \;
-	find . -type f \( -name "*.cpp" \) -exec g++ $(ARGS) -std=c++17 -D __FPX_COMPILE_TCP_CLIENT -g -c {} \;
+	@mv test_*.o build/unlinked/
+	@cd build/; \
+	./test_compile.sh
 
-_httpserver:
-	find . -type f \( -name "*.c" \) -exec gcc $(ARGS) -D __FPX_COMPILE_HTTP_SERVER -g -c {} \;
-	find . -type f \( -name "*.cpp" \) -exec g++ $(ARGS) -std=c++17 -D __FPX_COMPILE_HTTP_SERVER -g -c {} \;
+compile: setup
+	find . -type f \( -name "*.c" \) -exec gcc $(ARGS) -c {} \;
+	find . -type f \( -name "*.cpp" -not -name "test_*" \) -exec g++ $(ARGS) -std=c++17 -c {} \;
+	@mv *.o ./build/unlinked/
 
-_setup:
+compile_dbg: setup
+	find . -type f \( -name "*.c" \) -exec gcc $(ARGS) -g -c {} \;
+	find . -type f \( -name "*.cpp" -not -name "test_*" \) -exec g++ $(ARGS) -std=c++17 -g -c {} \;
+	@mv *.o ./build/unlinked/
+
+setup:
+	@if [ $(shell basename $(shell pwd)) != "fpxlibc" ] ; then \
+		echo "Must be run from base directory (fpxlibc)"; \
+		exit 1; \
+	fi
+
 	@if ! test -d "./build/unlinked" ; then \
 		mkdir -p ./build/unlinked; \
 	fi
 
-_breakdown:
-	mv *.o ./build/unlinked/
-	g++ ./build/unlinked/*.o -o ./build/fpxLIB.out
+	make clean
 
 clean:
-	rm build/unlinked/*
+	@(rm build/unlinked/* || true) 2> /dev/null 
+	@(rm build/*.out || true) 2> /dev/null 

@@ -3,8 +3,6 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#define EMPTY_LINE std::cout << std::endl;
-
 #include <unistd.h>
 #include "fpx_cpp-utils/exceptions.h"
 

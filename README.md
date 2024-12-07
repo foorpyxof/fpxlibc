@@ -5,18 +5,14 @@ I'll keep updating it with more stuff as I go along on my journey to learn more 
 
 ---
 
-Includes a lil' main.cpp test program that you can build using 'make'.
+Includes C++ test-programs that you can build using 'make'.
 
 ---
 
 # More Makefile instructions:
 
-- ```make tcpserver``` will make just the TCP server
-- ```make tcpclient``` will make just the TCP client
-- ```make httpserver``` will make just the HTTP server
-
-All make targets have the '-g' debug flag enabled.
-
-Output file will be put in ./build/fpxLIB.out
+- ```make debug``` builds the library and all the test programs with debug flags enabled
+- ```make compile``` only compile the library
+- ```make compile_dbg``` ditto, but with debug flags enabled
 
 ## have fun uwu
