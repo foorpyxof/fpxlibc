@@ -14,6 +14,6 @@
  * Swaps the endianness (or byte order) of the given pointer, based on how
  * many bytes the object occupies in memory (value supplied by the programmer)
  */
-void fpx_endian_swap(void* input, int bytes);
+extern void fpx_endian_swap(void* input, uint8_t bytes);
 
 #endif // FPX_ENDIAN_H

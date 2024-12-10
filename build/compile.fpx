@@ -2,26 +2,26 @@ syntax:
 - output file name
 - list of .o files to link together
 
-start
+>start
 
 testing/tcpclient.out
 exceptions.o
-string.o
+string*.o
 tcpclient.o
 test_tcpclient.o
 
 testing/tcpserver.out
 exceptions.o
-string.o
+string*.o
 tcpserver.o
 test_tcpserver.o
 
 testing/httpserver.out
 exceptions.o
-string.o
+string*.o
 tcpserver.o
 crypto.o
-endian.o
+endian*.o
 httpserver.o
 test_httpserver.o
 
@@ -31,11 +31,11 @@ linkedlist.o
 test_structures.o
 
 testing/string.out
-string.o
+string*.o
 test_string.o
 
 testing/c-utils.out
-endian.o
+endian*.o
 crypto.o
 test_c-utils.o
 
@@ -43,4 +43,4 @@ testing/cpp-utils.out
 exceptions.o
 test_cpp-utils.o
 
-end
+>end

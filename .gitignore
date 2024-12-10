@@ -1,7 +1,5 @@
 # build stuff
-/build/*
-!/build/test_compile.sh
-!/build/compile.fpx
+/build/*/
 
 # image files
 *.png

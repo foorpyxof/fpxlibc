@@ -30,7 +30,7 @@
 /**
  * Returns the length of a null terminated string (null-byte not included).
  */
-int fpx_getstringlength(const char*);
+extern int fpx_getstringlength(const char*);
 
 /**
  * Returns the index of a given substring within a string.

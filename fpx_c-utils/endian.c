@@ -5,10 +5,11 @@
 
 #include "endian.h"
 
-void fpx_endian_swap (void* input, int bytes) {  
+#ifndef __FPXLIBC_ASM
+void fpx_endian_swap (void* input, uint8_t bytes) {  
   uint8_t* tempBuf = (uint8_t*)malloc(bytes);
   void* originalInput = input;
-  for (int i=bytes-1; i>-1; i--) {
+  for (int16_t i=bytes-1; i>-1; i--) {
     memcpy(tempBuf+i, input, 1);
     input++;
   }
@@ -16,3 +17,4 @@ void fpx_endian_swap (void* input, int bytes) {
   memcpy(input, tempBuf, bytes);
   free(tempBuf);
 }
+#endif // __FPXLIBC_ASM
