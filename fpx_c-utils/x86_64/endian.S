@@ -3,7 +3,7 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-# fpx_c-utils/x86_64/endian.Si
+# fpx_c-utils/x86_64/endian.S
 
 .intel_syntax noprefix
 
@@ -21,7 +21,7 @@ fpx_endian_swap:
   
   push  rbp
   mov   rbp, rsp
-  sub   rsp, 0x2
+  sub   rsp, rsi
 
   mov   r8, rbp
   mov   r9, rdi   # save for later

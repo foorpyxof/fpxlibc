@@ -24,6 +24,7 @@ _test:
 	@cd build/; \
 	./test_compile.sh
 	@echo
+
 compile: CFLAGS := -O2
 compile: _compile
 
@@ -39,11 +40,11 @@ _compile: setup x86_64
 	@echo
 
 x86_64:
-	@echo "Assembling source"
 	@if grep -q "asm:x86_64" build/params.fpx; then \
+    echo "Assembling source"; \
 		find . -type f -name "*.S" -exec bash -c 'echo "[AS] {}" && as {} $(ASFLAGS) -o build/unlinked/$$(basename {} ".S")-$@.o' \;; \
+    echo; \
 	fi
-	@echo
 
 setup:
 	@if [ $(shell basename $(shell pwd)) != "fpxlibc" ] ; then \

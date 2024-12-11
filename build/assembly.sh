@@ -15,7 +15,7 @@ if [[ "$FPX_ASM_ARCH" == "yes" ]]; then
     select arch in "x86_64" "Cancel"; do
         case $arch in
             x86_64 ) FPX_ASM_ARCH=x86_64; break;;
-            Cancel ) unset FPX_ASM_ARCH; exit;;
+            Cancel ) break;;
         esac
     done
 fi
@@ -25,4 +25,4 @@ fi
 if [ $FPX_ASM_ARCH != "no" ]; then \
     echo "asm:$FPX_ASM_ARCH" >> params.fpx; \
 fi
-echo ""
+echo -e "\nChoices saved to 'build/params.fpx'\n";

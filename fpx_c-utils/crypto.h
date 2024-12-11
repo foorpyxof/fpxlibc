@@ -58,7 +58,7 @@ void fpx_sha1_final(SHA1_Context*, uint8_t[20]);
 void fpx_sha1_digest(const char* input, size_t lengthBytes, char* output, uint8_t printable);
 
 /**
- * Returns a base64 string based on the input.
+ * Returns a (!HEAP ALLOCATED!) base64 string based on the input.
  */
 char* fpx_base64_encode(const char* input, int lengthBytes);
 

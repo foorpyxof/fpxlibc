@@ -1,6 +1,6 @@
 # build stuff
-/build/*/
-
+build/*/
+build/params.fpx
 # image files
 *.png
 *.jpg
