@@ -17,9 +17,6 @@ Includes C++ test-programs that you can build using 'make'.
 
 ## x86_64 assembly
 
-**!!! the x86_64 assembly code is still experimental
-and has not been tested enough for release into the main branch !!!**
-
 Some parts of the library have been written in x86_64 assembly for optimization purposes.
 These files can be assembled by enabling x86_64 assembly when prompted through ```make``` or ```make compile```.
 
