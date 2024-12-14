@@ -11,10 +11,11 @@
 .SECTION .text
 .GLOBAL fpx_getstringlength
 
-# modified registers:
-# - rax
-# - r10
 fpx_getstringlength:
+	# modified registers:
+	# - rax
+	# - r10
+	
 	xor		rax, rax
 	test	rdi, rdi
   jnz		fpx_strlen_start  # if passed string is NOT nullptr

@@ -43,6 +43,7 @@ x86_64:
 	@if grep -q "asm:x86_64" build/params.fpx; then \
     echo "Assembling source"; \
 		find . -type f -name "*.S" -exec bash -c 'echo "[AS] {}" && as {} $(ASFLAGS) -o build/unlinked/$$(basename {} ".S")-$@.o' \;; \
+		find . -type f -name "*.s" -exec bash -c 'echo "[AS] {}" && gcc -c {} $(ASFLAGS) -o build/unlinked/$$(basename {} ".s")-$@.o' \;; \
     echo; \
 	fi
 

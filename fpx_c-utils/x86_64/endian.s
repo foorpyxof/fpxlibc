@@ -11,11 +11,12 @@
 .SECTION .text
 .GLOBAL fpx_endian_swap
 
-# modified registers:
-# - r8
-# - r9
-# - r10b
 fpx_endian_swap:
+  # modified registers:
+  # - r8
+  # - r9
+  # - r10b
+  
   test  rdi, rsi  # check for zero/nullptr in either argument
   jz    return
   
