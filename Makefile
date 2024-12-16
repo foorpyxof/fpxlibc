@@ -34,16 +34,16 @@ compile_dbg: _compile
 
 _compile: setup x86_64
 	@echo "Compiling source"
-	@find . -type f \( -name "*.c" \) -exec bash -c 'echo "[CC] {}" && gcc $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -c {} $(CFLAGS)' \;
-	@find . -type f \( -name "*.cpp" -not -name "test_*" \) -exec bash -c 'echo "[CC] {}" && g++ $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -std=c++17 -c {} $(CFLAGS)' \;
+	@find . -type f \( -name "*.c" \) -exec bash -c '[ $$(basename {} .c) != test ] && echo "[CC] {}" && gcc $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -c {} $(CFLAGS)' \;
+	@find . -type f \( -name "*.cpp" -not -name "test_*" \) -exec bash -c '[ $$(basename {} .cpp) != test ] && echo "[CC] {}" && g++ $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -std=c++17 -c {} $(CFLAGS)' \;
 	@mv *.o ./build/unlinked/
 	@echo
 
 x86_64:
 	@if grep -q "asm:x86_64" build/params.fpx; then \
     echo "Assembling source"; \
-		find . -type f -name "*.S" -exec bash -c 'echo "[AS] {}" && as {} $(ASFLAGS) -o build/unlinked/$$(basename {} ".S")-$@.o' \;; \
-		find . -type f -name "*.s" -exec bash -c 'echo "[AS] {}" && gcc -c {} $(ASFLAGS) -o build/unlinked/$$(basename {} ".s")-$@.o' \;; \
+		find . -type f -name "*.S" -exec bash -c '[ $$(basename {} .S != test ] && echo "[AS] {}" && as {} $(ASFLAGS) -o build/unlinked/$$(basename {} ".S")-$@.o' \;; \
+		find . -type f -name "*.s" -exec bash -c '[ $$(basename {} .s != test ] && echo "[AS] {}" && gcc -c {} $(ASFLAGS) -o build/unlinked/$$(basename {} ".s")-$@.o' \;; \
     echo; \
 	fi
 

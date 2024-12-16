@@ -15,6 +15,8 @@ Includes C++ test-programs that you can build using 'make'.
 - ```make compile``` only compile the library
 - ```make compile_dbg``` ditto, but with debug flags enabled
 
+**note:** the Makefile will compile and assemble all .c, .cpp, .s and .S files. to prevent test-programs from being compiled, name them test.(extension). The makefile will ignore these files.
+
 ## x86_64 assembly
 
 Some parts of the library have been written in x86_64 assembly for optimization purposes.
