@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CMD='g++'
+CMD=$CCPLUS
 declare -i i=0
 active=false
 
@@ -9,7 +9,7 @@ while read line; do
 	if ! $active; then continue; fi
 	if [ "$line" == '' ]; then
 		if [ "$CMD" == 'g++' ]; then continue; fi
-		# echo $CMD
+		#echo $CMD
     echo $echo_msg
 		$CMD
 		i=0

@@ -3,14 +3,20 @@ MAKEFLAGS += --no-print-directory
 
 .PHONY: test debug _test compile compile_dbg setup clean
 
+CC := gcc
+CCPLUS := g++
+AS := as
+LD := ld
+
 test: compile
+
 	@echo "Compiling test programs"
-	@find . -type f \( -name "test_*.cpp" \) -exec bash -c 'echo "[CC] {}" && g++ $(ARGS) -std=c++17 -c {} -O3' \;
+	@find . -type f \( -name "test_*.cpp" \) -exec bash -c 'echo "[CC] {}" && $(CCPLUS) $(ARGS) -std=c++17 -c {} -O3' \;
 	@$(MAKE) _test
 
 debug: compile_dbg
 	@echo "Compiling test programs"
-	@find . -type f \( -name "test_*.cpp" \) -exec bash -c 'echo "[CC] {}" && g++ $(ARGS) -std=c++17 -g -c {} -Og' \;
+	@find . -type f \( -name "test_*.cpp" \) -exec bash -c 'echo "[CC] {}" && $(CCPLUS) $(ARGS) -std=c++17 -g -c {} -Og' \;
 	@$(MAKE) _test
 
 _test:
@@ -22,6 +28,7 @@ _test:
 	@mv test_*.o build/unlinked/
 	@echo "Linking test programs"
 	@cd build/; \
+	export CC=$(CC); export CCPLUS=$(CCPLUS); export AS=$(AS); export LD=$(LD); \
 	./test_compile.sh
 	@echo
 
@@ -34,16 +41,15 @@ compile_dbg: _compile
 
 _compile: setup x86_64
 	@echo "Compiling source"
-	@find . -type f \( -name "*.c" \) -exec bash -c '[ $$(basename {} .c) != test ] && echo "[CC] {}" && gcc $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -c {} $(CFLAGS)' \;
-	@find . -type f \( -name "*.cpp" -not -name "test_*" \) -exec bash -c '[ $$(basename {} .cpp) != test ] && echo "[CC] {}" && g++ $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -std=c++17 -c {} $(CFLAGS)' \;
+	@find . -type f \( -name "*.c" \) -exec bash -c '[ $$(basename {} .c) != test ] && echo "[CC] {}" && $(CC) $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -c {} $(CFLAGS)' \;
+	@find . -type f \( -name "*.cpp" -not -name "test_*" \) -exec bash -c '[ $$(basename {} .cpp) != test ] && echo "[CC] {}" && $(CCPLUS) $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -std=c++17 -c {} $(CFLAGS)' \;
 	@mv *.o ./build/unlinked/
 	@echo
 
 x86_64:
 	@if grep -q "asm:x86_64" build/params.fpx; then \
     echo "Assembling source"; \
-		find . -type f -name "*.S" -exec bash -c '[ $$(basename {} .S != test ] && echo "[AS] {}" && as {} $(ASFLAGS) -o build/unlinked/$$(basename {} ".S")-$@.o' \;; \
-		find . -type f -name "*.s" -exec bash -c '[ $$(basename {} .s != test ] && echo "[AS] {}" && gcc -c {} $(ASFLAGS) -o build/unlinked/$$(basename {} ".s")-$@.o' \;; \
+		find . -type f -name "*.[s|S]" -exec bash -c '[ $$(basename {} | cut -d. -f1) != test ] && echo "[AS] {}" && $(AS) {} $(ASFLAGS) -o build/unlinked/$$(basename {} | cut -d. -f1)-$@.o' \;; \
     echo; \
 	fi
 
