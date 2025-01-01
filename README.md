@@ -15,7 +15,7 @@ Includes C++ test-programs that you can build using 'make'.
 - ```make compile``` only compile the library
 - ```make compile_dbg``` ditto, but with debug flags enabled
 
-**note:** the Makefile will compile and assemble all .c, .cpp, .s and .S files. to prevent test-programs from being compiled, name them test.(extension). The makefile will ignore these files.
+**note:** the Makefile will compile and assemble all .c, .cpp, .s and .S files. To prevent test-programs from being compiled, name them test.(extension). The makefile will ignore these files.
 
 ## x86_64 assembly
 
@@ -23,3 +23,12 @@ Some parts of the library have been written in x86_64 assembly for optimization 
 These files can be assembled by enabling x86_64 assembly when prompted through ```make``` or ```make compile```.
 
 ### have fun uwu
+
+## Branches
+
+- **main** contains the current, (hopefully) stable build of the library
+- **networking** is used for writing any new code for the networking part of
+the library (servers, clients, other net-functionality)
+- **x86_64** is used for writing x86_64-asm for pre-existing library code, while
+x86_64-asm for new code that has yet to be merged into main will be written
+in the appropriate branch
