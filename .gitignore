@@ -25,6 +25,9 @@ build/params.fpx
 *.a
 *.lib
 
+# binaries
+*.out
+
 # specific files
 curlout.txt
 curlscript_ws.sh

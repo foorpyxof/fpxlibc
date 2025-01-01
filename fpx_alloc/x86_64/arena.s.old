@@ -1,0 +1,135 @@
+////////////////////////////////////////////////////////////////
+//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
+//  Author: Erynn 'foorpyxof' Scholtes                        //
+////////////////////////////////////////////////////////////////
+
+# fpx_alloc/x86_64/arena.S
+
+.intel_syntax noprefix
+
+.SECTION .note.GNU-stack
+
+# Within this allocator, we first use MMAP to reserve a page of memory to
+# contain all of our metadata structs. These structs are of the following
+# sizes:
+#
+# fpx_arena:
+#		16 bytes; no padding needed. already aligned
+#
+# struct __fpx_region:
+#		16 bytes; ''
+#
+#	the layout for these structs can be found in fpxlibc/fpx_alloc/arena.h
+
+# PROT_NONE		equ	0x00
+# PROT_READ		equ 0x01
+# PROT_WRITE	equ 0x02
+# PROT_EXEC		equ 0x04
+# 
+# MAP_SHARED		equ 0x01
+# MAP_PRIVATE		equ	0x02
+# MAP_FIXED			equ 0x10
+# MAP_ANONYMOUS	equ	0x20	# this is for linux; change if on FreeBSD e.g. :p
+
+.SECTION .bss
+  arena_meta_start: .quad
+  arena_meta_ptr: .quad
+  # next_arena: .quad
+  # next_region: .quad
+
+.SECTION .data
+	arena_meta_len:	.word 0x1000	# 4096; we store it in data and not as a constant,
+													# so that we can alter it later if necessary (shouldn't be)
+
+.SECTION .text
+	.GLOBAL fpx_arena_create
+
+fpx_arena_create:
+	# modified registers:
+	# - rax (contains return value)
+	# - rsi, rdi
+	# - rcx, rdx
+	# - r8, r9, r10
+
+	# arguments:
+	# - unsigned DWORD (memory arena size)
+
+	# returns pointer to an fpx_arena struct as defined in fpx_alloc/arena.h
+	
+  push  rbp
+  mov   rbp, rsp
+  sub   rsp, 0x10
+
+  mov   DWORD PTR [rbp-4], edi
+
+	mov		r9, arena_meta_start[rip]
+	test	r9, r9
+	jnz		create_arena	# if metadata-heap already exists, we skip to 'create_arena'
+
+	mov		rax, 9		# syscall MMAP
+	xor		rdi, rdi	
+	mov		rsi, arena_meta_len[rip]
+	mov		rdx, 0x3	# PROT_READ | PROT_WRITE
+	mov		r10, 0x22	# MAP_PRIVATE | MAP_ANONYMOUS
+	mov		r8, -1
+	xor		r9, r9
+	syscall
+	# above is equivalent to:
+	# mmap(0, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+  cmp		rax, -1
+	je		fail
+  mov   arena_meta_start[rip], rax
+  mov   arena_meta_ptr[rip], rax
+
+	create_arena:
+	# at this point:
+	# - [rbp-4] contains the arena size (DWORD)
+  # - we have a pointer to a metadata-heap
+  mov   rax, 9
+  xor   rdi, rdi
+  mov   rsi, r10
+  mov   rdx, 0x3  # PROT_READ | PROT_WRITE
+  mov   r10, 0x22 # MAP_PRIVATE | MAP_ANONYMOUS
+  mov   r8, -1
+  xor   r9, r9
+  syscall
+  # pointer to the arena's inner data is now in rax
+  
+  cmp   rax, -1
+  je    fail      # if this allocation failed, return zero
+
+  mov   r8, arena_meta_ptr[rip]
+
+  # moving data into initial region of arena
+  mov   QWORD PTR [r8], rax   # data_ptr of initial region
+  mov   rax, r8
+  add   r8, 0x8
+  mov   r10d, DWORD PTR [rbp-4]   #r10d now contains the requested memory size
+  mov   DWORD PTR [r8], r10d  # region size             (specified by caller)
+  add   r8, 0x4
+  mov   DWORD PTR [r8], 0x1   # is free?                (boolean: true, since arena just created)
+  add   r8, 0x4
+
+  # moving data into arena struct
+  mov   QWORD PTR [r8], rax   # pointer to first region
+
+  mov   rax, r8   # put address of arena struct in return register
+  
+  add   r8, 0x8
+  mov   DWORD PTR [r8], 0x1    # initial region count of the arena
+  add   r8, 0x4
+  mov   DWORD PTR [r8], r10d  # arena total size          (specified by caller)
+  add   r8, 0x4
+  mov   arena_meta_ptr[rip], r8   # move meta-heap pointer to end of fresh metadata
+
+  mov   rsp, rbp
+  pop   rbp
+	ret
+
+	fail:
+	xor		rax, rax
+
+  mov   rsp, rbp
+  pop   rbp
+  ret

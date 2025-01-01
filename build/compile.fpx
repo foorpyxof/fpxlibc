@@ -43,4 +43,13 @@ testing/cpp-utils.out
 exceptions.o
 test_cpp-utils.o
 
+testing/alloc.out
+arena*.o
+test_alloc.o
+
+testing/mem.out
+mem*.o
+test_mem.o
+
+
 >end

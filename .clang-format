@@ -35,7 +35,7 @@ IfMacros:
 IncludeBlocks: Preserve
 IndentAccessModifiers: true
 IndentCaseLabels: true
-IndentPPDirectives: BeforeHash
+IndentPPDirectives: None
 IndentExternBlock: Indent
 IndentRequires: false
 IndentWidth: 2
