@@ -17,3 +17,6 @@ httpserver.o depends on:
 
 linkedlist.o depends on:
 - exceptions.o
+
+string-x86_64.o depends on:
+- mem-x86_64.o

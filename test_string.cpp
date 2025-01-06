@@ -14,4 +14,9 @@ int main() {
 
   free(lowercaseTestString);
 
+  char array[16] = { 'a' };
+  fpx_strcpy(array, (char*)"lalalala");
+
+  FPX_EXPECT(array, "lalalala")
+
 }

@@ -4,6 +4,8 @@
 ////////////////////////////////////////////////////////////////
 
 #include "string.h"
+#include "../fpx_mem/mem.h"
+#include <stddef.h>
 
 #ifndef __FPXLIBC_ASM
 int fpx_getstringlength(const char* stringToCheck) {
@@ -18,6 +20,17 @@ int fpx_getstringlength(const char* stringToCheck) {
 	for (i = 0; stringToCheck[i] != '\0'; ++i)
     ;
   return i;
+}
+#endif // __FPXLIBC_ASM
+
+#ifndef __FPXLIBC_ASM
+char* fpx_strcpy(char* dst, char* src) {
+  if (!(dst && src)) return NULL;
+
+  size_t len = fpx_getstringlength(src);
+  fpx_memcpy(dst, src, len + 1);
+
+  return dst;
 }
 #endif // __FPXLIBC_ASM
 

@@ -6,9 +6,10 @@ build/params.fpx
 *.jpg
 *.gif
 
-# vs/vscode files
+# editor files
 .vs/
 .vscode/
+.swp
 
 # Compiled stuff
 *.o

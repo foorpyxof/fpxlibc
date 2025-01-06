@@ -7,18 +7,21 @@ syntax:
 testing/tcpclient.out
 exceptions.o
 string*.o
+mem*.o
 tcpclient.o
 test_tcpclient.o
 
 testing/tcpserver.out
 exceptions.o
 string*.o
+mem*.o
 tcpserver.o
 test_tcpserver.o
 
 testing/httpserver.out
 exceptions.o
 string*.o
+mem*.o
 tcpserver.o
 crypto.o
 endian*.o
@@ -32,6 +35,7 @@ test_structures.o
 
 testing/string.out
 string*.o
+mem*.o
 test_string.o
 
 testing/c-utils.out

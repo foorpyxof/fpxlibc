@@ -33,6 +33,11 @@
 extern int fpx_getstringlength(const char*);
 
 /**
+ * Copies from source to dest, based on null-terminated string length
+ */
+extern char* fpx_strcpy(char* dst, char* src);
+
+/**
  * Returns the index of a given substring within a string.
  */
 int fpx_substringindex(const char* haystack, const char* needle);
