@@ -32,7 +32,7 @@ _test:
 	./test_compile.sh
 	@echo
 
-compile: CFLAGS := -O2
+compile: CFLAGS := -O3
 compile: _compile
 
 compile_dbg: CFLAGS := -g -Og

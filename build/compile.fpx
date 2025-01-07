@@ -40,6 +40,7 @@ test_string.o
 
 testing/c-utils.out
 endian*.o
+format*.o
 crypto.o
 test_c-utils.o
 
