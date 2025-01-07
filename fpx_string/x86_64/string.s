@@ -1,9 +1,8 @@
 ////////////////////////////////////////////////////////////////
+//  "string.s"                                                //
 //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
-
-# fpx_string/x86_64/string.S
 
 .intel_syntax noprefix
 

@@ -1,9 +1,8 @@
 ////////////////////////////////////////////////////////////////
+//  "mem.s"                                                   //
 //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
-
-# fpx_mem/x86_64/mem.S
 
 .intel_syntax noprefix
 

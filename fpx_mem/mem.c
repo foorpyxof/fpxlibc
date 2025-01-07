@@ -1,5 +1,10 @@
-#include <stddef.h>
-#include <stdint.h>
+////////////////////////////////////////////////////////////////
+//  "mem.c"                                                   //
+//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
+//  Author: Erynn 'foorpyxof' Scholtes                        //
+////////////////////////////////////////////////////////////////
+
+#include "mem.h"
 
 #ifndef __FPXLIBC_ASM
 void* fpx_memcpy(void* dst, void* src, size_t length) {

@@ -1,6 +1,12 @@
 #ifndef FPX_MEM_H
 #define FPX_MEM_H
 
+////////////////////////////////////////////////////////////////
+//  "mem.h"                                                   //
+//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
+//  Author: Erynn 'foorpyxof' Scholtes                        //
+////////////////////////////////////////////////////////////////
+
 #include <stddef.h>
 #include <stdint.h>
 

@@ -1,3 +1,9 @@
+////////////////////////////////////////////////////////////////
+//  "arena.c"                                                 //
+//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
+//  Author: Erynn 'foorpyxof' Scholtes                        //
+////////////////////////////////////////////////////////////////
+
 #include "arena.h"
 
 // #define __USE_MISC

@@ -1,9 +1,8 @@
 ////////////////////////////////////////////////////////////////
+//  "arena.s"                                                 //
 //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
-
-# fpx_alloc/x86_64/arena.S
 
 .intel_syntax noprefix
 

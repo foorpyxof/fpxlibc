@@ -1,9 +1,8 @@
 ////////////////////////////////////////////////////////////////
+//  "endian.s"                                                //
 //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
-
-# fpx_c-utils/x86_64/endian.S
 
 .intel_syntax noprefix
 

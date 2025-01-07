@@ -2,6 +2,7 @@
 #define FPX_VECTOR_H
 
 ////////////////////////////////////////////////////////////////
+//  "vector.h"                                                //
 //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
