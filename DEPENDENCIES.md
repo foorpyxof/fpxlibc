@@ -18,5 +18,11 @@ httpserver.o depends on:
 linkedlist.o depends on:
 - exceptions.o
 
+string.o depends on:
+- mem.o
+
 string-x86_64.o depends on:
 - mem-x86_64.o
+
+format.o depends on:
+- arithmetic.o

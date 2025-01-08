@@ -1,6 +1,6 @@
 #include <iostream>
 #include <stdio.h>
-#include <stdint.h>
+#include <string.h>
 
 #define EMPTY_LINE std::cout << std::endl;
 

@@ -41,6 +41,7 @@ test_string.o
 testing/c-utils.out
 endian*.o
 format*.o
+arithmetic.o
 crypto.o
 test_c-utils.o
 
@@ -56,5 +57,8 @@ testing/mem.out
 mem*.o
 test_mem.o
 
+testing/math.out
+arithmetic.o
+test_math.o
 
 >end
