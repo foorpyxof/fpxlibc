@@ -34,3 +34,18 @@ int fpx_strint(char* input) {
   return retval;
 }
 #endif // __FPXLIBC_ASM
+
+int fpx_intstr(int input, char* output) {
+  uint8_t digits = 0;
+  int input_clone = input;
+
+  // get amount of digits
+  for (; input_clone || !digits; input_clone /= 10) { ++digits; }
+
+  for (; digits > 0; --digits) {
+    *output = ((input / (fpx_pow(10, digits - 1))) % 10) + '0';
+    ++output;
+  }
+
+  return input;
+}

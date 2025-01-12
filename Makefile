@@ -63,9 +63,10 @@ setup:
 		mkdir -p ./build/unlinked; \
 	fi
 
-	@$(MAKE) clean
 	@cd build; \
 	./assembly.sh
+
+	@$(MAKE) clean
 
 clean:
 	@rm build/unlinked/* 2>/dev/null || true

@@ -7,24 +7,24 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include <stdint.h>
+#include "../fpx_int.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #ifndef STR_HELPER
-  #define STR_HELPER(x) #x
+#define STR_HELPER(x) #x
 #endif
 #ifndef STR
-  #define STR(x) STR_HELPER(x)
+#define STR(x) STR_HELPER(x)
 #endif
 
 #define ROL(v, n) ((v << n) | (v >> (32 - n)))
 
 typedef struct {
-  uint32_t state[5];
-  uint32_t count;
-  uint8_t buffer[64];
+    uint32_t state[5];
+    uint32_t count;
+    uint8_t buffer[64];
 } SHA1_Context;
 
 void __fpx_sha1_0to19(uint32_t*, uint32_t*, int8_t);
@@ -63,4 +63,4 @@ void fpx_sha1_digest(const char* input, size_t lengthBytes, char* output, uint8_
  */
 char* fpx_base64_encode(const char* input, int lengthBytes);
 
-#endif // FPX_CRYPTO_H
+#endif  // FPX_CRYPTO_H

@@ -7,9 +7,9 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include <string.h>
-#include <stdint.h>
+#include "../fpx_int.h"
 #include <stdlib.h>
+#include <string.h>
 
 /**
  * Swaps the endianness (or byte order) of the given pointer, based on how
@@ -17,4 +17,4 @@
  */
 extern void fpx_endian_swap(void* input, uint8_t bytes);
 
-#endif // FPX_ENDIAN_H
+#endif  // FPX_ENDIAN_H
