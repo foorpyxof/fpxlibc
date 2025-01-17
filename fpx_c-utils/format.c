@@ -5,6 +5,7 @@
 ////////////////////////////////////////////////////////////////
 
 #include "format.h"
+#include <fpxlibc/fpx_math/math.h>
 
 #ifndef __FPXLIBC_ASM
 int fpx_strint(char* input) {
@@ -42,9 +43,13 @@ int fpx_intstr(int input, char* output) {
   // get amount of digits
   for (; input_clone || !digits; input_clone /= 10) { ++digits; }
 
+  if (input < 0) {
+    *(output++) = '-';
+    input = (int)fpx_abs(input);
+  }
+
   for (; digits > 0; --digits) {
-    *output = ((input / (fpx_pow(10, digits - 1))) % 10) + '0';
-    ++output;
+    *(output++) = ((input / (fpx_pow(10, digits - 1))) % 10) + '0';
   }
 
   return input;

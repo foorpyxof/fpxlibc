@@ -47,11 +47,14 @@ int main() {
   fpx_intstr(12345, output4);
   FPX_EXPECT(output4, "12345")
   memset(output4, 0, sizeof(output4));
-  fpx_intstr(192837465, output4);
-  FPX_EXPECT(output4, "192837465")
+  fpx_intstr(1928374650, output4);
+  FPX_EXPECT(output4, "1928374650")
   memset(output4, 0, sizeof(output4));
   fpx_intstr(0, output4);
   FPX_EXPECT(output4, "0")
+  memset(output4, 0, sizeof(output4));
+  fpx_intstr(-1234, output4);
+  FPX_EXPECT(output4, "-1234")
 
   return 0;
 }

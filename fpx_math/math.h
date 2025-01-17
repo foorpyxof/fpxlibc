@@ -12,4 +12,6 @@
  */
 int fpx_pow(int base, int power);
 
+unsigned int fpx_abs(int input);
+
 #endif

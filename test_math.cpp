@@ -1,7 +1,7 @@
 #include "test-definitions.h"
 
 extern "C" {
-  #include "fpx_math/arithmetic.h"
+  #include "fpx_math/math.h"
 }
 
 int main() {

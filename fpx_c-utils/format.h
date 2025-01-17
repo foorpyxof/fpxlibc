@@ -8,7 +8,7 @@
 ////////////////////////////////////////////////////////////////
 
 #include "../fpx_int.h"
-#include "../fpx_math/arithmetic.h"
+#include "../fpx_math/math.h"
 
 /**
  *  Converts a given input string to an integer

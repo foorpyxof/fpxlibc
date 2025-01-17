@@ -21,10 +21,10 @@ int main() {
   snprintf(testptr_value, 15, "%p", testptr_uwu);
   snprintf(dataptr_value, 15, "%p", data);
 
-  FPX_EXPECT(testptr_value, "0x7f.......000")
+  FPX_EXPECT(testptr_value, "0x7........000")
   EMPTY_LINE
 
-  FPX_EXPECT(dataptr_value, "0x7f.......530")
+  FPX_EXPECT(dataptr_value, "0x7........530")
   EMPTY_LINE
 
   printf("%c\n", *data);

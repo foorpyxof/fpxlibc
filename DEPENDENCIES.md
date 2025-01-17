@@ -25,4 +25,4 @@ string-x86_64.o depends on:
 - mem-x86_64.o
 
 format.o depends on:
-- arithmetic.o
+- math.o

@@ -4,14 +4,16 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "arithmetic.h"
+#include "math.h"
 
 int fpx_pow(int base, int power) {
   if (!power)
     return 1;
 
-  if (power > 0) power -= 1;
-  else power += 1;
+  if (power > 0)
+    power -= 1;
+  else
+    power += 1;
 
   int baseclone = base;
 
@@ -21,4 +23,8 @@ int fpx_pow(int base, int power) {
   }
 
   return base;
+}
+
+unsigned int fpx_abs(int input) {
+  return (input < 0) ? (0 - input) : input;
 }
