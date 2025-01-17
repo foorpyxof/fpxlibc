@@ -124,10 +124,10 @@ void fpx_sha1_transform(SHA1_Context* ctx_ptr, const uint8_t buffer[64]) {
   vals[3] = ctx_ptr->state[3];
   vals[4] = ctx_ptr->state[4];
 
-  __fpx_sha1_0to19(W, vals, 1);
-  __fpx_sha1_20to39(W, vals, 1);
-  __fpx_sha1_40to59(W, vals, 1);
-  __fpx_sha1_60to79(W, vals, 1);
+  __fpx_sha1_0to19(W, vals, 0);
+  __fpx_sha1_20to39(W, vals, 0);
+  __fpx_sha1_40to59(W, vals, 0);
+  __fpx_sha1_60to79(W, vals, 0);
 
   ctx_ptr->state[0] += vals[0];
   ctx_ptr->state[1] += vals[1];
