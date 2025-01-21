@@ -8,12 +8,12 @@ while read line; do
 	if [ "$line" == '>start' ]; then active=true; continue; fi
 	if ! $active; then continue; fi
 	if [ "$line" == '' ]; then
-		if [ "$CMD" == 'g++' ]; then continue; fi
+		if [ "$CMD" == $CCPLUS ]; then continue; fi
 		#echo $CMD
     echo $echo_msg
 		$CMD
 		i=0
-		CMD="g++"
+		CMD=$CCPLUS
 	elif [ "$line" == '>end' ]; then
 		break
 	else

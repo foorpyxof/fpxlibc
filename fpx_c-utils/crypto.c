@@ -101,9 +101,8 @@ void __fpx_sha1_60to79(uint32_t* words, uint32_t* vals, int8_t debug) {
   }
 }
 
-void fpx_sha1_transform(SHA1_Context* ctx_ptr, const uint8_t buffer[64]) {
+void fpx_sha1_transform(SHA1_Context* ctx_ptr, const uint8_t* buffer) {
   uint32_t vals[5];
-  uint32_t temp;
   uint32_t W[80];
 
   for (int i = 0; i < 16; i++) {
@@ -163,7 +162,7 @@ void fpx_sha1_final(SHA1_Context* ctx_ptr, uint8_t digest[20]) {
   short bigEndianChecker = 1;
   char bigEndian = (!*(char*)&bigEndianChecker) ? 1 : 0;
 
-  if (!bigEndian) fpx_endian_swap(&finalcount, 8);
+  if (!bigEndian) fpx_endian_swap(&finalcount, sizeof(finalcount));
 
   c = 0x80;
   fpx_sha1_update(ctx_ptr, &c, 1);

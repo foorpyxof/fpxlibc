@@ -40,7 +40,7 @@ void fpx_sha1_init(SHA1_Context*);
 /**
  * SHA-1 transform function.
  */
-void fpx_sha1_transform(SHA1_Context*, const uint8_t[64]);
+void fpx_sha1_transform(SHA1_Context*, const uint8_t*);
 /**
  * SHA-1 update function.
  */

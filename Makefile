@@ -11,12 +11,12 @@ LD := ld
 test: compile
 
 	@echo "Compiling test programs"
-	@find . -type f \( -name "test_*.cpp" \) -exec bash -c 'echo "[CC] {}" && $(CCPLUS) $(ARGS) -std=c++17 -c {} -O3' \;
+	@find . -type f \( -name "test_*.cpp" \) -exec bash -c 'echo "[CC] {}" && $(CCPLUS) $(ARGS) -c {} -O3' \;
 	@$(MAKE) _test
 
 debug: compile_dbg
 	@echo "Compiling test programs"
-	@find . -type f \( -name "test_*.cpp" \) -exec bash -c 'echo "[CC] {}" && $(CCPLUS) $(ARGS) -std=c++17 -g -c {} -Og' \;
+	@find . -type f \( -name "test_*.cpp" \) -exec bash -c 'echo "[CC] {}" && $(CCPLUS) $(ARGS) -g -c {} -Og' \;
 	@$(MAKE) _test
 
 _test:
@@ -41,7 +41,7 @@ compile_dbg: _compile
 
 _compile: setup x86_64
 	@echo "Compiling source"
-	@find . -type f \( -name "*.c" \) -exec bash -c '[ $$(basename {} .c) != test ] && echo "[CC] {}" && $(CC) $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -c {} $(CFLAGS)' \;
+	@find . -type f \( -name "*.c" \) -exec bash -c '[ $$(basename {} .c) != test ] && echo "[CC] {}" && $(CC) $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) --std=c17 -c {} $(CFLAGS)' \;
 	@find . -type f \( -name "*.cpp" -not -name "test_*" \) -exec bash -c '[ $$(basename {} .cpp) != test ] && echo "[CC] {}" && $(CCPLUS) $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -std=c++17 -c {} $(CFLAGS)' \;
 	@mv *.o ./build/unlinked/
 	@echo

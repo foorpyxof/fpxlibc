@@ -15,10 +15,13 @@ fpx_endian_swap:
   # - r8
   # - r9
   # - r10b
-  
-  test  rdi, rsi  # check for zero/nullptr in either argument
+
+  # check for zero/nullptr in either argument
+  test  rdi, rdi
   jz    return
-  
+  test  rsi, rsi
+  jz    return
+
   push  rbp
   mov   rbp, rsp
   sub   rsp, rsi

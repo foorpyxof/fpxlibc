@@ -5,7 +5,6 @@
 ////////////////////////////////////////////////////////////////
 
 #include "format.h"
-#include <fpxlibc/fpx_math/math.h>
 
 #ifndef __FPXLIBC_ASM
 int fpx_strint(char* input) {
