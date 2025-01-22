@@ -9,14 +9,14 @@ exceptions.o
 string*.o
 mem*.o
 tcpclient.o
-test_tcpclient.o
+testing/tcpclient.o
 
 testing/tcpserver.out
 exceptions.o
 string*.o
 mem*.o
 tcpserver.o
-test_tcpserver.o
+testing/tcpserver.o
 
 testing/httpserver.out
 exceptions.o
@@ -26,39 +26,39 @@ tcpserver.o
 crypto.o
 endian*.o
 httpserver.o
-test_httpserver.o
+testing/httpserver.o
 
 testing/structures.out
 exceptions.o
 linkedlist.o
-test_structures.o
+testing/structures.o
 
 testing/string.out
 string*.o
 mem*.o
-test_string.o
+testing/string.o
 
 testing/c-utils.out
 endian*.o
 format*.o
 math.o
 crypto.o
-test_c-utils.o
+testing/c-utils.o
 
 testing/cpp-utils.out
 exceptions.o
-test_cpp-utils.o
+testing/cpp-utils.o
 
 testing/alloc.out
 arena*.o
-test_alloc.o
+testing/alloc.o
 
 testing/mem.out
 mem*.o
-test_mem.o
+testing/mem.o
 
 testing/math.out
 math.o
-test_math.o
+testing/math.o
 
 >end

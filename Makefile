@@ -11,12 +11,12 @@ LD := ld
 test: compile
 
 	@echo "Compiling test programs"
-	@find . -type f \( -name "test_*.cpp" \) -exec bash -c 'echo "[CC] {}" && $(CCPLUS) $(ARGS) -c {} -O3' \;
+	@find ./testfiles -type f \( -name "*.cpp" \) -exec bash -c 'echo "[CC] {}" && $(CCPLUS) $(ARGS) -c {} -O3' \;
 	@$(MAKE) _test
 
 debug: compile_dbg
 	@echo "Compiling test programs"
-	@find . -type f \( -name "test_*.cpp" \) -exec bash -c 'echo "[CC] {}" && $(CCPLUS) $(ARGS) -g -c {} -Og' \;
+	@find ./testfiles -type f \( -name "*.cpp" \) -exec bash -c 'echo "[CC] {}" && $(CCPLUS) $(ARGS) -g -c {} -Og' \;
 	@$(MAKE) _test
 
 _test:
@@ -25,7 +25,7 @@ _test:
 		mkdir -p ./build/testing; \
 	fi
 
-	@mv test_*.o build/unlinked/
+	@mv *.o build/unlinked/testing/
 	@echo "Linking test programs"
 	@cd build/; \
 	export CC=$(CC); export CCPLUS=$(CCPLUS); export AS=$(AS); export LD=$(LD); \
@@ -42,7 +42,7 @@ compile_dbg: _compile
 _compile: setup x86_64
 	@echo "Compiling source"
 	@find . -type f \( -name "*.c" \) -exec bash -c '[ $$(basename {} .c) != test ] && echo "[CC] {}" && $(CC) $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) --std=c17 -c {} $(CFLAGS)' \;
-	@find . -type f \( -name "*.cpp" -not -name "test_*" \) -exec bash -c '[ $$(basename {} .cpp) != test ] && echo "[CC] {}" && $(CCPLUS) $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -std=c++17 -c {} $(CFLAGS)' \;
+	@find . -type f \( -name "*.cpp" -not -wholename "*/testfiles/*" \) -exec bash -c '[ $$(basename {} .cpp) != test ] && echo "[CC] {}" && $(CCPLUS) $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -std=c++17 -c {} $(CFLAGS)' \;
 	@mv *.o ./build/unlinked/
 	@echo
 
@@ -59,8 +59,8 @@ setup:
 		exit 1; \
 	fi
 
-	@if ! test -d "./build/unlinked" ; then \
-		mkdir -p ./build/unlinked; \
+	@if ! test -d "./build/unlinked/testing" ; then \
+		mkdir -p ./build/unlinked/testing; \
 	fi
 
 	@cd build; \
