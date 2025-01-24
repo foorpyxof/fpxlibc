@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////
-//  "arithmetic.c"                                            //
+//  "math.c"                                                  //
 //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////

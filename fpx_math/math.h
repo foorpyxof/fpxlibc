@@ -1,8 +1,8 @@
-#ifndef FPX_ARITHMETIC_H
-#define FPX_ARITHMETIC_H
+#ifndef FPX_MATH_H
+#define FPX_MATH_H
 
 ////////////////////////////////////////////////////////////////
-//  "arithmetic.h"                                            //
+//  "math.h"                                                  //
 //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
@@ -12,6 +12,10 @@
  */
 int fpx_pow(int base, int power);
 
+/**
+ *  Returns the absolute value of the input
+ *  (basically the number without the minus sign)
+ */
 unsigned int fpx_abs(int input);
 
 #endif
