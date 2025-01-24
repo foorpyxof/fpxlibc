@@ -43,7 +43,7 @@ _compile: setup x86_64
 	@echo "Compiling source"
 	@find . -type f \( -name "*.c" \) -exec bash -c 'NAME=$$(basename {} .c); [ $${NAME} != test ] && ([ ! -f build/unlinked/$${NAME}.o ] || [ $$(stat --format=%Y {}) -gt $$(stat --format=%Y build/unlinked/$${NAME}.o) ]) && echo "[CC] {}" && $(CC) $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) --std=c17 -c {} $(CFLAGS)' \;
 	@find . -type f \( -name "*.cpp" -not -wholename "*/testfiles/*" \) -exec bash -c 'NAME=$$(basename {} .cpp); [ $${NAME} != test ] && ([ ! -f build/unlinked/$${NAME}.o ] || [ $$(stat --format=%Y {}) -gt $$(stat --format=%Y build/unlinked/$${NAME}.o) ]) && echo "[CC] {}" && $(CCPLUS) $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -std=c++17 -c {} $(CFLAGS)' \;
-	@if [ -f *.o ]; then \
+	@if [ $$(find . -maxdepth 1 -name "*.o" | wc -l) -gt 0 ]; then \
 		mv *.o ./build/unlinked/; \
 	else \
 		echo "No C(++) source to compile or C(++) source not modified!"; \
