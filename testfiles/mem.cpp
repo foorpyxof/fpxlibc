@@ -1,5 +1,5 @@
 extern "C" {
-  #include "fpx_mem/mem.h"
+#include "../fpx_mem/mem.h"
 }
 
 #include "test-definitions.h"
@@ -8,7 +8,7 @@ int main() {
   char* testptr = (char*)malloc(16);
   char arr[16];
 
-  for(int i = 0; i < 15; ++i)
+  for (int i = 0; i < 15; ++i)
     arr[i] = 'a' + i;
 
   arr[15] = 0;

@@ -1,5 +1,5 @@
 extern "C" {
-  #include "fpx_alloc/arena.h"
+  #include "../fpx_alloc/arena.h"
 }
 
 #include "test-definitions.h"

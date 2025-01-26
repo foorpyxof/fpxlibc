@@ -6,6 +6,7 @@
 
 #include "math.h"
 
+#ifndef __FPXLIBC_ASM
 int fpx_pow(int base, int power) {
   if (!power)
     return 1;
@@ -24,6 +25,7 @@ int fpx_pow(int base, int power) {
 
   return base;
 }
+#endif // _FPXLIBC_ASM
 
 unsigned int fpx_abs(int input) {
   return (input < 0) ? (0 - input) : input;

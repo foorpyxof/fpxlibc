@@ -1,5 +1,5 @@
+#include "../fpx_networking/tcp/tcpserver.h"
 #include "test-definitions.h"
-#include "fpx_networking/tcp/tcpserver.h"
 
 using namespace fpx;
 
@@ -9,8 +9,5 @@ int main() {
 
   try {
     tcpServ.Listen();
-  } catch (NetException& exc) {
-    exc.Print();
-  }
-
+  } catch (NetException& exc) { exc.Print(); }
 }
