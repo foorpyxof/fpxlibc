@@ -11,8 +11,6 @@
 // NOTE: DEBUG LINE!! REMOVE!
 // #define FPXLIBC_DEBUG
 
-#include <sys/mman.h>
-
 #define FPX_ARENA_META_SPACE (512 + 16)
 
 struct __fpx_region {

@@ -12,6 +12,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <sys/mman.h>
+
 #include <stdio.h>
 
 typedef struct __fpx_region fpx_region;

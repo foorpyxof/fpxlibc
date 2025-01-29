@@ -47,7 +47,7 @@ _compile: setup x86_64
 		[ $${NAME} != test ] && \
 		([ ! -f build/unlinked/$${NAME}.o ] || [ $$(stat --format=%Y {}) -gt $$(stat --format=%Y build/unlinked/$${NAME}.o) ]) && \
 		echo "[CC] {}" && \
-		$(CC) $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) --std=c17 -c {} $(CFLAGS) -o $${NAME}.o && mv $${NAME}.o build/unlinked/ \
+		$(CC) $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -c {} $(CFLAGS) -o $${NAME}.o && mv $${NAME}.o build/unlinked/ \
 	' \;; \
 	\
 	find . -type f \( -name "*.cpp" -not -wholename "*/testfiles/*" \) -exec bash -c ' \
@@ -55,7 +55,7 @@ _compile: setup x86_64
 		[ $${NAME} != test ] && \
 		([ ! -f build/unlinked/$${NAME}.o ] || [ $$(stat --format=%Y {}) -gt $$(stat --format=%Y build/unlinked/$${NAME}.o) ]) && \
 		echo "[CC] {}" && \
-		$(CCPLUS) $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -std=c++17 -c {} $(CFLAGS) -o $${NAME}.o && mv $${NAME}.o build/unlinked/ \
+		$(CCPLUS) $(ARGS) $$(if [ -n "$(shell sed -nE 's/asm:(.*)/\1/p' build/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -c {} $(CFLAGS) -o $${NAME}.o && mv $${NAME}.o build/unlinked/ \
 	' \;;
 #	@if [ ! $$(find . -maxdepth 1 -name "*.o" | wc -l) -gt 0 ]; then \
 		echo "No C(++) source to compile or C(++) source not modified!"; \
@@ -64,6 +64,7 @@ _compile: setup x86_64
 
 x86_64:
 	@if grep -q "asm:x86_64" build/params.fpx; then \
+		$(MAKE) clean; \
     echo "Assembling source"; \
 		find . -type f -name "*.[s|S]" -exec bash -c '[ $$(basename {} | cut -d. -f1) != test ] && echo "[AS] {}" && $(AS) {} $(ASFLAGS) -o build/unlinked/$$(basename {} | cut -d. -f1)-$@.o' \;; \
     echo; \
