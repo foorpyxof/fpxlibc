@@ -18,10 +18,10 @@ while read line; do
 		break
 	else
 		if [ $i == 0 ]; then
-			CMD+=" -o "
-      echo_msg="[LD] ./build/$line"
+			CMD+=" -o ../build/"
+      echo_msg="[LD] ./build/testing/$line"
 		else
-			CMD+=" unlinked/"
+			CMD+=" ../build/unlinked/"
       # if [ $i != 1 ]; then echo_msg+=", "; fi
 		fi
 		CMD+="$line"
