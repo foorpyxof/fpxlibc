@@ -28,7 +28,7 @@ _test:
 #	@mv *.o build/unlinked/testing/
 	@echo "Linking test programs"
 	@cd scripts/; \
-	export CC=$(CC); export CCPLUS=$(CCPLUS); export AS=$(AS); export LD=$(LD); \
+		export CC="$(CC)"; export CCPLUS="$(CCPLUS)"; export AS="$(AS)"; export LD="$(LD)"; \
 	./test_compile.sh
 	@echo
 
@@ -81,7 +81,7 @@ setup:
 	@cd scripts/; \
 	./assembly.sh
 
-	@if [ "$$(scripts/targets.sh CheckClean)" == "clean" ]; then $(MAKE) clean RESET_PARAMS="false"; fi
+	@if [ "$$(scripts/targets.sh CheckClean)" = "clean" ]; then $(MAKE) clean RESET_PARAMS="false"; fi
 	@scripts/targets.sh SetLast
 
 #	@$(MAKE) clean

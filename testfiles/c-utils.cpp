@@ -59,5 +59,30 @@ int main() {
   fpx_intstr(-1234, output5);
   FPX_EXPECT(output5, "-1234")
 
+  EMPTY_LINE
+
+  printf("hex-string test\n");
+
+  char output6[32] = { 0 };
+  uint32_t hextester1 = 3735928559;
+  fpx_hexstr(&hextester1, sizeof(hextester1), output6, sizeof(output6));
+  FPX_EXPECT(output6, "deadbeef")
+  memset(output6, 0, sizeof(output6));
+  uint16_t hextester2 = 300;
+  fpx_hexstr(&hextester2, sizeof(hextester2), output6, sizeof(output6));
+  FPX_EXPECT(output6, "12c")
+  memset(output6, 0, sizeof(output6));
+  uint16_t hextester3 = 273;
+  fpx_hexstr(&hextester3, sizeof(hextester3), output6, sizeof(output6));
+  FPX_EXPECT(output6, "111")
+  memset(output6, 0, sizeof(output6));
+  uint16_t hextester4 = 4095;
+  fpx_hexstr(&hextester4, sizeof(hextester4), output6, sizeof(output6));
+  FPX_EXPECT(output6, "fff")
+  memset(output6, 0, sizeof(output6));
+  uint8_t hextester5 = 0;
+  fpx_hexstr(&hextester5, sizeof(hextester5), output6, sizeof(output6));
+  FPX_EXPECT(output6, "0")
+
   return 0;
 }

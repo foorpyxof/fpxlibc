@@ -7,7 +7,7 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "../fpx_int.h"
+#include "../fpx_types.h"
 #include <stdlib.h>
 #include <string.h>
 

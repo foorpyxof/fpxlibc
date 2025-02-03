@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CMD=$CCPLUS
+CMD="$CCPLUS"
 declare -i i=0
 active=false
 
@@ -8,12 +8,12 @@ while read line; do
 	if [ "$line" == '>start' ]; then active=true; continue; fi
 	if ! $active; then continue; fi
 	if [ "$line" == '' ]; then
-		if [ "$CMD" == $CCPLUS ]; then continue; fi
+		if [ "$CMD" == "$CCPLUS" ]; then continue; fi
 		#echo $CMD
     echo $echo_msg
 		$CMD
 		i=0
-		CMD=$CCPLUS
+		CMD="$CCPLUS"
 	elif [ "$line" == '>end' ]; then
 		break
 	else

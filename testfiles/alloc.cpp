@@ -14,6 +14,7 @@ int main() {
   fpx_arena_free(testptr_uwu, data2);
   fpx_arena_free(testptr_uwu, data3);
   *data = 'a';
+  *(data+1) = 0;
   
   char testptr_value[16];
   char dataptr_value[16];
@@ -27,7 +28,8 @@ int main() {
   FPX_EXPECT(dataptr_value, "0x7........530")
   EMPTY_LINE
 
-  printf("%c\n", *data);
+  FPX_EXPECT(data, "a")
+  EMPTY_LINE
 
   return 0;
 }
