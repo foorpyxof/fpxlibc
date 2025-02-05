@@ -7,10 +7,6 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-
         // _Generics don't seem to work :/
 /* 
 #define fpx_string_to_upper(input) _Generic(    \
@@ -51,7 +47,7 @@ char* fpx_substr_replace(const char* haystack, const char* needle, const char* r
 /**
  * Converts the passed string to uppercase.
  * Second argument is:
- * - true to return a pointer to a heap allocated string
+ * - true to return a pointer to a malloc'd string
  * - false to modify the input string
  */
 char* fpx_string_to_upper(const char* input, int doReturn);
@@ -59,7 +55,7 @@ char* fpx_string_to_upper(const char* input, int doReturn);
 /**
  * Converts the passed string to lowercase.
  * Second argument is:
- * - true to return a pointer to a heap allocated string
+ * - true to return a pointer to a malloc'd string
  * - false to modify the input string
  */
 char* fpx_string_to_lower(const char* input, int doReturn);

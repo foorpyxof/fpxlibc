@@ -1,5 +1,6 @@
+#include <stdio.h>
+
 #include "../fpx_structures/linkedlist.h"
-#include "../fpx_structures/pair.h"
 #include "../fpx_structures/vector.h"
 #include "test-definitions.h"
 
@@ -14,7 +15,9 @@ int main() {
   sll.PrependNode(new LinkedListNode(4));  // add 4 to the start of the linked-list
   sll.PrependNode(new LinkedListNode(9));  // add 9 to the start of the linked-list
 
-  std::cout << sll[0].Value << ' ' << sll[1].Value << std::endl;  //  expected output: 9 4
+  char sllout1[8] = { 0 };
+  snprintf(sllout1, sizeof(sllout1) - 1, "%d %d", sll[0].Value, sll[1].Value);
+  FPX_EXPECT(sllout1, "9 4")
 
   EMPTY_LINE
 
@@ -41,51 +44,97 @@ int main() {
 
   v1.Grow(3);  // expand capacity by 3
 
-  std::cout << "v1 size: " << v1.GetSize() << std::endl;          // expect: 3
-  std::cout << "v1 capacity: " << v1.GetCapacity() << std::endl;  // expect: 7 (4+3)
+  char v1out1[8] = { 0 };
+
+  std::cout << "v1 size:" << std::endl;
+  snprintf(v1out1, sizeof(v1out1) - 1, "%u", v1.GetSize());
+  FPX_EXPECT(v1out1, "3")
+  memset(v1out1, 0, sizeof(v1out1));
+  std::cout << "v1 capacity: " << std::endl;
+  snprintf(v1out1, sizeof(v1out1) - 1, "%u", v1.GetCapacity());
+  FPX_EXPECT(v1out1, "7")
+  memset(v1out1, 0, sizeof(v1out1));
 
   EMPTY_LINE
 
+  char v1out2[32] = { 0 };
+  char* v1out2ptr = &v1out2[0];
   for (int object : v1) {
-    std::cout << object << std::endl;
+    v1out2ptr += snprintf(v1out2ptr, sizeof(v1out2) - 1, "%d ", object);
   }  // expect: 2 | -13 | 123
+  FPX_EXPECT(v1out2, "2 -13 123")
+  memset(v1out2, 0, sizeof(v1out2));
 
   EMPTY_LINE
 
   v1.PopBack();
 
+  v1out2ptr = &v1out2[0];
   for (int object : v1) {
-    std::cout << object << std::endl;
+    v1out2ptr += snprintf(v1out2ptr, sizeof(v1out2) - 1, "%d ", object);
   }  // expect: 2 | -13
+  FPX_EXPECT(v1out2, "2 -13");
+  memset(v1out2, 0, sizeof(v1out2));
 
   EMPTY_LINE
 
   Vector<char> v2;                                                // create an empty vector
-  std::cout << "v2 size: " << v2.GetSize() << std::endl;          // expect: 0
-  std::cout << "v2 capacity: " << v2.GetCapacity() << std::endl;  // expect: 0
+
+  char v2out1[8] = { 0 };
+
+  std::cout << "v2 size:" << std::endl;
+  snprintf(v2out1, sizeof(v2out1) - 1, "%u", v2.GetSize());
+  FPX_EXPECT(v2out1, "0")
+  memset(v2out1, 0, sizeof(v2out1));
+  std::cout << "v2 capacity: " << std::endl;
+  snprintf(v2out1, sizeof(v2out1) - 1, "%u", v2.GetCapacity());
+  FPX_EXPECT(v2out1, "0")
+  memset(v2out1, 0, sizeof(v2out1));
 
   EMPTY_LINE
 
   v2.PushBack('h');
   v2.PushBack('i');
 
-  std::cout << "v2 size: " << v2.GetSize() << std::endl;          // expect: 2
-  std::cout << "v2 capacity: " << v2.GetCapacity() << std::endl;  // expect: 4
+  char v2out2[8] = { 0 };
+
+  std::cout << "v2 size:" << std::endl;
+  snprintf(v2out2, sizeof(v2out2) - 1, "%u", v2.GetSize());
+  FPX_EXPECT(v2out2, "2")
+  memset(v2out2, 0, sizeof(v2out2));
+  std::cout << "v2 capacity: " << std::endl;
+  snprintf(v2out2, sizeof(v2out2) - 1, "%u", v2.GetCapacity());
+  FPX_EXPECT(v2out2, "4")
+  memset(v2out2, 0, sizeof(v2out2));
+
+  EMPTY_LINE
+
+  char v2out3[32] = { 0 };
+  char* v2out3ptr = &v2out3[0];
   for (char object : v2) {
-    std::cout << object << std::endl;
-  }  // expect h | i
+    v2out3ptr += snprintf(v2out3ptr, sizeof(v2out3) - 1, "%c", object);
+  }
+  FPX_EXPECT(v2out3, "hi")  // expect h | i
 
   EMPTY_LINE
 
+  char v2out4[8] = { 0 };
+
   v2.PopBack();
-  std::cout << "v2 shrink by 4 succeeded? " << v2.Shrink(4) << std::endl;  // expect: false/0
-  std::cout << "v2 capacity: " << v2.GetCapacity() << std::endl;           // expect: 4
+  std::cout << "v2 shrink by 4 succeeded? (expect false/0) " << v2.Shrink(4) << std::endl;  // expect: false/0
 
   EMPTY_LINE
 
-  std::cout << "v2 empty? " << v2.IsEmpty() << std::endl;  // expect: false/0
+  snprintf(v2out4, sizeof(v2out4) - 1, "%d", v2.GetCapacity());
+  FPX_EXPECT(v2out4, "4")
+
+  EMPTY_LINE
+
+  std::cout << "v2 empty? (expect false/0) " << v2.IsEmpty() << std::endl;  // expect: false/0
   v2.PopBack();
-  std::cout << "v2 empty? " << v2.IsEmpty() << std::endl;  // expect: true/1
+  std::cout << "v2 empty? (expect true/1) " << v2.IsEmpty() << std::endl;  // expect: true/1
+
+  EMPTY_LINE
 
   v2.PushBack('u');
   v2.PushBack('w');
@@ -105,9 +154,12 @@ int main() {
 
   v2.PushBack(v3);
 
+  char v2out5[32] = { 0 };
+  char* v2out5ptr = &v2out5[0];
   for (char& obj : v2)
-    std::cout << obj;  // expect: v3 appended to v2 ("uwuhi there!!")
-  std::cout << std::endl;
+    v2out5ptr += snprintf(v2out5ptr, sizeof(v2out5) - 1, "%c", obj);
+
+  FPX_EXPECT(v2out5, "uwuhi there!!")
 
   EMPTY_LINE
 }

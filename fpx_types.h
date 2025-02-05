@@ -1,6 +1,8 @@
 #ifndef FPX_TYPES_H
 #define FPX_TYPES_H
 
+typedef unsigned long size_t;
+
 typedef signed char int8_t;
 typedef signed short int16_t;
 typedef signed int int32_t;
@@ -16,5 +18,9 @@ typedef double fl64_t;
 
 typedef unsigned long size_t;
 typedef signed long ssize_t;
+
+#ifndef NULL
+  #define NULL ((void*)0)
+#endif // NULL
 
 #endif  // FPX_TYPES_H

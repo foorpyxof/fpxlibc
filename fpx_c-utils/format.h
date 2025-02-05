@@ -8,8 +8,6 @@
 ////////////////////////////////////////////////////////////////
 
 #include "../fpx_types.h"
-#include "../fpx_math/math.h"
-#include "endian.h"
 
 /**
  *  Converts a given input string to an integer

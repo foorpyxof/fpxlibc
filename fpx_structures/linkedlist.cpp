@@ -5,6 +5,7 @@
 ////////////////////////////////////////////////////////////////
 
 #include "linkedlist.h"
+#include "../fpx_cpp-utils/exceptions.h"
 
 namespace fpx {
 
@@ -36,10 +37,11 @@ void LinkedList::PrependNode(LinkedListNode* node_Address) {
 void LinkedList::InsertNode(LinkedListNode* node_Address, unsigned int index = 0) {
   if (!index)
     PrependNode(node_Address);
-  else
+  else {
     node_Address->Next = &(*this)[index];
     (*this)[index-1].Next = node_Address;
     m_Length++;
+  }
 
   return;
 }

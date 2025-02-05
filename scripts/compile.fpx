@@ -43,6 +43,7 @@ endian*.o
 format*.o
 math*.o
 crypto.o
+mem*.o
 testing/c-utils.o
 
 testing/cpp-utils.out

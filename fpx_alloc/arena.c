@@ -6,6 +6,9 @@
 
 #include "arena.h"
 
+#include <sys/mman.h>
+#include <stdio.h>
+
 // #define __USE_MISC
 
 // NOTE: DEBUG LINE!! REMOVE!

@@ -7,62 +7,29 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "../../fpx_cpp-utils/exceptions.h"
-extern "C"{
-  #include "../../fpx_string/string.h"
-}
-
-#include <sys/types.h>
+#include <poll.h>
 #include <sys/socket.h>
-
-#include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include <poll.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-#include <unistd.h>
-#include <regex.h>
-#include <signal.h>
-#include <time.h>
-#include <limits.h>
-
-#define FPX_BUF_SIZE 1024
-
 #define FPX_MAX_CONNECTIONS 32
+#define FPX_TCP_DEFAULTPORT 9090
 
 namespace fpx {
 
-#define FPX_TCP_DEFAULTPORT 9090
-
-#define FPX_POLLTIMEOUT 1000
-
-#define FPX_ECHO "ECHO:"
-#define FPX_PRIVATE "PRIVATE_FOR_"
-#define FPX_INCOMING "MSG:"
-#define FPX_DISCONNECT "DISCONNECT"
-#define FPX_INIT "NAME:"
-
 class TcpServer {
   public:
-    /**
-     * Takes an IP and a PORT to set up for listening.
-     * Default port is defined in FPX_TCP_DEFAULTPORT.
-     */
-    TcpServer(const char*, unsigned short = FPX_TCP_DEFAULTPORT);
+    TcpServer();
   public:
     /**
-     * Starts listening on the set IP and PORT.
+     * Starts listening on the IP and PORT, given as parameters.
+     * Default port is defined in FPX_TCP_DEFAULTPORT.
      * This method functions as the main loop for
      * handling messages from clients.
-     * 
+     *
      * Also creates a thread that continuously listens
      * for NEW connections and adds those to an array.
      */
-    virtual void Listen();
+    virtual void Listen(const char*, unsigned short = FPX_TCP_DEFAULTPORT);
 
     /**
      * Listen(), but using TLS.

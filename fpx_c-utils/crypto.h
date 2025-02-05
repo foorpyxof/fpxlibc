@@ -8,9 +8,6 @@
 ////////////////////////////////////////////////////////////////
 
 #include "../fpx_types.h"
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #ifndef STR_HELPER
 #define STR_HELPER(x) #x

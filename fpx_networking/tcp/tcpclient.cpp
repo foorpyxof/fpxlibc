@@ -5,6 +5,23 @@
 ////////////////////////////////////////////////////////////////
 
 #include "tcpclient.h"
+#include "../../fpx_cpp-utils/exceptions.h"
+extern "C"{
+  #include "../../fpx_string/string.h"
+  #include "../../fpx_mem/mem.h"
+}
+
+#include <sys/socket.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <signal.h>
+
+#define FPX_ECHO "ECHO:"
+#define FPX_PRIVATE "PRIVATE_FOR_"
+#define FPX_INCOMING "MSG:"
+#define FPX_DISCONNECT "DISCONNECT"
+#define FPX_INIT "NAME:"
 
 namespace fpx::ClientProperties {
 
@@ -12,7 +29,7 @@ void* TcpReaderLoop(void* pack) {
   if (!pack) return nullptr;
   TcpClient::threaddata_t* package = (TcpClient::threaddata_t*)pack;
 
-  memset(&package->ReadBuffer, 0, TCP_BUF_SIZE);
+  fpx_memset(&package->ReadBuffer, 0, TCP_BUF_SIZE);
   if (package->fn) {
     while (1) {
       if (read(package->Socket, package->ReadBuffer, TCP_BUF_SIZE) == -1) {
@@ -26,7 +43,7 @@ void* TcpReaderLoop(void* pack) {
       }
       // m_ReadBuffer[strcspn(m_ReadBuffer, "\r\n")] = 0;
       package->fn((uint8_t*)(package->ReadBuffer));
-      memset(package->ReadBuffer, 0, TCP_BUF_SIZE);
+      fpx_memset(package->ReadBuffer, 0, TCP_BUF_SIZE);
     }
   } else {
     while (1) {
@@ -38,12 +55,12 @@ void* TcpReaderLoop(void* pack) {
         pthread_kill(package->WriterThread, SIGINT);
         pthread_exit(NULL);
       }
-      if (package->ReadBuffer[strlen(package->ReadBuffer)-1] != '\n')
+      if (package->ReadBuffer[fpx_getstringlength(package->ReadBuffer)-1] != '\n')
         printf("\r%s\n>> ", package->ReadBuffer);
       else
         printf("\r%s>> ", package->ReadBuffer);
       fflush(stdout);
-      memset(package->ReadBuffer, 0, TCP_BUF_SIZE);
+      fpx_memset(package->ReadBuffer, 0, TCP_BUF_SIZE);
     }
   }
 }
@@ -54,11 +71,11 @@ void* TcpWriterLoop(void* pack) {
 
   bool preventPrompt = 0;
   const char* name = package->WriterName;
-  memset(&package->WriteBuffer, 0, TCP_BUF_SIZE);
+  fpx_memset(&package->WriteBuffer, 0, TCP_BUF_SIZE);
 
   while (1) {
-    memset(package->Input, 0, sizeof(package->Input));
-    memset(package->WriteBuffer, 0, sizeof(package->WriteBuffer));
+    fpx_memset(package->Input, 0, sizeof(package->Input));
+    fpx_memset(package->WriteBuffer, 0, sizeof(package->WriteBuffer));
     if (!preventPrompt)
       printf(">> "); fflush(stdout);
     preventPrompt = 0;
@@ -87,7 +104,7 @@ TcpClient::TcpClient(const char* ip, short port):
 m_SrvIp(ip), m_SrvPort(port),
 m_SrvAddress{ AF_INET, htons(m_SrvPort), {  } }
 {
-  memset(&m_ThreadData, 0, sizeof(threaddata_t));
+  fpx_memset(&m_ThreadData, 0, sizeof(threaddata_t));
   m_ThreadData.Caller = this;
   m_ThreadData.Socket = -1;
   inet_aton(m_SrvIp, &m_SrvAddress.sin_addr);
@@ -108,7 +125,7 @@ void TcpClient::Connect(Mode mode, void (*readerCallback)(uint8_t*), const char*
   if (mode == Mode::Interactive) {
     sprintf(m_ThreadData.WriteBuffer, "%s", FPX_INIT);
     strncat(m_ThreadData.WriteBuffer, name, 17);
-    write(m_ThreadData.Socket, m_ThreadData.WriteBuffer, strlen(m_ThreadData.WriteBuffer));
+    write(m_ThreadData.Socket, m_ThreadData.WriteBuffer, fpx_getstringlength(m_ThreadData.WriteBuffer));
   }
 
   strncpy(m_ThreadData.WriterName, name, 16);
@@ -137,7 +154,7 @@ void TcpClient::SendRaw(const char* msg) {
   // }
   snprintf(m_ThreadData.WriteBuffer, TCP_BUF_SIZE, "%s", msg);
   write(m_ThreadData.Socket, m_ThreadData.WriteBuffer, msgLen);
-  memset(m_ThreadData.WriteBuffer, 0, TCP_BUF_SIZE);
+  fpx_memset(m_ThreadData.WriteBuffer, 0, TCP_BUF_SIZE);
 }
 
 void TcpClient::SendMessage(const char* msg) {

@@ -8,7 +8,6 @@
 ////////////////////////////////////////////////////////////////
 
 #include <iostream>
-#include "../fpx_cpp-utils/exceptions.h"
 
 namespace fpx {
 

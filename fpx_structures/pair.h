@@ -14,7 +14,7 @@ namespace fpx {
     public:
       Pair(): Key(T1()), Value(T2()){};
       Pair(T1 k, T2 v): Key(k), Value(v){};
-      
+
     public:
       T1 Key;
       T2 Value;

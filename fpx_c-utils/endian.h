@@ -8,8 +8,6 @@
 ////////////////////////////////////////////////////////////////
 
 #include "../fpx_types.h"
-#include <stdlib.h>
-#include <string.h>
 
 /**
  * Swaps the endianness (or byte order) of the given pointer, based on how

@@ -6,6 +6,10 @@
 
 #include "crypto.h"
 #include "endian.h"
+#include "../fpx_mem/mem.h"
+
+#include <stdio.h>
+#include <stdlib.h>
 
 void fpx_sha1_init(SHA1_Context* ctx_ptr) {
   ctx_ptr->state[0] = 0x67452301;
@@ -142,7 +146,7 @@ void fpx_sha1_update(SHA1_Context* ctx_ptr, const uint8_t* data, size_t len) {
   ctx_ptr->count += (uint64_t)len << 3;
 
   if ((j + len) > 63) {
-    memcpy(&ctx_ptr->buffer[j], data, (i = 64 - j));
+    fpx_memcpy(&ctx_ptr->buffer[j], data, (i = 64 - j));
     fpx_sha1_transform(ctx_ptr, ctx_ptr->buffer);
     for (; i + 63 < len; i += 64) {
       fpx_sha1_transform(ctx_ptr, &data[i]);
@@ -152,7 +156,7 @@ void fpx_sha1_update(SHA1_Context* ctx_ptr, const uint8_t* data, size_t len) {
     i = 0;
   }
 
-  memcpy(&ctx_ptr->buffer[j], &data[i], len - i);
+  fpx_memcpy(&ctx_ptr->buffer[j], &data[i], len - i);
 }
 
 void fpx_sha1_final(SHA1_Context* ctx_ptr, uint8_t digest[20]) {
@@ -191,7 +195,7 @@ void fpx_sha1_digest(const char* input, size_t lengthBytes, char* output, uint8_
       sprintf(&output[i * 2], "%02x", digest[i]);
     }
   } else {
-    memcpy(output, digest, 20);
+    fpx_memcpy(output, digest, 20);
   }
   return;
 }

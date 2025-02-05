@@ -1,10 +1,17 @@
+#ifndef FPX_VECTOR_IMPL
+#define FPX_VECTOR_IMPL
+
 ////////////////////////////////////////////////////////////////
-//  "vector.hpp"                                              
+//  "vector.hpp"                                              //
 //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
 #include "vector.h"
+#include "../fpx_cpp-utils/exceptions.h"
+
+#include <iostream>
+#include <cmath>
 
 namespace fpx {
 
@@ -23,20 +30,20 @@ Vector<T>::Vector(unsigned int len):
   {}
 
 template<typename T>
-Vector<T>::Vector(T array[]):
-  m_Size(sizeof(array)/sizeof(T)),
-  m_Capacity(sizeof(array)/sizeof(T)),
+Vector<T>::Vector(T array[], size_t length):
+  m_Size(length),
+  m_Capacity(length),
   m_Array(nullptr)
   {
     try {
-      m_Array = new T[sizeof(array)/sizeof(T) + 1];
+      m_Array = new T[length];
 
       for (int i=0; i < m_Capacity; i++)
         m_Array[i] = array[i];
-    
+
     } catch (std::bad_alloc const& exc) {
       std::cout << exc.what() << std::endl;
-      
+
       m_Size = 0;
       m_Capacity = 0;
       m_Array = new T[0];
@@ -205,4 +212,4 @@ bool Vector<T>::Shift(int amount, bool remove) {
 
 }
 
-
+#endif // FPX_VECTOR_IMPL

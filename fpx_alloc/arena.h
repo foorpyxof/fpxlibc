@@ -9,12 +9,7 @@
 
 // x86_64 source code is in ./x86_64/arena.s
 
-#include <stddef.h>
-#include <stdint.h>
-
-#include <sys/mman.h>
-
-#include <stdio.h>
+#include "../fpx_types.h"
 
 typedef struct __fpx_region fpx_region;
 typedef struct __fpx_arena fpx_arena;

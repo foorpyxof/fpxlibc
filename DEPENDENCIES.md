@@ -1,28 +1,34 @@
 # object files:
 
-tcpclient.o depends on:
-- exceptions.o
-- string.o
+tcpclient depends on:
+- exceptions
+- string
+- mem
 
-tcpserver.o depends on:
-- exceptions.o
-- string.o
+tcpserver depends on:
+- exceptions
+- string
 
-httpserver.o depends on:
-- tcpserver.o
-	- exceptions.o
-	- string.o
-- crypto.o
-- endian.o
+httpserver depends on:
+- tcpserver
+- exceptions
+- crypto
+- endian
+- string
 
-linkedlist.o depends on:
-- exceptions.o
+linkedlist depends on:
+- exceptions
 
-string.o depends on:
-- mem.o
+string depends on:
+- mem
 
-string-x86_64.o depends on:
-- mem-x86_64.o
+format depends on:
+- math
+- endian
 
-format.o depends on:
-- math.o
+crypto depends on:
+- endian
+- mem
+
+endian depends on:
+- mem

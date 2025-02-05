@@ -6,7 +6,8 @@
 
 #include "string.h"
 #include "../fpx_mem/mem.h"
-#include <stddef.h>
+
+#include <stdlib.h>
 
 #ifndef __FPXLIBC_ASM
 int fpx_getstringlength(const char* stringToCheck) {

@@ -5,6 +5,7 @@
 ////////////////////////////////////////////////////////////////
 
 #include "format.h"
+#include "../fpx_math/math.h"
 #include "endian.h"
 
 #ifndef __FPXLIBC_ASM

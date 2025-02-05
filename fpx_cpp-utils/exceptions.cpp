@@ -6,6 +6,8 @@
 
 #include "exceptions.h"
 
+#include <iostream>
+
 namespace fpx {
 
   // method/constructor declarations for the GENERIC exception class

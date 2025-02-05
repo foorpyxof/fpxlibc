@@ -7,8 +7,6 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include <iostream>
-
 #define FPX_GENERIC_ERRMSG "An exception has occured at runtime!"
 #define FPX_NOTIMPLEMENTED_ERRMSG "This functionality has not been implemented yet!"
 #define FPX_INDEXOUTOFRANGE_ERRMSG "The index you tried to reach is not in range!"

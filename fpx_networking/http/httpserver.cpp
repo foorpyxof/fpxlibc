@@ -6,6 +6,51 @@
 
 #include "httpserver.h"
 
+#include "../../fpx_cpp-utils/exceptions.h"
+extern "C" {
+  #include "../../fpx_c-utils/crypto.h"
+  #include "../../fpx_c-utils/endian.h"
+  #include "../../fpx_string/string.h"
+}
+
+#include <signal.h>
+#include <limits.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define FPX_HTTP_ENDPOINTS 64
+
+#define FPX_HTTP_READ_BUF 4096
+#define FPX_HTTP_WRITE_BUF 8192
+
+#define FPX_HTTP_KEEPALIVE 7
+
+#define FPX_HTTP_GET      0x1
+#define FPX_HTTP_HEAD     0x2
+#define FPX_HTTP_POST     0x4
+#define FPX_HTTP_PUT      0x8
+#define FPX_HTTP_DELETE   0x10
+#define FPX_HTTP_CONNECT  0x20
+#define FPX_HTTP_OPTIONS  0x40
+#define FPX_HTTP_TRACE    0x80
+#define FPX_HTTP_PATCH    0x100
+
+#define FPX_HTTPSERVER_VERSION "alpha:feb-2025"
+
+#define FPX_WS_BUFFER 0xffff
+#define FPX_WS_BUF_SIZE 2048
+
+#define WS_FIN    0b10000000
+#define WS_RSV1   0b01000000
+#define WS_RSV2   0b00100000
+#define WS_RSV3   0b00010000
+
+#define FPX_WS_SEND_CLOSE 0x1
+#define FPX_WS_RECV_CLOSE 0x2
+
 namespace fpx {
 
 namespace ServerProperties {
@@ -335,7 +380,7 @@ void* WebSocketThread(void* threadpack) {
   uint16_t metadata;
   uint16_t bigendianChecker = 1;
   bool bigendian = (*(char*)&bigendianChecker) ? false : true;
-  uint8_t writeBuffer[FPX_BUF_SIZE];
+  uint8_t writeBuffer[FPX_WS_BUF_SIZE];
   bool locked = false;
 
   while (1) {
@@ -455,7 +500,7 @@ void* WebSocketThread(void* threadpack) {
 
                 case 0x9:
                   // ping
-                  if (len) memcpy(writeBuffer + snprintf((char*)writeBuffer, FPX_BUF_SIZE, "\x8a%u", len), package->Clients[i].ControlReadBuffer, len);
+                  if (len) memcpy(writeBuffer + snprintf((char*)writeBuffer, FPX_WS_BUF_SIZE, "\x8a%u", len), package->Clients[i].ControlReadBuffer, len);
                   send(package->PollFDs[i].fd, writeBuffer, 2+len, 0);
                   handled++;
                   break;
@@ -582,13 +627,13 @@ void* HttpKillerThread(void* hs) {
 
 }
 
-HttpServer::HttpServer(const char* ip, unsigned short port, uint8_t http_threads, uint8_t ws_threads):
-  TcpServer(ip, port), m_EndpointCount(0),
+HttpServer::HttpServer(uint8_t http_threads, uint8_t ws_threads):
+  TcpServer(), m_EndpointCount(0),
   RequestHandlers((http_threadpackage_t*)calloc(http_threads, sizeof(http_threadpackage_t))),
   WebsocketThreads((websocket_threadpackage_t*)calloc(ws_threads, sizeof(websocket_threadpackage_t))),
   HttpThreads(http_threads), WsThreads(ws_threads),
   m_Endpoints((http_endpoint_t*)calloc(FPX_HTTP_ENDPOINTS, sizeof(http_endpoint_t))),
-  m_DefaultHeaders(nullptr), m_MaxBodyLen(4096), m_Options(0), m_WebSocketTimeout(0)
+  m_DefaultHeaders(nullptr), m_MaxBodyLen(4096), m_Options(0), m_WebSocketTimeout(0), m_ServerType(ServerType::Both)
   {
     SetDefaultHeaders(
       "Server: fpxHTTP (" FPX_HTTPSERVER_VERSION ")\r\n"
@@ -673,12 +718,14 @@ void HttpServer::CreateEndpoint(const char* uri,short methods, http_callback_t e
   return;
 }
 
-void HttpServer::Listen(ServerType mode, ws_callback_t websocketCallback) {
-  Mode = mode;
-  
+void HttpServer::Listen(const char* ip, unsigned short port, ws_callback_t websocketCallback) {
+
+  if (!inet_aton(ip, &(m_SocketAddress4.sin_addr))) perror("Invalid IP address");
+  m_SocketAddress4 = { AF_INET, htons(port), {  } };
+  m_Port = port;
   int optvalTrue = 1;
 
-  if (mode == ServerType::WebSockets) throw NotImplementedException();
+  if (m_ServerType == ServerType::WebSockets) throw NotImplementedException("\"WebSockets only\" mode has not yet been implemented...");
 
   if ((m_Socket4 = socket(AF_INET, SOCK_STREAM, 0)) < -1) {
     Close();
@@ -1066,6 +1113,10 @@ HttpServer::HttpMethod HttpServer::ParseMethod(const char* method) {
   if (!strcmp(method, "TRACE")) return HttpServer::TRACE;
   if (!strcmp(method, "PATCH")) return HttpServer::PATCH;
   return HttpServer::NONE;
+}
+
+void HttpServer::SetServerType(HttpServer::ServerType type) {
+  m_ServerType = type;
 }
 
 void HttpServer::SetOption(HttpServerOption option, bool value) {

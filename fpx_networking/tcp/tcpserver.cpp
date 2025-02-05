@@ -6,6 +6,32 @@
 
 #include "tcpserver.h"
 
+#include "../../fpx_cpp-utils/exceptions.h"
+extern "C"{
+  #include "../../fpx_string/string.h"
+}
+
+#include <netinet/in.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+#include <regex.h>
+#include <signal.h>
+#include <time.h>
+#include <limits.h>
+
+#define FPX_BUF_SIZE 1024
+#define FPX_POLLTIMEOUT 1000
+
+#define FPX_ECHO "ECHO:"
+#define FPX_PRIVATE "PRIVATE_FOR_"
+#define FPX_INCOMING "MSG:"
+#define FPX_DISCONNECT "DISCONNECT"
+#define FPX_INIT "NAME:"
+
 namespace fpx {
 
 namespace ServerProperties {
@@ -26,7 +52,7 @@ void* TcpAcceptLoop(void* arguments) {
         if (socket.fd == -1) {
           socket = { client, POLLIN, 0 };
           args->ConnectedClients[i-1] = { "Anonymous" };
-          *(args->ClientCountPtr)++;
+          (*(args->ClientCountPtr))++;
           printf("A new client (%d) has connected!\n", i);
           write(client, welcomeMessage, sizeof(welcomeMessage));
           break;
@@ -39,9 +65,8 @@ void* TcpAcceptLoop(void* arguments) {
 
 }
 
-TcpServer::TcpServer(const char* ip, unsigned short port):
-m_Port(port), m_Socket4(0),
-m_SocketAddress4{ AF_INET, htons(port), {  } },
+TcpServer::TcpServer():
+m_Port(0), m_Socket4(0),
 m_ClientAddressSize(sizeof(struct sockaddr)),
 m_ConnectedClients(0),
 m_IsListening(false),
@@ -50,14 +75,17 @@ m_Sockets{ -1 }, m_Clients{ 0 }
 {
   memset(m_Sockets, -1, sizeof(m_Sockets));
   memset(m_Clients, 0, sizeof(m_Clients));
-  if (!inet_aton(ip, &(m_SocketAddress4.sin_addr))) perror("Invalid IP address");
 }
 
-void TcpServer::Listen() {
+void TcpServer::Listen(const char* ip, unsigned short port) {
   int optvalTrue = 1;
 
   char readBuffer[FPX_BUF_SIZE] = { 0 };
   char writeBuffer[FPX_BUF_SIZE] = { 0 };
+
+  if (!inet_aton(ip, &(m_SocketAddress4.sin_addr))) perror("Invalid IP address");
+  m_SocketAddress4 = { AF_INET, htons(port), {  } };
+  m_Port = port;
 
   m_Socket4 = socket(AF_INET, SOCK_STREAM, 0);
   if (m_Socket4 < 0) {
@@ -80,7 +108,7 @@ void TcpServer::Listen() {
   m_Sockets[0].fd = m_Socket4;
   m_Sockets[0].events = POLLIN;
 
-  printf("TCPserver listening on %s:%d\n", inet_ntoa(m_SocketAddress4.sin_addr), ntohs(m_SocketAddress4.sin_port));
+  printf("TCPserver listening on %s:%d\n", inet_ntoa(m_SocketAddress4.sin_addr), m_Port);
   
   ServerProperties::tcp_acceptargs_t accepterArguments = { 
     &m_ConnectedClients,

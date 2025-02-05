@@ -7,9 +7,7 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include <iostream>
-#include "../fpx_cpp-utils/exceptions.h"
-#include <cmath>
+#include "../fpx_types.h"
 
 namespace fpx {
 
@@ -31,7 +29,7 @@ class Vector {
     /**
      * Creates a Vector out of a given array of type <T>.
      */
-    Vector(T[]);
+    Vector(T[], size_t length);
 
     /**
      * Destructor that frees any resources used.
@@ -128,7 +126,7 @@ class Vector {
       public:
         T* current;
 
-        Iterator(T& item): current(&item) {}
+        Iterator(T* ptr): current(ptr) {}
 
         T& operator*() { return *current; }
         Iterator& operator++() {
@@ -149,8 +147,8 @@ class Vector {
         bool operator!=(Iterator const& other) { return (current != other.current); }
     };
 
-    Iterator begin() { return Iterator((*this)[0]); }
-    Iterator end() { return Iterator((*this)[m_Size-1]); }
+    Iterator begin() { return Iterator(m_Array); }
+    Iterator end() { return Iterator(m_Array + m_Size); }
 
   private:
     const static unsigned int m_MaxSize = 2048;
@@ -161,6 +159,8 @@ class Vector {
 
 }
 
+#ifndef FPX_VECTOR_IMPL
 #include "vector.hpp"
+#endif // FPX_VECTOR_IMPL
 
-#endif
+#endif // FPX_VECTOR_H

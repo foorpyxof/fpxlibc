@@ -7,29 +7,13 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "../../fpx_cpp-utils/exceptions.h"
-extern "C"{
-#include "../../fpx_string/string.h"
-}
+#include "../../fpx_types.h"
 
-#include <arpa/inet.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <string.h>
-#include <unistd.h>
 #include <pthread.h>
-#include <signal.h>
+#include <arpa/inet.h>
 
 #define TCP_BUF_SIZE 1024
 #define TCP_DEFAULTPORT 8080
-
-#define FPX_ECHO "ECHO:"
-#define FPX_PRIVATE "PRIVATE_FOR_"
-#define FPX_INCOMING "MSG:"
-#define FPX_DISCONNECT "DISCONNECT"
-#define FPX_INIT "NAME:"
 
 namespace fpx {
 
@@ -106,7 +90,7 @@ class TcpClient {
     typedef struct {
       TcpClient* Caller;
       ClientProperties::fn_ptr fn;
-      pthread_t ReaderThread, WriterThread;    
+      pthread_t ReaderThread, WriterThread;
 
       int Socket;
 

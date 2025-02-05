@@ -8,47 +8,15 @@
 ////////////////////////////////////////////////////////////////
 
 #include "../tcp/tcpserver.h"
-extern "C" {
-  #include "../../fpx_c-utils/crypto.h"
-  #include "../../fpx_c-utils/endian.h"
-}
-
-#define FPX_HTTP_ENDPOINTS 64
-
-#define FPX_HTTP_READ_BUF 4096
-#define FPX_HTTP_WRITE_BUF 8192
+#include "../../fpx_types.h"
 
 #define FPX_HTTP_DEFAULTPORT 8080
 
-#define FPX_HTTP_KEEPALIVE 7
-
 #define FPX_HTTP_MAX_CLIENTS 32
-#define FPX_HTTP_THREADS_DEFAULT 16
-
-#define FPX_HTTP_GET      0x1
-#define FPX_HTTP_HEAD     0x2
-#define FPX_HTTP_POST     0x4
-#define FPX_HTTP_PUT      0x8
-#define FPX_HTTP_DELETE   0x10
-#define FPX_HTTP_CONNECT  0x20
-#define FPX_HTTP_OPTIONS  0x40
-#define FPX_HTTP_TRACE    0x80
-#define FPX_HTTP_PATCH    0x100
-
-#define FPX_HTTPSERVER_VERSION "alpha:sep-2024"
-
-
 #define FPX_WS_MAX_CLIENTS 8
+
+#define FPX_HTTP_THREADS_DEFAULT 16
 #define FPX_WS_THREADS_DEFAULT 2
-#define FPX_WS_BUFFER 0xffff
-
-#define WS_FIN    0b10000000
-#define WS_RSV1   0b01000000
-#define WS_RSV2   0b00100000
-#define WS_RSV3   0b00010000
-
-#define FPX_WS_SEND_CLOSE 0x1
-#define FPX_WS_RECV_CLOSE 0x2
 
 namespace fpx {
 
@@ -80,12 +48,11 @@ void* HttpKillerThread(void* hs);
 class HttpServer : public TcpServer {
   public:
     /**
-     * The constructor takes an IP-address to listen on in the format of
-     * x.x.x.x, where x is a number from 0 to 255
-     * 
-     * It also takes a port to listen on that is a number from 0 to 65535
+     * The constructor takes two optional arguments.
+     * - The amount of HTTP_threads
+     * - The amount of WebSocket_threads
      */
-    HttpServer(const char*, unsigned short = FPX_HTTP_DEFAULTPORT, uint8_t = FPX_HTTP_THREADS_DEFAULT, uint8_t = FPX_WS_THREADS_DEFAULT);
+    HttpServer(uint8_t = FPX_HTTP_THREADS_DEFAULT, uint8_t = FPX_WS_THREADS_DEFAULT);
 
     ~HttpServer();
   public:
@@ -430,7 +397,7 @@ class HttpServer : public TcpServer {
     /**
      * Starts listening. Takes fpx::HttpServer::ServerType and a fpx::HttpServer::ws_callback_t to set as callback for incoming WebSocket messages;
      */
-    void Listen(ServerType = ServerType::Both, ws_callback_t = nullptr);
+    void Listen(const char*, unsigned short = FPX_HTTP_DEFAULTPORT, ws_callback_t = nullptr);
 
     /**
      * Listen(), but TLS.
@@ -457,7 +424,16 @@ class HttpServer : public TcpServer {
      * Also see: fpx::HttpServer::SetWebSocketTimeout();
      */
     uint16_t GetWebSocketTimeout();
-    
+
+    /**
+     * Set the HttpServer type.
+     * Options:
+     * - HttpServer::ServerType::HttpOnly
+     * - HttpServer::ServerType::WebSockets
+     * - HttpServer::ServerType::Both
+     */
+    void SetServerType(ServerType);
+
     /**
      * Set HTTP server options.
      * These go unused as of yet.
@@ -484,9 +460,12 @@ class HttpServer : public TcpServer {
     char* m_DefaultHeaders;
     uint16_t m_MaxBodyLen;
 
-    uint16_t m_WebSocketTimeout;
-    short m_EndpointCount;
+    ServerType m_ServerType;
     uint8_t m_Options;
+
+    uint16_t m_WebSocketTimeout;
+
+    short m_EndpointCount;
     http_endpoint_t* m_Endpoints;
 };
 

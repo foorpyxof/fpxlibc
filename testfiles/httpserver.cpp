@@ -1,5 +1,8 @@
 #include "../fpx_networking/http/httpserver.h"
 #include "test-definitions.h"
+extern "C" {
+  #include "../fpx_string/string.h"
+}
 
 using namespace fpx;
 
@@ -36,7 +39,7 @@ void RootCallback(HttpServer::http_request_t* req, HttpServer::http_response_t* 
 
 int main() {
 
-  HttpServer httpServ("0.0.0.0", 9999);
+  HttpServer httpServ;
 
   // httpServ.SetOption(HttpServer::HttpServerOptions::ManualWebSocket);
   // ^^^ this line allows the programmer to handle the websocket connection themselves via the
@@ -46,5 +49,5 @@ int main() {
   httpServ.SetWebSocketTimeout(60);
   httpServ.CreateEndpoint("/", HttpServer::GET, RootCallback);
   httpServ.CreateEndpoint("/useragent", HttpServer::GET | HttpServer::HEAD, UserAgentCallback);
-  httpServ.Listen(HttpServer::ServerType::Both, WebSocketCallback);
+  httpServ.Listen("0.0.0.0", 9999, WebSocketCallback);
 }
