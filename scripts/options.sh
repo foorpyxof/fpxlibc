@@ -2,9 +2,20 @@
 
 PARAMSFILE=$(find . -name "params.fpx" | head -n 1)
 
+if [[ -z "$PARAMSFILE" ]] && [[ "$(basename $PWD)" == "scripts" ]]; then
+  touch params.fpx;
+elif [[ -z "$PARAMSFILE" ]]; then
+  find . -name "scripts" -type d -exec touch {}/params.fpx \;
+fi
+
+PARAMSFILE=$(find . -name "params.fpx" | head -n 1)
+
 # echo $PARAMSFILE && echo $LASTTARGET && echo $TARGET
 
 CheckClean() {
+  grep -Eq "^last_(.+):(.+)$" $PARAMSFILE;
+  if ! [[ $? -eq 0 ]]; then echo "clean"; exit 1; fi
+
   while read LINE; do
     KV="$(echo "$LINE" | sed -nE 's/^last_(.+):(.+)$/\1 \2/p')";
     if [[ -n "$KV" ]]; then
