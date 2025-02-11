@@ -9,7 +9,6 @@ AS := as
 LD := ld
 
 test: compile
-
 	@echo "Compiling test programs"
 	@find ./testfiles -type f \( -name "*.cpp" \) -exec bash -c 'NAME=$$(basename {} .cpp); echo "[CC] {}" && $(CCPLUS) $(ARGS) -c {} -O3 -o ./build/unlinked/testing/$${NAME}.o' \;
 	@$(MAKE) _test
@@ -33,10 +32,12 @@ _test:
 	@echo
 
 compile: CFLAGS := -O3
+compile: FPX_MODE := release
 compile: _compile
 
 compile_dbg: CFLAGS := -g -Og
 compile_dbg: ASFLAGS := -g
+compile_dbg: FPX_MODE := debug
 compile_dbg: _compile
 
 _compile: setup x86_64
@@ -46,7 +47,7 @@ _compile: setup x86_64
 		[ $${NAME} != test ] && \
 		([ ! -f build/unlinked/$${NAME}.o ] || [ $$(stat --format=%Y {}) -gt $$(stat --format=%Y build/unlinked/$${NAME}.o) ]) && \
 		echo "[CC] {}" && \
-		$(CC) $(ARGS) $$(if [ "noasm" != "$(shell sed -nE 's/^current_target:(.+)$$/\1/p' scripts/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -c {} $(CFLAGS) -o ./build/unlinked/$${NAME}.o \
+		$(CC) $(ARGS) $$(if [ "noasm" != "$(shell sed -nE 's/^current_architecture:(.+)$$/\1/p' scripts/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -c {} $(CFLAGS) -o ./build/unlinked/$${NAME}.o \
 	' \;; \
 	\
 	find . -type f \( -name "*.cpp" -not -wholename "*/testfiles/*" \) -exec bash -c ' \
@@ -54,7 +55,7 @@ _compile: setup x86_64
 		[ $${NAME} != test ] && \
 		([ ! -f build/unlinked/$${NAME}.o ] || [ $$(stat --format=%Y {}) -gt $$(stat --format=%Y build/unlinked/$${NAME}.o) ]) && \
 		echo "[CC] {}" && \
-		$(CCPLUS) $(ARGS) $$(if [ "noasm" != "$(shell sed -nE 's/^current_target:(.+)$$/\1/p' scripts/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -std=c++17 -c {} $(CFLAGS) -o ./build/unlinked/$${NAME}.o \
+		$(CCPLUS) $(ARGS) $$(if [ "noasm" != "$(shell sed -nE 's/^current_architecture:(.+)$$/\1/p' scripts/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -std=c++17 -c {} $(CFLAGS) -o ./build/unlinked/$${NAME}.o \
 	' \;;
 #	@if [ ! $$(find . -maxdepth 1 -name "*.o" | wc -l) -gt 0 ]; then \
 		echo "No C(++) source to compile or C(++) source not modified!"; \
@@ -62,7 +63,7 @@ _compile: setup x86_64
 	@echo
 
 x86_64:
-	@if grep -q "current_target:x86_64" scripts/params.fpx; then \
+	@if grep -q "current_architecture:x86_64" scripts/params.fpx; then \
     echo "Assembling source"; \
 		find . -type f -name "*.[s|S]" -exec bash -c '[ $$(basename {} | cut -d. -f1) != test ] && echo "[AS] {}" && $(AS) {} $(ASFLAGS) -o build/unlinked/$$(basename {} | cut -d. -f1)-$@.o' \;; \
     echo; \
@@ -77,12 +78,12 @@ setup:
 	@if ! test -d "./build/unlinked/testing" ; then \
 		mkdir -p ./build/unlinked/testing; \
 	fi
-
+	
 	@cd scripts/; \
-	./assembly.sh
+	FPX_MODE="$(FPX_MODE)" ./options.sh
 
-	@if [ "$$(scripts/targets.sh CheckClean)" = "clean" ]; then $(MAKE) clean RESET_PARAMS="false"; fi
-	@scripts/targets.sh SetLast
+	@if [ "$$(scripts/options.sh CheckClean)" = "clean" ]; then $(MAKE) clean RESET_PARAMS="false"; fi
+	@scripts/options.sh SetLast
 
 #	@$(MAKE) clean
 
