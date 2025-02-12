@@ -459,7 +459,7 @@ void* WebSocketThread(void* threadpack) {
             if (len > FPX_WS_BUFFER) {
               char closeBuf [64] = { 0 };
               snprintf(closeBuf, 63, "disconnect_body_over_%hubytes", FPX_WS_BUFFER);
-              package->SendClose(i, 1009, (uint8_t*)closeBuf);
+              package->SendClose(i, 1009, bigendian, (uint8_t*)closeBuf);
             }
 
             if (opcode >= 0x8) {
@@ -591,7 +591,7 @@ void* WebSocketThread(void* threadpack) {
       if((package->Caller->GetWebSocketTimeout()) && (time(NULL)/60 - package->Clients[i].LastActiveSeconds/60) > package->Caller->GetWebSocketTimeout()) {
         uint8_t message[123];
         snprintf((char*)message, 123, "disconnect_idle_%hu_minutes", package->Caller->GetWebSocketTimeout());
-        package->SendClose(i, 1000, message);
+        package->SendClose(i, 1000, bigendian, message);
         package->Clients[i].PendingClose = true;
       }
     }
