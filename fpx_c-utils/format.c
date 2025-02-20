@@ -9,7 +9,7 @@
 #include "endian.h"
 
 #ifndef __FPXLIBC_ASM
-int fpx_strint(char* input) {
+int fpx_strint(const char* input) {
   // state checkers
   unsigned char first = 1;
   unsigned char positive = 1;
@@ -26,12 +26,12 @@ int fpx_strint(char* input) {
       continue;
     }
 
-    if (positive)
-      retval += (*input - '0');
-    else
-      retval -= (*input - '0');
+    retval += (*input - '0');
     ++input;
   }
+
+  if (!positive)
+    retval *= -1;
 
   return retval;
 }

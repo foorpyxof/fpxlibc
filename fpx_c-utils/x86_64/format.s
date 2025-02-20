@@ -17,6 +17,7 @@ fpx_strint:
   # - rdx
 
   mov   rax, 0
+  mov   sil, 1    # assume positive
 
   # check for negative
   cmp   BYTE PTR [rdi], '-'

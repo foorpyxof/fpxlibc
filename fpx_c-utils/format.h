@@ -14,7 +14,7 @@
  *
  *  Returns the integer
  */
-int fpx_strint(char* input);
+int fpx_strint(const char* input);
 
 /**
  *  Formats a given input integer to a character buffer

@@ -26,7 +26,7 @@ int fpx_getstringlength(const char* stringToCheck) {
 #endif // __FPXLIBC_ASM
 
 #ifndef __FPXLIBC_ASM
-char* fpx_strcpy(char* dst, char* src) {
+char* fpx_strcpy(char* dst, const char* src) {
   if (!(dst && src)) return NULL;
 
   size_t len = fpx_getstringlength(src);

@@ -5,15 +5,16 @@ I'll keep updating it with more stuff as I go along on my journey to learn more 
 
 ---
 
-Includes C++ test-programs that you can build using 'make'.
+Includes C++ test-programs that you can build using ```make test```.
 
 ---
 
 ## More Makefile instructions:
 
-- ```make debug``` builds the library and all the test programs with debug flags enabled
-- ```make compile``` only compile the library
+- ```make```/```make compile``` only compile the library
 - ```make compile_dbg``` ditto, but with debug flags enabled
+- ```make test``` builds the library and all the test programs
+- ```make debug``` builds the library and all the test programs with debug flags enabled
 
 **note:** the Makefile will compile and assemble all .c, .cpp, .s and .S files. To prevent test-programs from being compiled, name them test.(extension). The makefile will ignore these files.
 
