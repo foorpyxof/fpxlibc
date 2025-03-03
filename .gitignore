@@ -1,5 +1,5 @@
 # build stuff
-build/*/
+build/
 scripts/params.fpx
 # image files
 *.png
