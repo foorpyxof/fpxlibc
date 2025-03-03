@@ -7,8 +7,8 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "../tcp/tcpserver.h"
 #include "../../fpx_types.h"
+#include "../tcp/tcpserver.h"
 
 #define FPX_HTTP_DEFAULTPORT 8080
 
@@ -20,31 +20,6 @@
 
 namespace fpx {
 
-namespace ServerProperties {
-
-/**
- * Takes a pointer to an fpx::acceptargs_t object.
- */
-void* TcpAcceptLoop(void* arguments);
-
-/**
- * Takes a pointer to an fpx::threadpackage_t object.
- */
-void* HttpProcessingThread(void* threadpack);
-
-/**
- * Takes a pointer to an fpx::websocket_threadpackage_t object.
- */
-void* WebSocketThread(void* threadpack);
-
-/**
- * Takes an instance of fpx::HttpServer as an argument
- * Kills idle keepalive connections after the timeout has passed
- */ 
-void* HttpKillerThread(void* hs);
-
-}
-
 class HttpServer : public TcpServer {
   public:
     /**
@@ -55,24 +30,24 @@ class HttpServer : public TcpServer {
     HttpServer(uint8_t = FPX_HTTP_THREADS_DEFAULT, uint8_t = FPX_WS_THREADS_DEFAULT);
 
     ~HttpServer();
-  public:
 
+  public:
     enum HttpMethod {
-      NONE =    0,
-      GET =     0b000000001,
-      HEAD =    0b000000010,
-      POST =    0b000000100,
-      PUT =     0b000001000,
-      DELETE =  0b000010000,
-      CONNECT = 0b000100000,
-      OPTIONS = 0b001000000,
-      TRACE =   0b010000000,
-      PATCH =   0b100000000,
+      NONE = 0x000,
+      GET = 0x001,
+      HEAD = 0x002,
+      POST = 0x004,
+      PUT = 0x008,
+      DELETE = 0x010,
+      CONNECT = 0x020,
+      OPTIONS = 0x040,
+      TRACE = 0x080,
+      PATCH = 0x100,
     };
 
     /**
      * Set options for the HttpServer:
-     * 
+     *
      * - ManualWebSocket: Instead of the main thread accepting the WebSocket request,
      * the programmer can do this themselves. After setting proper headers, the request
      * will automatically be upgraded to WebSocket after the response is sent.
@@ -85,28 +60,29 @@ class HttpServer : public TcpServer {
      * - Version  (char[16])
      * - Headers  (char[1024])
      * - Body     (char[2800])
-     * 
+     *
      * Also contains methods used to manipulate or read certain parts of the request.
      */
     typedef struct {
-      HttpMethod Method;
-      char URI[256], Version[16], Headers[1024];
-      char* Body;
+        HttpMethod Method;
+        char URI[256], Version[16], Headers[1024];
+        char* Body;
 
-      /**
-       * Returns the header value matching the given name.
-       * 
-       * First bool asks if you want it returned in lowercase. This is nice for case-insensitive headers,
-       * but not for headers such as Sec-WebSocket-Key (for which you will want to pass 'false').
-       * Second bool asks for whether to store the value in the char*, of which the address is passed using the second argument.
-       * 
-       * Returns:
-       *  true ON SUCCESS
-       *  false ON FAILURE
-       * 
-       * ! Also on failure: the char* from the second argument is set to 'nullptr' !
-       */
-      bool GetHeaderValue(const char*, char**, bool lowercase = true, bool storeValue = true);
+        /**
+         * Returns the header value matching the given name.
+         *
+         * First bool asks if you want it returned in lowercase. This is nice for case-insensitive
+         * headers, but not for headers such as Sec-WebSocket-Key (for which you will want to pass
+         * 'false'). Second bool asks for whether to store the value in the char*, of which the
+         * address is passed using the second argument.
+         *
+         * Returns:
+         *  true ON SUCCESS
+         *  false ON FAILURE
+         *
+         * ! Also on failure: the char* from the second argument is set to 'nullptr' !
+         */
+        bool GetHeaderValue(const char*, char**, bool lowercase = true, bool storeValue = true);
     } http_request_t;
 
     /**
@@ -116,7 +92,7 @@ class HttpServer : public TcpServer {
      * - Status   (char[32])
      * - Headers  (char*)
      * - Body     (char*)
-     * 
+     *
      * Also contains methods used to manipulate or read certain parts of the response.
      */
     typedef struct Http_Response {
@@ -149,16 +125,16 @@ class HttpServer : public TcpServer {
          * Sets the headers for the current response to the given string.
          * Headers are separated by "\r\n". A "\r\n" must also be used at the end
          * of the headers.
-         * 
+         *
          * e.g. "Host: goodgirl.dev\r\nServer: fpxHTTP\r\nConnection: close\r\n"
-         * 
+         *
          * ! WARNING: This method will OVERWRITE any currently assigned headers !
          */
         bool SetHeaders(const char*);
 
         /**
          * Sets the body for the current response to the given string.
-         * 
+         *
          * ! WARNING: This method will OVERWRITE the current body !
          */
         bool SetBody(const char*);
@@ -175,7 +151,7 @@ class HttpServer : public TcpServer {
 
         /**
          * Adds the specified string to the HTTP header
-         * 
+         *
          * e.g. "Connection: close"
          */
         int AddHeader(const char*, bool = false);
@@ -209,35 +185,39 @@ class HttpServer : public TcpServer {
      * short binary switch containing all of the allowed HTTP methods
      * for that endpoint
      */
-    typedef struct { char URI[256]; http_callback_t Callback; short AllowedMethods; } http_endpoint_t;
+    typedef struct {
+        char URI[256];
+        http_callback_t Callback;
+        short AllowedMethods;
+    } http_endpoint_t;
 
     /**
      * Contains HTTP client data, for the HTTP request processing threads.
      */
     typedef struct {
-      bool Keepalive = false, WsUpgrade = false, WsFail = false;
-      http_request_t Request;
-      http_response_t Response;
-      size_t ReadBufSize;
-      char* ReadBufferPTR = nullptr;
-      time_t LastActiveSeconds;
+        bool Keepalive = false, WsUpgrade = false, WsFail = false;
+        http_request_t Request;
+        http_response_t Response;
+        size_t ReadBufSize;
+        char* ReadBufferPTR = nullptr;
+        time_t LastActiveSeconds;
     } http_client_t;
 
     /**
      * Contains info about an HTTP processing thread.
      */
     typedef struct : ServerProperties::threadpackage_t {
-      HttpServer* Caller;
-      pollfd PollFDs[FPX_HTTP_MAX_CLIENTS];
-      http_client_t Clients[FPX_HTTP_MAX_CLIENTS];
-      short ClientCount;
+        HttpServer* Caller;
+        pollfd PollFDs[FPX_HTTP_MAX_CLIENTS];
+        http_client_t Clients[FPX_HTTP_MAX_CLIENTS];
+        short ClientCount;
 
-      /**
-       * Disconnects the client with the given index from the HTTP server.
-       */
-      void HandleDisconnect(int clientIndex, bool closeSocket = true);
-      struct sockaddr ClientDetails;
-      http_endpoint_t* Endpoints;
+        /**
+         * Disconnects the client with the given index from the HTTP server.
+         */
+        void HandleDisconnect(int clientIndex, bool closeSocket = true);
+        struct sockaddr ClientDetails;
+        http_endpoint_t* Endpoints;
     } http_threadpackage_t;
 
     /**
@@ -251,25 +231,26 @@ class HttpServer : public TcpServer {
         void Ping();
 
       public:
-      // 0x1: Sent "close"
-      // 0x2: Received "close"
-      uint8_t Flags;
-      bool Fragmented, PendingClose;
-      int BytesRead;
-      uint8_t ControlReadBuffer[128];
-      size_t ReadBufSize;
-      uint8_t* ReadBufferPTR = nullptr;
-      time_t LastActiveSeconds;
-      int FileDescriptor;
+        // 0x1: Sent "close"
+        // 0x2: Received "close"
+        uint8_t Flags;
+        bool Fragmented, PendingClose;
+        int BytesRead;
+        uint8_t ControlReadBuffer[128];
+        size_t ReadBufSize;
+        uint8_t* ReadBufferPTR = nullptr;
+        time_t LastActiveSeconds;
+        int FileDescriptor;
     } websocket_client_t;
-    
+
     /**
      * A WebSocket callback function that can be assigned to a websocket_threadpackage_t,
      * for processing an incoming websocket frame.
-     * 
+     *
      * NOTE: The masking key on the incoming frame is PREAPPLIED!
      */
-    typedef void (*ws_callback_t)(websocket_client_t*, uint16_t frame_metadata, uint64_t data_length, uint32_t masking_key, uint8_t* data_pointer);
+    typedef void (*ws_callback_t)(websocket_client_t*, uint16_t frame_metadata,
+      uint64_t data_length, uint32_t masking_key, uint8_t* data_pointer);
 
     /**
      * Offers a context for manipulating a WebSocket frame for sending
@@ -295,6 +276,7 @@ class HttpServer : public TcpServer {
          * Send the WS frame to the given socket file descriptor
          */
         void Send(int fd);
+
       private:
         uint8_t m_MetaByte = 0;
         uint64_t m_PayloadLen = 0;
@@ -305,28 +287,28 @@ class HttpServer : public TcpServer {
      * Contains info about a WebSocket processing thread.
      */
     typedef struct : ServerProperties::threadpackage_t {
-      HttpServer* Caller;
-      pollfd PollFDs[FPX_WS_MAX_CLIENTS];
-      websocket_client_t Clients[FPX_WS_MAX_CLIENTS];
-      ws_callback_t Callback;
-      short ClientCount = 0;
-      
-      /**
-       * Disconnects the client with the given index from the WebSocket server.
-       */
-      void HandleDisconnect(int clientIndex, bool closeSocket = true);
-      
-      /**
-       * Sends a WebSocket frame to the client whose index was passed.
-       */
-      void SendFrame(int index, websocket_frame_t*);
+        HttpServer* Caller;
+        pollfd PollFDs[FPX_WS_MAX_CLIENTS];
+        websocket_client_t Clients[FPX_WS_MAX_CLIENTS];
+        ws_callback_t Callback;
+        short ClientCount = 0;
 
-      /**
-       * Specifically sends a WS closing frame to the client whose index was passed.
-       */
-      void SendClose(int index, uint16_t status, bool bigEndian, uint8_t* message = nullptr);
+        /**
+         * Disconnects the client with the given index from the WebSocket server.
+         */
+        void HandleDisconnect(int clientIndex, bool closeSocket = true);
+
+        /**
+         * Sends a WebSocket frame to the client whose index was passed.
+         */
+        void SendFrame(int index, websocket_frame_t*);
+
+        /**
+         * Specifically sends a WS closing frame to the client whose index was passed.
+         */
+        void SendClose(int index, uint16_t status, bool bigEndian, uint8_t* message = nullptr);
     } websocket_threadpackage_t;
-    
+
     /**
      * The thread that kills idle HTTP connections after FPX_HTTP_KEEPALIVE has passed.
      */
@@ -354,37 +336,38 @@ class HttpServer : public TcpServer {
     ServerType Mode;
 
     uint8_t HttpThreads, WsThreads;
+
   public:
     /**
      * Gets the currently set default server headers.
      * These headers will always be sent along with any outgoing
      * HTTP request.
-     * 
+     *
      * Also see: fpx::HttpServer::SetDefaultHeaders()
      */
     const char* GetDefaultHeaders();
 
     /**
      * Sets the default server headers for this server.
-     * 
+     *
      * e.g. "Server: fpxHTTP\r\nHost: goodgirl.dev\r\n"
-     * 
+     *
      * Also see fpx::HttpServer::GetDefaultHeaders()
      */
     void SetDefaultHeaders(const char*);
 
     /**
      * Gets the currently set maximum body length for this server.
-     * 
+     *
      * Default is 4096 bytes;
-     * 
+     *
      * Also see fpx::HttpServer::SetMaxBodySize()
      */
     uint16_t GetMaxBodySize();
 
     /**
      * Sets the maximum body length for this server.
-     * 
+     *
      * Also see fpx::HttpServer::GetMaxBodySize()
      */
     void SetMaxBodySize(uint16_t);
@@ -395,7 +378,8 @@ class HttpServer : public TcpServer {
     void CreateEndpoint(const char* uri, short methods, http_callback_t endpointCallback);
 
     /**
-     * Starts listening. Takes fpx::HttpServer::ServerType and a fpx::HttpServer::ws_callback_t to set as callback for incoming WebSocket messages;
+     * Starts listening. Takes fpx::HttpServer::ServerType and a fpx::HttpServer::ws_callback_t to
+     * set as callback for incoming WebSocket messages;
      */
     void Listen(const char*, unsigned short = FPX_HTTP_DEFAULTPORT, ws_callback_t = nullptr);
 
@@ -403,7 +387,8 @@ class HttpServer : public TcpServer {
      * Listen(), but TLS.
      * Not implemented yet.
      */
-    void ListenSecure(const char*, const char*, ServerType = ServerType::Both, ws_callback_t = nullptr);
+    void ListenSecure(
+      const char*, const char*, ServerType = ServerType::Both, ws_callback_t = nullptr);
 
     /**
      * Stops listening.
@@ -413,14 +398,14 @@ class HttpServer : public TcpServer {
     /**
      * Sets maximum inactive time for WS clients.
      * Will forcefully disconnect them afterwards.
-     * 
+     *
      * Also see: fpx::HttpServer::GetWebSocketTimeout();
      */
     void SetWebSocketTimeout(uint16_t minutes);
 
     /**
      * Gets maximum inactive time for WS clients.
-     * 
+     *
      * Also see: fpx::HttpServer::SetWebSocketTimeout();
      */
     uint16_t GetWebSocketTimeout();
@@ -437,25 +422,25 @@ class HttpServer : public TcpServer {
     /**
      * Set HTTP server options.
      * These go unused as of yet.
-     * 
+     *
      * Also see: fpx::HttpServer::GetOption();
      */
     void SetOption(HttpServerOption, bool = true);
 
     /**
      * Get HTTP server options.
-     * 
+     *
      * Also see: fpx::HttpServer::SetOption();
      */
     uint8_t GetOptions();
 
     /**
      * Will read an HTTP method string and return an enum value representing it.
-     * 
+     *
      * e.g. "GET" -> fpx::HttpServer::HttpMethod::GET
      */
     static HttpServer::HttpMethod ParseMethod(const char* method);
-    
+
   private:
     char* m_DefaultHeaders;
     uint16_t m_MaxBodyLen;
@@ -469,7 +454,7 @@ class HttpServer : public TcpServer {
     http_endpoint_t* m_Endpoints;
 };
 
-}
+}  // namespace fpx
 
 
-#endif // FPX_SERVER_HTTP_H
+#endif  // FPX_SERVER_HTTP_H

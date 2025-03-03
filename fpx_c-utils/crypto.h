@@ -24,11 +24,6 @@ typedef struct {
     uint8_t buffer[64];
 } SHA1_Context;
 
-void __fpx_sha1_0to19(uint32_t*, uint32_t*, int8_t);
-void __fpx_sha1_20to39(uint32_t*, uint32_t*, int8_t);
-void __fpx_sha1_40to59(uint32_t*, uint32_t*, int8_t);
-void __fpx_sha1_60to79(uint32_t*, uint32_t*, int8_t);
-
 /**
  * Creates a SHA-1 context to work with.
  */

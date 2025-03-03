@@ -7,9 +7,9 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
+#include <arpa/inet.h>
 #include <poll.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
 
 #define FPX_MAX_CONNECTIONS 32
 #define FPX_TCP_DEFAULTPORT 9090
@@ -19,6 +19,7 @@ namespace fpx {
 class TcpServer {
   public:
     TcpServer();
+
   public:
     /**
      * Starts listening on the IP and PORT, given as parameters.
@@ -33,7 +34,7 @@ class TcpServer {
 
     /**
      * Listen(), but using TLS.
-     * 
+     *
      * Not finished yet, thus throws fpx::NotImplementedException.
      */
     virtual void ListenSecure(const char*, const char*);
@@ -42,23 +43,26 @@ class TcpServer {
      * Close the listening socket.
      */
     virtual void Close();
+
   public:
     /**
      * Struct containing ClientData.
-     * 
+     *
      * Attributes:
      * - Name (char[16]) - Holds the username of the connected TcpClient
      */
-    struct ClientData { char Name[16]; };
+    struct ClientData {
+        char Name[16];
+    };
 
   protected:
     unsigned short m_Port;
     int m_Socket4;
     // int m_Socket6;
-    
+
     struct pollfd m_Sockets[FPX_MAX_CONNECTIONS + 1];
     struct ClientData m_Clients[FPX_MAX_CONNECTIONS];
-    
+
     struct sockaddr_in m_SocketAddress4;
     // struct sockaddr_in6 m_SocketAddress6;
 
@@ -70,9 +74,9 @@ class TcpServer {
     bool m_IsListening;
 
     pthread_t m_AcceptThread;
+
   protected:
     void pvt_HandleDisconnect(pollfd&, short&);
-
 };
 
 namespace ServerProperties {
@@ -83,9 +87,9 @@ namespace ServerProperties {
  * fpx::HttpServer and its WebSocket capability
  */
 typedef struct {
-  pthread_t Thread;
-  pthread_mutex_t TalkingStick;
-  pthread_cond_t Condition;
+    pthread_t Thread;
+    pthread_mutex_t TalkingStick;
+    pthread_cond_t Condition;
 } threadpackage_t;
 
 /**
@@ -93,16 +97,16 @@ typedef struct {
  * new TCP connections for fpx::TcpServer.
  */
 typedef struct {
-  short* ClientCountPtr;
-  int* ListenSocketPtr;
-  struct sockaddr* ClientAddressBlockPtr;
-  socklen_t* ClientAddressSizePtr;
-  pollfd* ConnectedSockets;
-  TcpServer::ClientData* ConnectedClients;
+    short* ClientCountPtr;
+    int* ListenSocketPtr;
+    struct sockaddr* ClientAddressBlockPtr;
+    socklen_t* ClientAddressSizePtr;
+    pollfd* ConnectedSockets;
+    TcpServer::ClientData* ConnectedClients;
 } tcp_acceptargs_t;
 
-}
+}  // namespace ServerProperties
 
-}
+}  // namespace fpx
 
-#endif // FPX_SERVER_TCP_H
+#endif  // FPX_SERVER_TCP_H

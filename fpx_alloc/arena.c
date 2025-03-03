@@ -31,7 +31,7 @@ struct __fpx_arena {
 };
 
 #ifdef FPXLIBC_DEBUG
-void arena_print(fpx_arena* arena) {
+static void arena_print(fpx_arena* arena) {
   printf("HEAD");
   for (fpx_region* reg = arena->__regions; reg; reg = reg->__next) {
     printf("->%p", reg);

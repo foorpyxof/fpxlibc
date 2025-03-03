@@ -21,7 +21,7 @@ void fpx_sha1_init(SHA1_Context* ctx_ptr) {
   ctx_ptr->count = 0;
 }
 
-void __fpx_sha1_0to19(uint32_t* words, uint32_t* vals, int8_t debug) {
+static void _sha1_0to19(uint32_t* words, uint32_t* vals, int8_t debug) {
   uint32_t temp;
   uint32_t* a = &vals[0];
   uint32_t* b = &vals[1];
@@ -42,7 +42,7 @@ void __fpx_sha1_0to19(uint32_t* words, uint32_t* vals, int8_t debug) {
   }
 }
 
-void __fpx_sha1_20to39(uint32_t* words, uint32_t* vals, int8_t debug) {
+static void _sha1_20to39(uint32_t* words, uint32_t* vals, int8_t debug) {
   uint32_t temp;
   uint32_t* a = &vals[0];
   uint32_t* b = &vals[1];
@@ -63,7 +63,7 @@ void __fpx_sha1_20to39(uint32_t* words, uint32_t* vals, int8_t debug) {
   }
 }
 
-void __fpx_sha1_40to59(uint32_t* words, uint32_t* vals, int8_t debug) {
+static void _sha1_40to59(uint32_t* words, uint32_t* vals, int8_t debug) {
   uint32_t temp;
   uint32_t* a = &vals[0];
   uint32_t* b = &vals[1];
@@ -84,7 +84,7 @@ void __fpx_sha1_40to59(uint32_t* words, uint32_t* vals, int8_t debug) {
   }
 }
 
-void __fpx_sha1_60to79(uint32_t* words, uint32_t* vals, int8_t debug) {
+static void _sha1_60to79(uint32_t* words, uint32_t* vals, int8_t debug) {
   uint32_t temp;
   uint32_t* a = &vals[0];
   uint32_t* b = &vals[1];
@@ -127,10 +127,10 @@ void fpx_sha1_transform(SHA1_Context* ctx_ptr, const uint8_t* buffer) {
   vals[3] = ctx_ptr->state[3];
   vals[4] = ctx_ptr->state[4];
 
-  __fpx_sha1_0to19(W, vals, 0);
-  __fpx_sha1_20to39(W, vals, 0);
-  __fpx_sha1_40to59(W, vals, 0);
-  __fpx_sha1_60to79(W, vals, 0);
+  _sha1_0to19(W, vals, 0);
+  _sha1_20to39(W, vals, 0);
+  _sha1_40to59(W, vals, 0);
+  _sha1_60to79(W, vals, 0);
 
   ctx_ptr->state[0] += vals[0];
   ctx_ptr->state[1] += vals[1];

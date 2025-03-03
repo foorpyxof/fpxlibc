@@ -8,18 +8,18 @@
 
 #include "../../fpx_cpp-utils/exceptions.h"
 extern "C" {
-  #include "../../fpx_c-utils/crypto.h"
-  #include "../../fpx_c-utils/endian.h"
-  #include "../../fpx_string/string.h"
+#include "../../fpx_c-utils/crypto.h"
+#include "../../fpx_c-utils/endian.h"
+#include "../../fpx_string/string.h"
 }
 
-#include <signal.h>
 #include <limits.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <pthread.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define FPX_HTTP_ENDPOINTS 64
 
@@ -28,25 +28,15 @@ extern "C" {
 
 #define FPX_HTTP_KEEPALIVE 7
 
-#define FPX_HTTP_GET      0x1
-#define FPX_HTTP_HEAD     0x2
-#define FPX_HTTP_POST     0x4
-#define FPX_HTTP_PUT      0x8
-#define FPX_HTTP_DELETE   0x10
-#define FPX_HTTP_CONNECT  0x20
-#define FPX_HTTP_OPTIONS  0x40
-#define FPX_HTTP_TRACE    0x80
-#define FPX_HTTP_PATCH    0x100
+#define FPX_HTTPSERVER_VERSION "alpha:mar-2025"
 
-#define FPX_HTTPSERVER_VERSION "alpha:feb-2025"
+#define FPX_WS_READBUF 0xffff
+#define FPX_WS_WRITEBUF 2048
 
-#define FPX_WS_BUFFER 0xffff
-#define FPX_WS_BUF_SIZE 2048
-
-#define WS_FIN    0b10000000
-#define WS_RSV1   0b01000000
-#define WS_RSV2   0b00100000
-#define WS_RSV3   0b00010000
+#define WS_FIN 0b10000000
+#define WS_RSV1 0b01000000
+#define WS_RSV2 0b00100000
+#define WS_RSV3 0b00010000
 
 #define FPX_WS_SEND_CLOSE 0x1
 #define FPX_WS_RECV_CLOSE 0x2
@@ -55,8 +45,12 @@ namespace fpx {
 
 namespace ServerProperties {
 
-void* HttpProcessingThread(void* threadpack) {
-  if (!threadpack) return nullptr;
+/**
+ * Takes a pointer to an fpx::threadpackage_t object.
+ */
+static void* HttpProcessingThread(void* threadpack) {
+  if (!threadpack)
+    return nullptr;
 
   HttpServer::http_threadpackage_t* package = (HttpServer::http_threadpackage_t*)threadpack;
 
@@ -75,7 +69,7 @@ void* HttpProcessingThread(void* threadpack) {
     short j = 0;
     // printf("%d ready\n", clientsReady);
 
-    for(short i=0; i < package->ClientCount && j < clientsReady; i++) {
+    for (short i = 0; i < package->ClientCount && j < clientsReady; i++) {
       HttpServer::http_client_t* cli = &package->Clients[i];
       pollfd* pfd = &package->PollFDs[i];
       int handled = 0;
@@ -87,46 +81,59 @@ void* HttpProcessingThread(void* threadpack) {
         continue;
       }
 
-      if (pfd->revents & POLLIN) {        
+      if (pfd->revents & POLLIN) {
         cli->Keepalive = true;
         if (!cli->ReadBufferPTR) {
           cli->ReadBufferPTR = (char*)malloc(FPX_HTTP_READ_BUF);
         }
-        ssize_t amountRead = recv(pfd->fd, cli->ReadBufferPTR, FPX_HTTP_READ_BUF+1, 0);
-        if (!amountRead) { j++; continue; }
+        ssize_t amountRead = recv(pfd->fd, cli->ReadBufferPTR, FPX_HTTP_READ_BUF + 1, 0);
+        if (!amountRead) {
+          j++;
+          continue;
+        }
 
-        if (amountRead == FPX_HTTP_READ_BUF+1) {
+        if (amountRead == FPX_HTTP_READ_BUF + 1) {
           cli->Response.CopyFrom(&package->Caller->Response413);
           // goto buildResponseFromPreset; // (?)
         }
 
         int firstLineRead = 0, headerLen = 0;
         char method[8] = { 0 };
-        sscanf(cli->ReadBufferPTR, "%s %255s %15s\r\n%n", method, cli->Request.URI, cli->Request.Version, &firstLineRead);
+        sscanf(cli->ReadBufferPTR,
+          "%s %255s %15s\r\n%n",
+          method,
+          cli->Request.URI,
+          cli->Request.Version,
+          &firstLineRead);
         cli->ReadBufSize += firstLineRead;
-        for(int i = cli->ReadBufSize; i < 1024+firstLineRead; ) {
+        for (int i = cli->ReadBufSize; i < 1024 + firstLineRead;) {
           int newRead;
           char tempBuf[256];
           sscanf(&cli->ReadBufferPTR[i], "%255[^\r\n]\r\n%n", tempBuf, &newRead);
-          if (newRead > 0 && !strncmp(&cli->ReadBufferPTR[i+newRead-2], "\r\n", 2)) {
+          if (newRead > 0 && !strncmp(&cli->ReadBufferPTR[i + newRead - 2], "\r\n", 2)) {
             cli->ReadBufSize += newRead;
-            if (1024 - strlen(cli->Request.Headers) < newRead) break; //header section too large
-            memcpy(&cli->Request.Headers[i-firstLineRead], &cli->ReadBufferPTR[i], newRead);
+            if (1024 - strlen(cli->Request.Headers) < newRead)
+              break;  // header section too large
+            memcpy(&cli->Request.Headers[i - firstLineRead], &cli->ReadBufferPTR[i], newRead);
             memset(tempBuf, 0, sizeof(tempBuf));
             i += newRead;
             headerLen += newRead;
-          } else break;
+          } else
+            break;
         }
-        
+
         {
           char* cl = nullptr;
-          if (cli->Request.GetHeaderValue("Content-Length", &cl, false, true) && atol(cl) > 0 && atol(cl) < package->Caller->GetMaxBodySize()) {
-            cli->Request.Body = (char*)malloc(atol(cl)+1);
-            cli->ReadBufSize += snprintf(cli->Request.Body, atol(cl)+1, &cli->ReadBufferPTR[cli->ReadBufSize]) + 1;
+          if (cli->Request.GetHeaderValue("Content-Length", &cl, false, true) && atol(cl) > 0 &&
+            atol(cl) < package->Caller->GetMaxBodySize()) {
+            cli->Request.Body = (char*)malloc(atol(cl) + 1);
+            cli->ReadBufSize +=
+              snprintf(cli->Request.Body, atol(cl) + 1, &cli->ReadBufferPTR[cli->ReadBufSize]) + 1;
           }
-          if (cl) free(cl);
+          if (cl)
+            free(cl);
         }
-        
+
         cli->Request.Method = HttpServer::ParseMethod(method);
 
         if (!cli->Request.GetHeaderValue("Host", &voidpointer, true, false)) {
@@ -136,13 +143,12 @@ void* HttpProcessingThread(void* threadpack) {
         }
 
         // printf("Serving '%s' to client. ",cli->Request.URI); fflush (stdout);
-  
+
         HttpServer::http_endpoint_t* endpointPtr = nullptr;
-        
+
         if (strcmp(cli->Request.Version, "HTTP/1.1") && strcmp(cli->Request.Version, "HTTP/1.0")) {
           cli->Response.CopyFrom(&package->Caller->Response505);
-        }
-        else {
+        } else {
           for (short j = 0; (!endpointPtr) && j < FPX_HTTP_ENDPOINTS; j++) {
             if (!strcmp(package->Endpoints[j].URI, cli->Request.URI))
               endpointPtr = &package->Endpoints[j];
@@ -154,9 +160,10 @@ void* HttpProcessingThread(void* threadpack) {
             char* upHeader = nullptr;
             cli->Request.GetHeaderValue("Upgrade", &upHeader);
 
-            if(upHeader && ((connHeader) ? fpx_substringindex(connHeader, "upgrade") > -1 : 0)) {
+            if (upHeader && ((connHeader) ? fpx_substringindex(connHeader, "upgrade") > -1 : 0)) {
               // we be upgrading :nydance:
-              if(!strcmp(upHeader, "websocket")) {// && keyHeader && (!strcmp(verHeader, "13")) &&
+              if (!strcmp(
+                    upHeader, "websocket")) {  // && keyHeader && (!strcmp(verHeader, "13")) &&
                 // package->Caller->Mode != HttpServer::ServerType::HttpOnly
                 // request wants to upgrade to websocket! poggies!
                 char* keyHeader = nullptr;
@@ -167,16 +174,19 @@ void* HttpProcessingThread(void* threadpack) {
 
                 char* protHeader = nullptr;
                 cli->Request.GetHeaderValue("Sec-WebSocket-Protocol", &protHeader);
-                
-                if (keyHeader && ((verHeader) ? !strcmp(verHeader, "13") : false) && package->Caller->Mode != HttpServer::ServerType::HttpOnly) {
+
+                if (keyHeader && ((verHeader) ? !strcmp(verHeader, "13") : false) &&
+                  package->Caller->Mode != HttpServer::ServerType::HttpOnly) {
                   cli->Response.CopyFrom(&package->Caller->Response101);
-                  char* accept_part_1 = fpx_substr_replace(keyHeader, "==", "==258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
+                  char* accept_part_1 =
+                    fpx_substr_replace(keyHeader, "==", "==258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
                   char* accept_part_2 = (char*)calloc(21, 1);
-                  fpx_sha1_digest(accept_part_1, fpx_getstringlength(accept_part_1), accept_part_2, 0);
-//                  for (uint8_t i = 0; i < 20; i++) {
-//                    printf("%hhu ", ((uint8_t*)accept_part_2)[i]);
-//                  }
-//                  printf("\n"); fflush(stdout);
+                  fpx_sha1_digest(
+                    accept_part_1, fpx_getstringlength(accept_part_1), accept_part_2, 0);
+                  //  for (uint8_t i = 0; i < 20; i++) {
+                  //    printf("%hhu ", ((uint8_t*)accept_part_2)[i]);
+                  //  }
+                  //  printf("\n"); fflush(stdout);
 
                   char* accept_part_3 = fpx_base64_encode(accept_part_2, 20);
                   char* accept_part_4 = (char*)calloc(51, 1);
@@ -188,15 +198,18 @@ void* HttpProcessingThread(void* threadpack) {
                   free(accept_part_3);
                   free(accept_part_4);
                 } else if (package->Caller->Mode == HttpServer::ServerType::HttpOnly) {
-                  // 501 - Not Implemented | https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/501
-                  // because server does not support WebSocket
+                  // 501 - Not Implemented |
+                  // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/501 because server
+                  // does not support WebSocket
                   cli->Response.CopyFrom(&package->Caller->Response501);
                   cli->WsFail = true;
                 } else {
-                  // 400 - Bad Request | https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
-                  // because missing key or wrong version (should be 13)
+                  // 400 - Bad Request |
+                  // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400 because missing
+                  // key or wrong version (should be 13)
                   cli->Response.CopyFrom(&package->Caller->Response400);
-                  cli->Response.SetBody("Could not upgrade request because of incorrect request header composition.\nRefer to [RFC-6455] for information about the required request headers and their validity.");
+                  cli->Response.SetBody(
+                    "Could not upgrade request because of incorrect request header composition.\nRefer to [RFC-6455] for information about the required request headers and their validity.");
                   cli->WsFail = true;
                 }
                 if (keyHeader) {
@@ -232,15 +245,20 @@ void* HttpProcessingThread(void* threadpack) {
           }
           if (cli->Response.Headers) {
             char* lowercaseHeaders = fpx_string_to_lower(cli->Response.Headers, true);
-            if (!strcmp(cli->Response.Code, "101") && fpx_substringindex(lowercaseHeaders, "sec-websocket-accept: ") > -1 && fpx_substringindex(lowercaseHeaders, "connection: upgrade") > -1) cli->WsUpgrade = true;
+            if (!strcmp(cli->Response.Code, "101") &&
+              fpx_substringindex(lowercaseHeaders, "sec-websocket-accept: ") > -1 &&
+              fpx_substringindex(lowercaseHeaders, "connection: upgrade") > -1)
+              cli->WsUpgrade = true;
             free(lowercaseHeaders);
           }
         }
 
-        if (!fpx_getstringlength(cli->Response.Code)) cli->Response.SetCode("200");
-        if (!fpx_getstringlength(cli->Response.Status)) cli->Response.SetStatus("OK");
+        if (!fpx_getstringlength(cli->Response.Code))
+          cli->Response.SetCode("200");
+        if (!fpx_getstringlength(cli->Response.Status))
+          cli->Response.SetStatus("OK");
 
-        buildResponseFromPreset:
+      buildResponseFromPreset:
 
         sprintf(cli->Response.Version, "HTTP/1.1");
 
@@ -250,15 +268,18 @@ void* HttpProcessingThread(void* threadpack) {
 
         char* connectionHeader = nullptr;
 
-        if (!cli->WsUpgrade && cli->Request.GetHeaderValue("Connection", &connectionHeader) && cli->Response.Headers) {
+        if (!cli->WsUpgrade && cli->Request.GetHeaderValue("Connection", &connectionHeader) &&
+          cli->Response.Headers) {
           char* respHeadersLower = fpx_string_to_lower(cli->Response.Headers, 1);
-          if (fpx_substringindex(respHeadersLower, "connection: ") == -1 && !strcmp(connectionHeader, "close")) {
+          if (fpx_substringindex(respHeadersLower, "connection: ") == -1 &&
+            !strcmp(connectionHeader, "close")) {
             cli->Keepalive = false;
           }
           free(respHeadersLower);
         }
-      
-        if (connectionHeader) free(connectionHeader);
+
+        if (connectionHeader)
+          free(connectionHeader);
 
         short amountWritten;
 
@@ -269,100 +290,111 @@ void* HttpProcessingThread(void* threadpack) {
             cli->Response.AddHeader("Connection: keep-alive");
             cli->Response.AddHeader("Keep-Alive: timeout=" STR(FPX_HTTP_KEEPALIVE));
           }
-          
-          if (cli->Response.Headers && fpx_substringindex(cli->Response.Headers, "Content-Length: ") == -1) {
-            char tempHeaderBuf[256];
-            int blen = cli->Response.GetBodyLength();
-            sprintf(tempHeaderBuf, "Content-Length: %d", blen);
-            cli->Response.AddHeader(tempHeaderBuf);
-          }
-          const char* const defHeaders = package->Caller->GetDefaultHeaders();
-          const char* const respHeaders = cli->Response.Headers;
-          const char* const respBody = cli->Response.Body;
-          amountWritten = snprintf(writeBuffer, FPX_HTTP_WRITE_BUF, "%s %s %s\r\n", cli->Response.Version, cli->Response.Code, cli->Response.Status);
-          memcpy(writeBuffer+amountWritten, defHeaders, fpx_getstringlength(defHeaders));
-          amountWritten += fpx_getstringlength(defHeaders);
-          if (respHeaders) {
-            memcpy(writeBuffer+amountWritten, respHeaders, fpx_getstringlength(respHeaders));
-            amountWritten += fpx_getstringlength(respHeaders);
-            free(cli->Response.Headers);
-          }
-          memcpy(writeBuffer+amountWritten, "\r\n", 2);
-          amountWritten+=2;
-          if (respBody) {
-            memcpy(writeBuffer+amountWritten, respBody, fpx_getstringlength(respBody));
-            amountWritten += fpx_getstringlength(respBody);
-            free(cli->Response.Body);
-          }
 
-          if (cli->Response.Code[0] == '1' || cli->Response.Code[0] == '2' || cli->Response.Code[0] == '3') {
-            time(&cli->LastActiveSeconds);
-          }
+        if (cli->Response.Headers &&
+          fpx_substringindex(cli->Response.Headers, "Content-Length: ") == -1) {
+          char tempHeaderBuf[256];
+          int blen = cli->Response.GetBodyLength();
+          sprintf(tempHeaderBuf, "Content-Length: %d", blen);
+          cli->Response.AddHeader(tempHeaderBuf);
+        }
+        const char* const defHeaders = package->Caller->GetDefaultHeaders();
+        const char* const respHeaders = cli->Response.Headers;
+        const char* const respBody = cli->Response.Body;
+        amountWritten = snprintf(writeBuffer,
+          FPX_HTTP_WRITE_BUF,
+          "%s %s %s\r\n",
+          cli->Response.Version,
+          cli->Response.Code,
+          cli->Response.Status);
+        memcpy(writeBuffer + amountWritten, defHeaders, fpx_getstringlength(defHeaders));
+        amountWritten += fpx_getstringlength(defHeaders);
+        if (respHeaders) {
+          memcpy(writeBuffer + amountWritten, respHeaders, fpx_getstringlength(respHeaders));
+          amountWritten += fpx_getstringlength(respHeaders);
+          free(cli->Response.Headers);
+        }
+        memcpy(writeBuffer + amountWritten, "\r\n", 2);
+        amountWritten += 2;
+        if (respBody) {
+          memcpy(writeBuffer + amountWritten, respBody, fpx_getstringlength(respBody));
+          amountWritten += fpx_getstringlength(respBody);
+          free(cli->Response.Body);
+        }
 
-          memset(&cli->Request, 0, sizeof(cli->Request));
-          memset(&cli->Response, 0, sizeof(cli->Response));
+        if (cli->Response.Code[0] == '1' || cli->Response.Code[0] == '2' ||
+          cli->Response.Code[0] == '3') {
+          time(&cli->LastActiveSeconds);
+        }
 
-          endpointPtr = nullptr;
+        memset(&cli->Request, 0, sizeof(cli->Request));
+        memset(&cli->Response, 0, sizeof(cli->Response));
 
-          if (cli->WsUpgrade) {
-            short lowestCount = FPX_WS_MAX_CLIENTS;
-            short lowestIndex = 1;
-            for (short j = 0; j < package->Caller->WsThreads; j++) {
-              if (package->Caller->WebsocketThreads[j].ClientCount < lowestCount) {
-                lowestCount = package->Caller->WebsocketThreads[j].ClientCount;
-                lowestIndex = i;
-              }
+        endpointPtr = nullptr;
+
+        if (cli->WsUpgrade) {
+          short lowestCount = FPX_WS_MAX_CLIENTS;
+          short lowestIndex = 1;
+          for (short j = 0; j < package->Caller->WsThreads; j++) {
+            if (package->Caller->WebsocketThreads[j].ClientCount < lowestCount) {
+              lowestCount = package->Caller->WebsocketThreads[j].ClientCount;
+              lowestIndex = i;
             }
-            HttpServer::websocket_threadpackage_t* wsThreadPTR = &package->Caller->WebsocketThreads[lowestIndex];
-            // vvv this could go bad (infinite yield?)
-            pthread_mutex_lock(&package->Caller->WebsocketThreads[lowestIndex].TalkingStick);
-            // ^^^
-            // printf("Upgrading to WebSocket\n");
-            send(pfd->fd, writeBuffer, amountWritten, 0);
-            // send(pfd->fd, "\x81\x03\x61\x62\x63", 5, 0); // abc text frame
-            wsThreadPTR->PollFDs[wsThreadPTR->ClientCount] = *pfd;
-            wsThreadPTR->Clients[wsThreadPTR->ClientCount].LastActiveSeconds = time(NULL);
-            wsThreadPTR->Clients[wsThreadPTR->ClientCount].FileDescriptor = wsThreadPTR->PollFDs[wsThreadPTR->ClientCount].fd;
-            wsThreadPTR->ClientCount++;
-            package->HandleDisconnect(i, false);
-            pthread_cond_signal(&wsThreadPTR->Condition);
-            pthread_mutex_unlock(&wsThreadPTR->TalkingStick);
+          }
+          HttpServer::websocket_threadpackage_t* wsThreadPTR =
+            &package->Caller->WebsocketThreads[lowestIndex];
+          // vvv this could go bad (infinite yield?)
+          pthread_mutex_lock(&package->Caller->WebsocketThreads[lowestIndex].TalkingStick);
+          // ^^^
+          // printf("Upgrading to WebSocket\n");
+          send(pfd->fd, writeBuffer, amountWritten, 0);
+          // send(pfd->fd, "\x81\x03\x61\x62\x63", 5, 0); // abc text frame
+          wsThreadPTR->PollFDs[wsThreadPTR->ClientCount] = *pfd;
+          wsThreadPTR->Clients[wsThreadPTR->ClientCount].LastActiveSeconds = time(NULL);
+          wsThreadPTR->Clients[wsThreadPTR->ClientCount].FileDescriptor =
+            wsThreadPTR->PollFDs[wsThreadPTR->ClientCount].fd;
+          wsThreadPTR->ClientCount++;
+          package->HandleDisconnect(i, false);
+          pthread_cond_signal(&wsThreadPTR->Condition);
+          pthread_mutex_unlock(&wsThreadPTR->TalkingStick);
 
-            cli->Keepalive = false;
+          cli->Keepalive = false;
+        } else {
+          send(pfd->fd, writeBuffer, amountWritten, 0);
+          // printf("\n");
+        }
+
+        handled++;
+
+        memset(writeBuffer, 0, sizeof(writeBuffer));
+        amountWritten = 0;
+
+        if (!cli->Keepalive) {
+          if (!cli->WsUpgrade) {
+            package->HandleDisconnect(i);
           } else {
-            send(pfd->fd, writeBuffer, amountWritten, 0);
-            // printf("\n");
-          }
-
-          handled++;
-
-          memset(writeBuffer, 0, sizeof(writeBuffer));
-          amountWritten = 0;
-
-          if (!cli->Keepalive) {
-            if (!cli->WsUpgrade) {
-              package->HandleDisconnect(i);
-            } else {
-              for (int j=i; j < FPX_WS_MAX_CLIENTS; j++) {
-                if (j+1 < FPX_WS_MAX_CLIENTS) {
-                  package->PollFDs[j] = package->PollFDs[j+1];
-                  if (package->PollFDs[j+1].fd == 0) break;
-                } else {
-                  memset(&package->PollFDs[j], 0, sizeof(pollfd));
-                  memset(&package->Clients[j], 0, sizeof(HttpServer::http_client_t));
+            for (int j = i; j < FPX_WS_MAX_CLIENTS; j++) {
+              if (j + 1 < FPX_WS_MAX_CLIENTS) {
+                package->PollFDs[j] = package->PollFDs[j + 1];
+                if (package->PollFDs[j + 1].fd == 0)
                   break;
-                }
+              } else {
+                memset(&package->PollFDs[j], 0, sizeof(pollfd));
+                memset(&package->Clients[j], 0, sizeof(HttpServer::http_client_t));
+                break;
               }
-              package->ClientCount--;
             }
+            package->ClientCount--;
           }
+        }
 
-          if (cli->ReadBufferPTR) free(cli->ReadBufferPTR);
-          {
-            time_t tempTime = cli->LastActiveSeconds;
-            memset(cli, 0, sizeof(HttpServer::http_client_t));
-            cli->LastActiveSeconds = tempTime;
-          }
+        if (cli->ReadBufferPTR)
+          free(cli->ReadBufferPTR);
+        {
+          time_t tempTime = cli->LastActiveSeconds;
+          memset(cli, 0, sizeof(HttpServer::http_client_t));
+          cli->LastActiveSeconds = tempTime;
+        }
       }
       if (handled) {
         j++;
@@ -373,14 +405,19 @@ void* HttpProcessingThread(void* threadpack) {
   }
 }
 
-void* WebSocketThread(void* threadpack) {
-  if (!threadpack) return nullptr;
-  HttpServer::websocket_threadpackage_t* package = (HttpServer::websocket_threadpackage_t*)threadpack;
+/**
+ * Takes a pointer to an fpx::websocket_threadpackage_t object.
+ */
+static void* WebSocketThread(void* threadpack) {
+  if (!threadpack)
+    return nullptr;
+  HttpServer::websocket_threadpackage_t* package =
+    (HttpServer::websocket_threadpackage_t*)threadpack;
 
   uint16_t metadata;
   uint16_t bigendianChecker = 1;
   bool bigendian = (*(char*)&bigendianChecker) ? false : true;
-  uint8_t writeBuffer[FPX_WS_BUF_SIZE];
+  uint8_t writeBuffer[FPX_WS_WRITEBUF];
   bool locked = false;
 
   while (1) {
@@ -393,22 +430,23 @@ void* WebSocketThread(void* threadpack) {
     short clientsReady = poll(package->PollFDs, package->ClientCount, 1000);
     // printf("Clients ready on thread %d: %d\n", package->Thread, clientsReady);
 
-    int j=0;
-    for (short i=0; i < package->ClientCount && j < clientsReady; i++) {
+    int j = 0;
+    for (short i = 0; i < package->ClientCount && j < clientsReady; i++) {
       int handled = 0;
       bool disconnect = false;
       // handle polled clients here ^_^
-      if(package->PollFDs[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+      if (package->PollFDs[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
         // bad client connection OR client hung up
         package->HandleDisconnect(i);
         handled++;
         j++;
         continue;
       }
-      if(package->PollFDs[i].revents & POLLIN) {
+      if (package->PollFDs[i].revents & POLLIN) {
         // receive client data
         ssize_t bytesRead = read(package->PollFDs[i].fd, (char*)&metadata, 2);
-        if (!bigendian) fpx_endian_swap(&metadata, 2);
+        if (!bigendian)
+          fpx_endian_swap(&metadata, 2);
         switch (bytesRead) {
           case 0:
             // EOF (client closed connection)
@@ -429,7 +467,7 @@ void* WebSocketThread(void* threadpack) {
               disconnect = true;
               break;
             }
-            
+
             uint8_t fin, opcode;
             uint64_t len;
             uint32_t mask_key;
@@ -444,11 +482,13 @@ void* WebSocketThread(void* threadpack) {
                   handled++;
                   break;
                 }
-              } else len = firstLen;
+              } else
+                len = firstLen;
               if (firstLen == 127) {
                 len &= 0x7fffffffffffffff;
               }
-              if (!bigendian) fpx_endian_swap(&len, firstLen == 127 ? 8 : firstLen == 126 ? 2 : 1);
+              if (!bigendian)
+                fpx_endian_swap(&len, firstLen == 127 ? 8 : firstLen == 126 ? 2 : 1);
             }
 
             if (!read(package->PollFDs[i].fd, &mask_key, 4)) {
@@ -456,9 +496,9 @@ void* WebSocketThread(void* threadpack) {
               break;
             }
 
-            if (len > FPX_WS_BUFFER) {
-              char closeBuf [64] = { 0 };
-              snprintf(closeBuf, 63, "disconnect_body_over_%hubytes", FPX_WS_BUFFER);
+            if (len > FPX_WS_READBUF) {
+              char closeBuf[64] = { 0 };
+              snprintf(closeBuf, 63, "disconnect_body_over_%hubytes", FPX_WS_READBUF);
               package->SendClose(i, 1009, bigendian, (uint8_t*)closeBuf);
             }
 
@@ -466,7 +506,9 @@ void* WebSocketThread(void* threadpack) {
               // control frame
               if (!fin || len > 125) {
                 if (len) {
-                  package->Clients[i].ReadBufferPTR = (!package->Clients[i].ReadBufferPTR) ? (uint8_t*)malloc(len) : (uint8_t*)realloc(package->Clients[i].ReadBufferPTR, len);
+                  package->Clients[i].ReadBufferPTR = (!package->Clients[i].ReadBufferPTR) ?
+                    (uint8_t*)malloc(len) :
+                    (uint8_t*)realloc(package->Clients[i].ReadBufferPTR, len);
                   read(package->PollFDs[i].fd, package->Clients[i].ReadBufferPTR, len);
                   free(package->Clients[i].ReadBufferPTR);
                   package->Clients[i].ReadBufferPTR = nullptr;
@@ -474,9 +516,10 @@ void* WebSocketThread(void* threadpack) {
                 handled++;
                 break;
               }
-              ssize_t ctlBuffer_read = read(package->PollFDs[i].fd, package->Clients[i].ControlReadBuffer, len);
+              ssize_t ctlBuffer_read =
+                read(package->PollFDs[i].fd, package->Clients[i].ControlReadBuffer, len);
               if (ctlBuffer_read) {
-                for (int j=0; j < len; j++) {
+                for (int j = 0; j < len; j++) {
                   package->Clients[i].ControlReadBuffer[j] ^= ((uint8_t*)&mask_key)[j % 4];
                 }
               }
@@ -490,7 +533,8 @@ void* WebSocketThread(void* threadpack) {
                   if (package->Clients[i].PendingClose) {
                     // conn-close confirmed by client 👍
                   } else {
-                    package->SendClose(i, htons(*((uint16_t*)package->Clients[i].ControlReadBuffer)), bigendian);
+                    package->SendClose(
+                      i, htons(*((uint16_t*)package->Clients[i].ControlReadBuffer)), bigendian);
                   }
 
                   package->Clients[i].Flags |= FPX_WS_RECV_CLOSE;
@@ -500,8 +544,12 @@ void* WebSocketThread(void* threadpack) {
 
                 case 0x9:
                   // ping
-                  if (len) memcpy(writeBuffer + snprintf((char*)writeBuffer, FPX_WS_BUF_SIZE, "\x8a%u", len), package->Clients[i].ControlReadBuffer, len);
-                  send(package->PollFDs[i].fd, writeBuffer, 2+len, 0);
+                  if (len)
+                    memcpy(
+                      writeBuffer + snprintf((char*)writeBuffer, FPX_WS_WRITEBUF, "\x8a%lu", len),
+                      package->Clients[i].ControlReadBuffer,
+                      len);
+                  send(package->PollFDs[i].fd, writeBuffer, 2 + len, 0);
                   handled++;
                   break;
 
@@ -509,25 +557,38 @@ void* WebSocketThread(void* threadpack) {
                   // pong
 
                   break;
-
               }
-              
-              if (package->Callback) package->Callback(&package->Clients[i], metadata, len, mask_key, package->Clients[i].ControlReadBuffer);
-              memset(package->Clients[i].ControlReadBuffer, 0, sizeof(package->Clients[i].ControlReadBuffer));
+
+              if (package->Callback)
+                package->Callback(&package->Clients[i],
+                  metadata,
+                  len,
+                  mask_key,
+                  package->Clients[i].ControlReadBuffer);
+              memset(package->Clients[i].ControlReadBuffer,
+                0,
+                sizeof(package->Clients[i].ControlReadBuffer));
             } else {
               // data frame
-              
+
               size_t oldsize = package->Clients[i].ReadBufSize;
               if (package->Clients[i].ReadBufferPTR && package->Clients[i].Fragmented) {
-                package->Clients[i].ReadBufferPTR = (uint8_t*)realloc(package->Clients[i].ReadBufferPTR, (package->Clients[i].ReadBufSize += len+1) & FPX_WS_BUFFER);
+                package->Clients[i].ReadBufferPTR =
+                  (uint8_t*)realloc(package->Clients[i].ReadBufferPTR,
+                    (package->Clients[i].ReadBufSize += len + 1) & FPX_WS_READBUF);
+              } else if (package->Clients[i].ReadBufferPTR) {
+                package->Clients[i].ReadBufferPTR =
+                  (uint8_t*)realloc(package->Clients[i].ReadBufferPTR,
+                    (package->Clients[i].ReadBufSize = len + 1) & FPX_WS_READBUF);
               } else
-              if (package->Clients[i].ReadBufferPTR) {
-                package->Clients[i].ReadBufferPTR = (uint8_t*)realloc(package->Clients[i].ReadBufferPTR, (package->Clients[i].ReadBufSize = len+1) & FPX_WS_BUFFER);
-              } else package->Clients[i].ReadBufferPTR = (uint8_t*)malloc((package->Clients[i].ReadBufSize = len+1) & FPX_WS_BUFFER);
-              ssize_t frameBodyLengthRead = read(package->PollFDs[i].fd, package->Clients[i].ReadBufferPTR + oldsize, len);
+                package->Clients[i].ReadBufferPTR =
+                  (uint8_t*)malloc((package->Clients[i].ReadBufSize = len + 1) & FPX_WS_READBUF);
+              ssize_t frameBodyLengthRead =
+                read(package->PollFDs[i].fd, package->Clients[i].ReadBufferPTR + oldsize, len);
               package->Clients[i].ReadBufferPTR[len] = 0;
 
-              if ((package->Clients[i].Fragmented && opcode) || !(package->Clients[i].Fragmented || opcode)) {
+              if ((package->Clients[i].Fragmented && opcode) ||
+                !(package->Clients[i].Fragmented || opcode)) {
                 // flush this frame, because it's:
                 // - not a continuation frame where expected
                 // - a continuation frame where unexpected
@@ -539,18 +600,18 @@ void* WebSocketThread(void* threadpack) {
 
 
               // unmask client payload
-              for (int j=0; j < len; j++) {
+              for (int j = 0; j < len; j++) {
                 package->Clients[i].ReadBufferPTR[j] ^= ((uint8_t*)&mask_key)[j % 4];
               }
-              
+
               // strip readbuffer of \r or \r\n
-              if (package->Clients[i].ReadBufferPTR[frameBodyLengthRead-1] == '\n') {
-                if (package->Clients[i].ReadBufferPTR[frameBodyLengthRead-2] == '\r') {
-                  package->Clients[i].ReadBufferPTR[frameBodyLengthRead-2] = 0;
+              if (package->Clients[i].ReadBufferPTR[frameBodyLengthRead - 1] == '\n') {
+                if (package->Clients[i].ReadBufferPTR[frameBodyLengthRead - 2] == '\r') {
+                  package->Clients[i].ReadBufferPTR[frameBodyLengthRead - 2] = 0;
                 }
-                package->Clients[i].ReadBufferPTR[frameBodyLengthRead-1] = 0;
+                package->Clients[i].ReadBufferPTR[frameBodyLengthRead - 1] = 0;
               }
-              
+
               // switch (opcode) {
               //   case 0x0:
               //     // continuation frame
@@ -563,7 +624,9 @@ void* WebSocketThread(void* threadpack) {
               //     // binary frame
               //     break;
               // }
-              if (package->Callback) package->Callback(&package->Clients[i], metadata, len, mask_key, package->Clients[i].ReadBufferPTR);
+              if (package->Callback)
+                package->Callback(
+                  &package->Clients[i], metadata, len, mask_key, package->Clients[i].ReadBufferPTR);
               // printf("\n");
               if (fin) {
                 package->Clients[i].Fragmented = false;
@@ -582,15 +645,23 @@ void* WebSocketThread(void* threadpack) {
           }
           time(&package->Clients[i].LastActiveSeconds);
         }
-        if (disconnect) package->HandleDisconnect(i);
+        if (disconnect)
+          package->HandleDisconnect(i);
       }
     }
 
-    for(int i=0; i < package->ClientCount; i++) {
-      // printf("Time now: %u | Client last active: %u | Difference: %u\n", time(NULL)/60, package->Clients[i].LastActiveSeconds/60, time(NULL)/60 - package->Clients[i].LastActiveSeconds/60);
-      if((package->Caller->GetWebSocketTimeout()) && (time(NULL)/60 - package->Clients[i].LastActiveSeconds/60) > package->Caller->GetWebSocketTimeout()) {
+    for (int i = 0; i < package->ClientCount; i++) {
+      // printf("Time now: %u | Client last active: %u | Difference: %u\n", time(NULL)/60,
+      // package->Clients[i].LastActiveSeconds/60, time(NULL)/60 -
+      // package->Clients[i].LastActiveSeconds/60);
+      if ((package->Caller->GetWebSocketTimeout()) &&
+        (time(NULL) / 60 - package->Clients[i].LastActiveSeconds / 60) >
+          package->Caller->GetWebSocketTimeout()) {
         uint8_t message[123];
-        snprintf((char*)message, 123, "disconnect_idle_%hu_minutes", package->Caller->GetWebSocketTimeout());
+        snprintf((char*)message,
+          123,
+          "disconnect_idle_%hu_minutes",
+          package->Caller->GetWebSocketTimeout());
         package->SendClose(i, 1000, bigendian, message);
         package->Clients[i].PendingClose = true;
       }
@@ -599,22 +670,28 @@ void* WebSocketThread(void* threadpack) {
     pthread_mutex_unlock(&package->TalkingStick);
     usleep(5000);
   }
-
 }
 
-void* HttpKillerThread(void* hs) {
-  if (!hs) return NULL;
+/**
+ * Takes an instance of fpx::HttpServer as an argument
+ * Kills idle keepalive connections after the timeout has passed
+ */
+static void* HttpKillerThread(void* hs) {
+  if (!hs)
+    return NULL;
 
   HttpServer* httpServ = (HttpServer*)hs;
   uint8_t i = 0;
   while (1) {
     usleep(500000 / httpServ->HttpThreads);
     HttpServer::http_threadpackage_t* thread = &httpServ->RequestHandlers[i];
-    if (thread->ClientCount == 0) continue;
+    if (thread->ClientCount == 0)
+      continue;
     pthread_mutex_lock(&thread->TalkingStick);
-    for (uint8_t j = 0; j < thread->ClientCount-1; j++) {
-      //compare time for keepalive
-      if (thread->Clients[j].LastActiveSeconds > 0 && thread->Clients[j].Keepalive && time(NULL) - thread->Clients[j].LastActiveSeconds > FPX_HTTP_KEEPALIVE) {
+    for (uint8_t j = 0; j < thread->ClientCount - 1; j++) {
+      // compare time for keepalive
+      if (thread->Clients[j].LastActiveSeconds > 0 && thread->Clients[j].Keepalive &&
+        time(NULL) - thread->Clients[j].LastActiveSeconds > FPX_HTTP_KEEPALIVE) {
         thread->HandleDisconnect(j);
       }
     }
@@ -625,62 +702,67 @@ void* HttpKillerThread(void* hs) {
 }
 
 
-}
+}  // namespace ServerProperties
 
-HttpServer::HttpServer(uint8_t http_threads, uint8_t ws_threads):
-  TcpServer(), m_EndpointCount(0),
+HttpServer::HttpServer(uint8_t http_threads, uint8_t ws_threads) :
+  TcpServer(),
+  m_EndpointCount(0),
   RequestHandlers((http_threadpackage_t*)calloc(http_threads, sizeof(http_threadpackage_t))),
-  WebsocketThreads((websocket_threadpackage_t*)calloc(ws_threads, sizeof(websocket_threadpackage_t))),
-  HttpThreads(http_threads), WsThreads(ws_threads),
+  WebsocketThreads(
+    (websocket_threadpackage_t*)calloc(ws_threads, sizeof(websocket_threadpackage_t))),
+  HttpThreads(http_threads),
+  WsThreads(ws_threads),
   m_Endpoints((http_endpoint_t*)calloc(FPX_HTTP_ENDPOINTS, sizeof(http_endpoint_t))),
-  m_DefaultHeaders(nullptr), m_MaxBodyLen(4096), m_Options(0), m_WebSocketTimeout(0), m_ServerType(ServerType::Both)
-  {
-    SetDefaultHeaders(
-      "Server: fpxHTTP (" FPX_HTTPSERVER_VERSION ")\r\n"
-    );
+  m_DefaultHeaders(nullptr),
+  m_MaxBodyLen(4096),
+  m_Options(0),
+  m_WebSocketTimeout(0),
+  m_ServerType(ServerType::Both) {
+  SetDefaultHeaders("Server: fpxHTTP (" FPX_HTTPSERVER_VERSION ")\r\n");
 
-    Response101.SetCode("101");
-    Response101.SetStatus("Switching Protocols");
-    Response101.SetHeaders("Connection: Upgrade\r\n");
+  Response101.SetCode("101");
+  Response101.SetStatus("Switching Protocols");
+  Response101.SetHeaders("Connection: Upgrade\r\n");
 
-    Response400.SetCode("400");
-    Response400.SetStatus("Bad Request");
-    Response400.SetBody("Bad Request");
+  Response400.SetCode("400");
+  Response400.SetStatus("Bad Request");
+  Response400.SetBody("Bad Request");
 
-    Response413.SetCode("413");
-    Response413.SetStatus("Payload Too Large");
-    Response413.SetBody("Payload Too Large");
+  Response413.SetCode("413");
+  Response413.SetStatus("Payload Too Large");
+  Response413.SetBody("Payload Too Large");
 
-    Response404.SetCode("404");
-    Response404.SetStatus("Not Found");
-    Response404.SetHeaders("Content-Type: text/plain\r\n");
-    Response404.SetBody("404 Not Found");
+  Response404.SetCode("404");
+  Response404.SetStatus("Not Found");
+  Response404.SetHeaders("Content-Type: text/plain\r\n");
+  Response404.SetBody("404 Not Found");
 
-    Response405.SetCode("405");
-    Response405.SetStatus("Method Not Allowed");
-    Response405.SetHeaders("Content-Type: text/plain\r\n");
+  Response405.SetCode("405");
+  Response405.SetStatus("Method Not Allowed");
+  Response405.SetHeaders("Content-Type: text/plain\r\n");
 
-    Response426.SetCode("426");
-    Response426.SetStatus("Upgrade Required");
-    Response426.SetHeaders("Connection: Upgrade\r\nContent-Type: text/plain");
-    Response426.SetBody("Upgrade Required");
+  Response426.SetCode("426");
+  Response426.SetStatus("Upgrade Required");
+  Response426.SetHeaders("Connection: Upgrade\r\nContent-Type: text/plain");
+  Response426.SetBody("Upgrade Required");
 
-    Response501.SetCode("501");
-    Response501.SetStatus("Not Implemented");
-    Response501.SetHeaders("Content-Type: text/plain\r\n");
-    Response501.SetBody("Not Implemented");
+  Response501.SetCode("501");
+  Response501.SetStatus("Not Implemented");
+  Response501.SetHeaders("Content-Type: text/plain\r\n");
+  Response501.SetBody("Not Implemented");
 
-    Response505.SetCode("505");
-    Response505.SetStatus("HTTP Version Not Supported");
-    Response505.SetHeaders("Content-Type: text/plain\r\n");
-    Response505.SetBody("HTTP Version Not Supported. Try HTTP/1.1");
-  }
+  Response505.SetCode("505");
+  Response505.SetStatus("HTTP Version Not Supported");
+  Response505.SetHeaders("Content-Type: text/plain\r\n");
+  Response505.SetBody("HTTP Version Not Supported. Try HTTP/1.1");
+}
 
 HttpServer::~HttpServer() {
   free(RequestHandlers);
   free(WebsocketThreads);
   free(m_Endpoints);
-  if (m_DefaultHeaders) free(m_DefaultHeaders);
+  if (m_DefaultHeaders)
+    free(m_DefaultHeaders);
 }
 
 const char* HttpServer::GetDefaultHeaders() {
@@ -691,7 +773,7 @@ void HttpServer::SetDefaultHeaders(const char* headers) {
   if (m_DefaultHeaders) {
     free(m_DefaultHeaders);
   }
-  if(int len = fpx_getstringlength(headers)) {
+  if (int len = fpx_getstringlength(headers)) {
     m_DefaultHeaders = (char*)malloc(len);
     memcpy(m_DefaultHeaders, headers, len);
   }
@@ -706,7 +788,7 @@ void HttpServer::SetMaxBodySize(uint16_t len) {
   m_MaxBodyLen = len;
 }
 
-void HttpServer::CreateEndpoint(const char* uri,short methods, http_callback_t endpointCallback) {
+void HttpServer::CreateEndpoint(const char* uri, short methods, http_callback_t endpointCallback) {
   if (m_EndpointCount == FPX_HTTP_ENDPOINTS)
     throw Exception("Maximum endpoint count reached!");
 
@@ -720,12 +802,14 @@ void HttpServer::CreateEndpoint(const char* uri,short methods, http_callback_t e
 
 void HttpServer::Listen(const char* ip, unsigned short port, ws_callback_t websocketCallback) {
 
-  if (!inet_aton(ip, &(m_SocketAddress4.sin_addr))) perror("Invalid IP address");
-  m_SocketAddress4 = { AF_INET, htons(port), {  } };
+  if (!inet_aton(ip, &(m_SocketAddress4.sin_addr)))
+    perror("Invalid IP address");
+  m_SocketAddress4 = { AF_INET, htons(port), {} };
   m_Port = port;
   int optvalTrue = 1;
 
-  if (m_ServerType == ServerType::WebSockets) throw NotImplementedException("\"WebSockets only\" mode has not yet been implemented...");
+  if (m_ServerType == ServerType::WebSockets)
+    throw NotImplementedException("\"WebSockets only\" mode has not yet been implemented...");
 
   if ((m_Socket4 = socket(AF_INET, SOCK_STREAM, 0)) < -1) {
     Close();
@@ -748,20 +832,24 @@ void HttpServer::Listen(const char* ip, unsigned short port, ws_callback_t webso
   }
 
   // create threads to handle incoming HTTP requests
-  for(short i = 0; i < HttpThreads; i++) {
+  for (short i = 0; i < HttpThreads; i++) {
     RequestHandlers[i].Endpoints = m_Endpoints;
     RequestHandlers[i].Caller = this;
-    pthread_create(&RequestHandlers[i].Thread, NULL, ServerProperties::HttpProcessingThread, &RequestHandlers[i]);
+    pthread_create(&RequestHandlers[i].Thread,
+      NULL,
+      ServerProperties::HttpProcessingThread,
+      &RequestHandlers[i]);
   }
 
   // create an HTTP connection-killer thread
   pthread_create(&HttpKillerThread, NULL, ServerProperties::HttpKillerThread, this);
 
   // create threadpackages for WebSocket threads
-  for(short i = 0; i < WsThreads; i++) {
+  for (short i = 0; i < WsThreads; i++) {
     WebsocketThreads[i].Caller = this;
     WebsocketThreads[i].Callback = websocketCallback;
-    pthread_create(&WebsocketThreads[i].Thread, NULL, ServerProperties::WebSocketThread, &WebsocketThreads[i]);
+    pthread_create(
+      &WebsocketThreads[i].Thread, NULL, ServerProperties::WebSocketThread, &WebsocketThreads[i]);
   }
 
   m_IsListening = true;
@@ -783,8 +871,10 @@ void HttpServer::Listen(const char* ip, unsigned short port, ws_callback_t webso
       while (1) {
         if (!pthread_mutex_trylock(&RequestHandlers[lowestThread].TalkingStick)) {
           // printf("Sending client to thread %d (0-indexed)!\n", i);
-          if (RequestHandlers[lowestThread].ClientCount > (FPX_HTTP_MAX_CLIENTS-1)) break;
-          pollfd* theFD = &RequestHandlers[lowestThread].PollFDs[RequestHandlers[lowestThread].ClientCount];
+          if (RequestHandlers[lowestThread].ClientCount > (FPX_HTTP_MAX_CLIENTS - 1))
+            break;
+          pollfd* theFD =
+            &RequestHandlers[lowestThread].PollFDs[RequestHandlers[lowestThread].ClientCount];
           theFD->fd = newClient;
           theFD->events = POLLIN;
           RequestHandlers[lowestThread].ClientCount++;
@@ -796,20 +886,21 @@ void HttpServer::Listen(const char* ip, unsigned short port, ws_callback_t webso
       }
     }
   }
-
 }
 
-void HttpServer::ListenSecure(const char* keypath, const char* certpath, ServerType mode, ws_callback_t websocketCallback) {
+void HttpServer::ListenSecure(
+  const char* keypath, const char* certpath, ServerType mode, ws_callback_t websocketCallback) {
   throw NotImplementedException();
 }
 
 void HttpServer::Close() {
-  if (!m_IsListening) return;
-  
+  if (!m_IsListening)
+    return;
+
   close(m_Socket4);
   m_Socket4 = 0;
 
-  for (short i=0; i < HttpThreads; i++) {
+  for (short i = 0; i < HttpThreads; i++) {
     pthread_kill(RequestHandlers[i].Thread, SIGTERM);
     pthread_join(RequestHandlers[i].Thread, NULL);
   }
@@ -838,14 +929,18 @@ void HttpServer::http_response_t::CopyFrom(struct HttpServer::Http_Response* oth
   otherHLen = other->GetHeaderLength();
   otherBLen = other->GetBodyLength();
   if (other->Headers && otherHLen) {
-    if (Headers) Headers = (char*)realloc(Headers, otherHLen);
-    else  Headers = (char*)malloc(otherHLen);
+    if (Headers)
+      Headers = (char*)realloc(Headers, otherHLen);
+    else
+      Headers = (char*)malloc(otherHLen);
     memcpy(Headers, other->Headers, otherHLen);
     m_HeaderLen = otherHLen;
   }
   if (other->Body && otherBLen) {
-    if (Body) Body = (char*)realloc(Body, otherBLen);
-    else  Body = (char*)malloc(otherBLen);
+    if (Body)
+      Body = (char*)realloc(Body, otherBLen);
+    else
+      Body = (char*)malloc(otherBLen);
     memcpy(Body, other->Body, otherBLen);
     m_BodyLen = otherBLen;
   }
@@ -853,13 +948,15 @@ void HttpServer::http_response_t::CopyFrom(struct HttpServer::Http_Response* oth
 }
 
 bool HttpServer::http_response_t::SetCode(const char* code) {
-  if(fpx_getstringlength(code) != 3) return false;
+  if (fpx_getstringlength(code) != 3)
+    return false;
   memcpy(this->Code, code, 4);
   return true;
 }
 
 bool HttpServer::http_response_t::SetStatus(const char* status) {
-  if(fpx_getstringlength(status) > 31) return false;
+  if (fpx_getstringlength(status) > 31)
+    return false;
   memcpy(this->Status, status, fpx_getstringlength(status));
   return true;
 }
@@ -868,9 +965,12 @@ bool HttpServer::http_response_t::SetHeaders(const char* headers) {
   // printf("Call set!\n");
   m_HeaderLen = fpx_getstringlength(headers);
   char* newAlloc;
-  if (m_HeaderLen < 1) return false;
+  if (m_HeaderLen < 1)
+    return false;
   // printf("Old: %x\n", this->Headers);
-  if ((this->Headers = (this->Headers) ? (char*)realloc(this->Headers, m_HeaderLen+1) : (char*)malloc(m_HeaderLen+1)) == NULL) return false;
+  if ((this->Headers = (this->Headers) ? (char*)realloc(this->Headers, m_HeaderLen + 1) :
+                                         (char*)malloc(m_HeaderLen + 1)) == NULL)
+    return false;
   // printf("this->Headers in SetHeaders: 0x%x\n", this->Headers);
   // printf("New: %x\n", newAlloc);
   memcpy(this->Headers, headers, m_HeaderLen);
@@ -880,8 +980,10 @@ bool HttpServer::http_response_t::SetHeaders(const char* headers) {
 
 bool HttpServer::http_response_t::SetBody(const char* body) {
   m_BodyLen = fpx_getstringlength(body);
-  if (m_BodyLen < 1) return false;
-  this->Body = (this->Body) ? (char*)realloc(this->Body, m_BodyLen+1) : (char*)malloc(m_BodyLen+1);
+  if (m_BodyLen < 1)
+    return false;
+  this->Body =
+    (this->Body) ? (char*)realloc(this->Body, m_BodyLen + 1) : (char*)malloc(m_BodyLen + 1);
   // printf("this->Body in SetBody: 0x%x\n", this->Body);
   memcpy(this->Body, body, m_BodyLen);
   this->Body[m_BodyLen] = 0;
@@ -889,8 +991,9 @@ bool HttpServer::http_response_t::SetBody(const char* body) {
   return true;
 }
 
-bool HttpServer::http_request_t::GetHeaderValue(const char* headerName, char** resultStore, bool lowercase, bool storeValue) {
-  char* header = (char*)malloc(fpx_getstringlength(headerName)+3);
+bool HttpServer::http_request_t::GetHeaderValue(
+  const char* headerName, char** resultStore, bool lowercase, bool storeValue) {
+  char* header = (char*)malloc(fpx_getstringlength(headerName) + 3);
   strcpy(header, headerName);
   strcat(header, ": ");
   fpx_string_to_lower(header, 0);
@@ -904,29 +1007,34 @@ bool HttpServer::http_request_t::GetHeaderValue(const char* headerName, char** r
   }
 
   char* returnedString;
-  
+
   int foundIndex;
   if ((foundIndex = fpx_substringindex(lowercaseHeaders, header)) > -1) {
     char temp[256] = { 0 };
-    int written = strcspn(this->Headers+foundIndex+fpx_getstringlength(headerName)+1, "\r\n");
-    snprintf(temp, written, "%s", this->Headers+foundIndex+fpx_getstringlength(headerName)+2);
-    returnedString = (char*)malloc(written+1);
+    int written = strcspn(this->Headers + foundIndex + fpx_getstringlength(headerName) + 1, "\r\n");
+    snprintf(temp, written, "%s", this->Headers + foundIndex + fpx_getstringlength(headerName) + 2);
+    returnedString = (char*)malloc(written + 1);
     memcpy(returnedString, temp, written);
     returnedString[written] = 0;
   } else {
     returnedString = nullptr;
   }
-  
+
   free(header);
   free(lowercaseHeaders);
-  if (lowercase && returnedString) fpx_string_to_lower(returnedString, 0);
+  if (lowercase && returnedString)
+    fpx_string_to_lower(returnedString, 0);
   *resultStore = returnedString;
   return foundIndex > -1;
 }
 
-int HttpServer::http_response_t::GetHeaderLength() { return m_HeaderLen; }
+int HttpServer::http_response_t::GetHeaderLength() {
+  return m_HeaderLen;
+}
 
-int HttpServer::http_response_t::GetBodyLength() { return m_BodyLen; }
+int HttpServer::http_response_t::GetBodyLength() {
+  return m_BodyLen;
+}
 
 int HttpServer::http_response_t::AddHeader(const char* newHeader, bool freeOld) {
   // printf("Call add!\n");
@@ -935,33 +1043,36 @@ int HttpServer::http_response_t::AddHeader(const char* newHeader, bool freeOld) 
   if ((!this->Headers) || freeOld) {
     if (this->Headers) {
       int oldheadLen = fpx_getstringlength(this->Headers);
-      char oldHead[oldheadLen+1];
+      char oldHead[oldheadLen + 1];
       strcpy(oldHead, this->Headers);
       char* oldHeadersPtr = this->Headers;
-      this->Headers = (char*)malloc(fpx_getstringlength(newHeader)+2);
+      this->Headers = (char*)malloc(fpx_getstringlength(newHeader) + 2);
       free(oldHeadersPtr);
       strcpy(this->Headers, oldHead);
-    } else this->Headers = (char*)malloc(fpx_getstringlength(newHeader)+2);
+    } else
+      this->Headers = (char*)malloc(fpx_getstringlength(newHeader) + 2);
     // printf("this->Headers in AddHeader: 0x%x\n", this->Headers);
   }
   if (fpx_substringindex(this->Headers, newHeader) < 0) {
     // printf("Old: %x\n", this->Headers);
-    if ((this->Headers = (char*)realloc(this->Headers, m_HeaderLen + addedLen + 3)) == NULL) return -1;
+    if ((this->Headers = (char*)realloc(this->Headers, m_HeaderLen + addedLen + 3)) == NULL)
+      return -1;
     // printf("New: %x\n", newAlloc);
-  } else return -1;
+  } else
+    return -1;
   memcpy(this->Headers + m_HeaderLen, newHeader, addedLen);
   memcpy(this->Headers + m_HeaderLen + addedLen, "\r\n", 3);
-  m_HeaderLen += addedLen+2;
+  m_HeaderLen += addedLen + 2;
   return (addedLen + 2);
 }
 
 void HttpServer::http_threadpackage_t::HandleDisconnect(int clientIndex, bool closeSocket) {
   bool moveMode = false, done = false;
   short index = 0;
-  
+
   if (PollFDs[clientIndex].fd == 0) {
-    //printf("it's been an honor fellas\n");
-    //throw IndexOutOfRangeException("There is no HTTP client with that index");
+    // printf("it's been an honor fellas\n");
+    // throw IndexOutOfRangeException("There is no HTTP client with that index");
     return;
   }
 
@@ -971,12 +1082,14 @@ void HttpServer::http_threadpackage_t::HandleDisconnect(int clientIndex, bool cl
 
   memset(&Clients[clientIndex], 0, sizeof(http_client_t));
 
-  if (closeSocket) close(PollFDs[clientIndex].fd);
+  if (closeSocket)
+    close(PollFDs[clientIndex].fd);
 
-  for (int i=clientIndex; i < FPX_WS_MAX_CLIENTS; i++) {
-    if (i+1 < FPX_WS_MAX_CLIENTS) {
-      PollFDs[i] = PollFDs[i+1];
-      if (PollFDs[i+1].fd == 0) break;
+  for (int i = clientIndex; i < FPX_WS_MAX_CLIENTS; i++) {
+    if (i + 1 < FPX_WS_MAX_CLIENTS) {
+      PollFDs[i] = PollFDs[i + 1];
+      if (PollFDs[i + 1].fd == 0)
+        break;
     } else {
       memset(&PollFDs[i], 0, sizeof(pollfd));
       memset(&Clients[i], 0, sizeof(http_client_t));
@@ -994,8 +1107,10 @@ void HttpServer::websocket_client_t::Ping() {
 }
 
 void HttpServer::websocket_frame_t::SetBit(uint8_t bit, bool value) {
-  if (value) m_MetaByte |= bit;
-  else m_MetaByte &= ~bit;
+  if (value)
+    m_MetaByte |= bit;
+  else
+    m_MetaByte &= ~bit;
 }
 
 void HttpServer::websocket_frame_t::SetOpcode(uint8_t opcode) {
@@ -1003,12 +1118,17 @@ void HttpServer::websocket_frame_t::SetOpcode(uint8_t opcode) {
 }
 
 bool HttpServer::websocket_frame_t::SetPayload(const char* payload, uint16_t len) {
-  if (!payload) return false;
-  if (!len) len = fpx_getstringlength(payload);
+  if (!payload)
+    return false;
+  if (!len)
+    len = fpx_getstringlength(payload);
 
-  if (m_PayloadLen >= len && m_Payload) memset(&m_Payload[len], 0, m_PayloadLen - len);
-  else if (m_Payload) m_Payload = (char*)realloc(m_Payload, len);
-  else m_Payload = (char*)malloc(len);
+  if (m_PayloadLen >= len && m_Payload)
+    memset(&m_Payload[len], 0, m_PayloadLen - len);
+  else if (m_Payload)
+    m_Payload = (char*)realloc(m_Payload, len);
+  else
+    m_Payload = (char*)malloc(len);
 
   m_PayloadLen = len;
 
@@ -1018,19 +1138,23 @@ bool HttpServer::websocket_frame_t::SetPayload(const char* payload, uint16_t len
 }
 
 void HttpServer::websocket_frame_t::Send(int fd) {
-  if (!fd) return;
+  if (!fd)
+    return;
 
   uint64_t firstLen = m_PayloadLen;
   int offset = 0;
   if (m_PayloadLen > 125) {
-    if (m_PayloadLen < USHRT_MAX) firstLen = 126;
-    else if (m_PayloadLen < ULLONG_MAX) firstLen = 127;
+    if (m_PayloadLen < USHRT_MAX)
+      firstLen = 126;
+    else if (m_PayloadLen < ULLONG_MAX)
+      firstLen = 127;
   }
   firstLen &= 0x7f;
 
   uint64_t payLen = m_PayloadLen;
   uint16_t orderChecker = 1;
-  if (firstLen > 125 && *((uint8_t*)&orderChecker)) fpx_endian_swap(&payLen, (firstLen == 126) ? 2 : 8);
+  if (firstLen > 125 && *((uint8_t*)&orderChecker))
+    fpx_endian_swap(&payLen, (firstLen == 126) ? 2 : 8);
 
   uint64_t totalLen = 2 + ((firstLen > 125) ? (firstLen == 127) ? 8 : 2 : 0) + m_PayloadLen;
 
@@ -1038,10 +1162,10 @@ void HttpServer::websocket_frame_t::Send(int fd) {
   memcpy(buf + (offset++), &m_MetaByte, 1);
   memcpy(buf + (offset++), &firstLen, 1);
   if (firstLen > 125) {
-    memcpy(buf+offset, &payLen, (firstLen == 126) ? 2 : 8 );
+    memcpy(buf + offset, &payLen, (firstLen == 126) ? 2 : 8);
     offset += (firstLen == 126) ? 2 : 8;
   }
-  memcpy(buf+offset, m_Payload, m_PayloadLen);
+  memcpy(buf + offset, m_Payload, m_PayloadLen);
 
   write(fd, buf, totalLen);
   free(buf);
@@ -1050,7 +1174,7 @@ void HttpServer::websocket_frame_t::Send(int fd) {
 void HttpServer::websocket_threadpackage_t::HandleDisconnect(int clientIndex, bool closeSocket) {
   bool moveMode = false, done = false;
   short index = 0;
-  
+
   if (PollFDs[clientIndex].fd == 0) {
     throw IndexOutOfRangeException("There is no WebSocket client with that index");
     // return;
@@ -1066,11 +1190,12 @@ void HttpServer::websocket_threadpackage_t::HandleDisconnect(int clientIndex, bo
   memset(&Clients[clientIndex], 0, sizeof(websocket_client_t));
   memset(&PollFDs[clientIndex], 0, sizeof(pollfd));
 
-  for (int i=clientIndex; i < FPX_WS_MAX_CLIENTS; i++) {
-    if (i+1 < FPX_WS_MAX_CLIENTS) {
-      Clients[i] = Clients[i+1];
-      PollFDs[i] = PollFDs[i+1];
-      if (PollFDs[i+1].fd == 0) break;
+  for (int i = clientIndex; i < FPX_WS_MAX_CLIENTS; i++) {
+    if (i + 1 < FPX_WS_MAX_CLIENTS) {
+      Clients[i] = Clients[i + 1];
+      PollFDs[i] = PollFDs[i + 1];
+      if (PollFDs[i + 1].fd == 0)
+        break;
     } else {
       memset(&PollFDs[i], 0, sizeof(pollfd));
       memset(&Clients[i], 0, sizeof(websocket_client_t));
@@ -1085,15 +1210,18 @@ void HttpServer::websocket_threadpackage_t::SendFrame(int index, websocket_frame
   throw NotImplementedException();
 }
 
-void HttpServer::websocket_threadpackage_t::SendClose(int index, uint16_t status, bool bigEndian, uint8_t* message) {
-  if (!bigEndian) status = htons(status);
+void HttpServer::websocket_threadpackage_t::SendClose(
+  int index, uint16_t status, bool bigEndian, uint8_t* message) {
+  if (!bigEndian)
+    status = htons(status);
   uint8_t buflen = 4;
   uint8_t stringlength = (message) ? (uint8_t)fpx_getstringlength((char*)message) : 0;
   stringlength = (stringlength > 123) ? 123 : stringlength;
-  if (message) buflen += stringlength;
+  if (message)
+    buflen += stringlength;
   uint8_t writebuf[buflen];
   writebuf[0] = 0x88;
-  writebuf[1] = buflen-2;
+  writebuf[1] = buflen - 2;
   ((uint16_t*)writebuf)[1] = status;
   if (message) {
     memcpy(&writebuf[4], (uint8_t*)message, stringlength);
@@ -1103,15 +1231,24 @@ void HttpServer::websocket_threadpackage_t::SendClose(int index, uint16_t status
 }
 
 HttpServer::HttpMethod HttpServer::ParseMethod(const char* method) {
-  if (!strcmp(method, "GET")) return HttpServer::GET;
-  if (!strcmp(method, "HEAD")) return HttpServer::HEAD;
-  if (!strcmp(method, "POST")) return HttpServer::POST;
-  if (!strcmp(method, "PUT")) return HttpServer::PUT;
-  if (!strcmp(method, "DELETE")) return HttpServer::DELETE;
-  if (!strcmp(method, "CONNECT")) return HttpServer::CONNECT;
-  if (!strcmp(method, "OPTIONS")) return HttpServer::OPTIONS;
-  if (!strcmp(method, "TRACE")) return HttpServer::TRACE;
-  if (!strcmp(method, "PATCH")) return HttpServer::PATCH;
+  if (!strcmp(method, "GET"))
+    return HttpServer::GET;
+  if (!strcmp(method, "HEAD"))
+    return HttpServer::HEAD;
+  if (!strcmp(method, "POST"))
+    return HttpServer::POST;
+  if (!strcmp(method, "PUT"))
+    return HttpServer::PUT;
+  if (!strcmp(method, "DELETE"))
+    return HttpServer::DELETE;
+  if (!strcmp(method, "CONNECT"))
+    return HttpServer::CONNECT;
+  if (!strcmp(method, "OPTIONS"))
+    return HttpServer::OPTIONS;
+  if (!strcmp(method, "TRACE"))
+    return HttpServer::TRACE;
+  if (!strcmp(method, "PATCH"))
+    return HttpServer::PATCH;
   return HttpServer::NONE;
 }
 
@@ -1130,4 +1267,4 @@ uint8_t HttpServer::GetOptions() {
   return m_Options;
 }
 
-}
+}  // namespace fpx
