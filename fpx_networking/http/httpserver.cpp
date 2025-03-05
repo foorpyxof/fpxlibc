@@ -146,9 +146,12 @@ static void* HttpProcessingThread(void* threadpack) {
 
         HttpServer::http_endpoint_t* endpointPtr = nullptr;
 
-        if (strcmp(cli->Request.Version, "HTTP/1.1") && strcmp(cli->Request.Version, "HTTP/1.0")) {
+        if (strcmp(cli->Request.Version, "HTTP/1.1") &&
+          strcmp(cli->Request.Version, "HTTP/1.0" /* we lie >:) */)) {
+          // invalid HTTP version
           cli->Response.CopyFrom(&package->Caller->Response505);
         } else {
+          // TODO: hashmap
           for (short j = 0; (!endpointPtr) && j < FPX_HTTP_ENDPOINTS; j++) {
             if (!strcmp(package->Endpoints[j].URI, cli->Request.URI))
               endpointPtr = &package->Endpoints[j];
