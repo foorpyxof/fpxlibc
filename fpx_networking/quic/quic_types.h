@@ -10,6 +10,7 @@
 #include "../../fpx_types.h"
 
 #include <netinet/in.h>
+#include <pthread.h>
 
 // variable length integer
 // https://datatracker.ietf.org/doc/html/rfc9000#name-variable-length-integer-enc
@@ -37,11 +38,9 @@ struct EcnCounts {
 struct Ack {
   // https://datatracker.ietf.org/doc/html/rfc9000#name-ack-frames
   fpx_quic_varlen_t LargestAcknowledged;  // highest packet number received when acknowledging
-  fpx_quic_varlen_t
-    AckDelay;  // (microseconds after receiving frame) / (ack_delay_exponent transport parameter)
+  fpx_quic_varlen_t AckDelay;  // (microseconds after receiving frame) / (ack_delay_exponent transport parameter)
   fpx_quic_varlen_t AckRangeCount;
-  fpx_quic_varlen_t
-    FirstAckOffset;  // amount of contiguous packets that came before the LargestAcknowledged
+  fpx_quic_varlen_t FirstAckOffset;  // amount of contiguous packets that came before the LargestAcknowledged
   struct AckRange* AckRanges;
   struct EcnCounts* EcnCounts;
 };
@@ -166,8 +165,25 @@ union FrameData {
 };
 
 typedef struct {
+  uint8_t IpVersion;
   int FileDescriptor;
-  struct sockaddr_in PeerAddress;
+  struct sockaddr PeerAddress;
+
+  // QUIC v1 only supports a maximum of 20 bytes for an ID;
+  // For future expandability, RFC 9000 requires servers
+  // to allow reading of up to 255 bytes.
+  uint8_t RemoteConnectionId[256];
+  uint8_t RemoteConnectionIdLength;
+
+  uint8_t LocalConnectionId[256];
+  // we're using a fixed-length Local Connection ID,
+  // because we need to know how many bytes to read
+  // from a short-header packet.
+  // all in all, this means we're not using a variable for this value value.
+  // instead, it is defined in the macro "QUIC_CONNECTION_ID_LENGTH"
+  // within the implementation file (quic.c)
+
+  uint32_t ProtocolVersion;
 } fpx_quic_connection_t;
 
 typedef struct {
@@ -182,6 +198,11 @@ typedef struct {
   uint8_t WriteBuffer[1024];  // contains frames(?)
   uint8_t ReadBuffer[1024];
 } fpx_quic_stream_t;
+
+typedef struct {
+  uint8_t HeaderForm;
+  // TODO: implement ;-;
+} fpx_quic_packet_t;
 
 typedef struct {
   uint64_t StreamID;
@@ -214,10 +235,18 @@ typedef struct {
 
 typedef struct {
   pthread_t Thread;
-  pthread_mutex_t ThreadMutex;
+  pthread_mutex_t ListenerMutex;
+
+  uint8_t IpVersion;
+  int FileDescriptor;
+
+  fpx_quic_connection_t* Connections;
+  size_t MaxConnections;
+  size_t ActiveConnections;
 
   fpx_quic_connection_t* Backlog;
   size_t BacklogLength;
+  pthread_cond_t BacklogCondition;
 } fpx_quic_socket_t;
 
 #endif  // FPX_QUIC_TYPES_H
