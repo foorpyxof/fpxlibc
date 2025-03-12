@@ -30,6 +30,10 @@ void UserAgentCallback(HttpServer::http_request_t* req, HttpServer::http_respons
       &req->Headers[userAgentIndex]);
     res->SetBody(tempBuf);
   }
+
+  static int kill = 0;
+  //printf("%d\n", kill);
+  //if (++kill == 11000) exit(0);
 }
 
 void RootCallback(HttpServer::http_request_t* req, HttpServer::http_response_t* res) {

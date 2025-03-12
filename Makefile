@@ -8,7 +8,7 @@ CCPLUS := g++
 AS := as
 LD := ld
 
-compile: CFLAGS := -O3
+compile: CFLAGS := -O3 -pg
 compile: FPX_MODE := release
 compile: _compile
 
@@ -17,18 +17,22 @@ compile_dbg: ASFLAGS := -g
 compile_dbg: FPX_MODE := debug
 compile_dbg: _compile
 
+test:
 test: compile
 	@echo "Compiling test programs"
-	@find ./testfiles -type f \( -name "*.cpp" \) -exec bash -c 'NAME=$$(basename {} .cpp); echo "[CC] {}" && $(CCPLUS) $(ARGS) -c {} -O3 -o ./build/unlinked/testing/$${NAME}.o' \;
+	@find ./testfiles -type f \( -name "*.cpp" \) -exec bash -c 'NAME=$$(basename {} .cpp); echo "[CC] {}" && $(CCPLUS) $(ARGS) -c {} $(CFLAGS) -o ./build/unlinked/testing/$${NAME}.o' \;
 	@$(MAKE) _test
 
+debug:
 debug: compile_dbg
 	@echo "Compiling test programs"
-	@find ./testfiles -type f \( -name "*.cpp" \) -exec bash -c 'NAME=$$(basename {} .cpp); echo "[CC] {}" && $(CCPLUS) $(ARGS) -g -c {} -Og -o ./build/unlinked/testing/$${NAME}.o' \;
+	@find ./testfiles -type f \( -name "*.cpp" \) -exec bash -c 'NAME=$$(basename {} .cpp); echo "[CC] {}" && $(CCPLUS) $(ARGS) -c {} $(CFLAGS) -o ./build/unlinked/testing/$${NAME}.o' \;
 	@$(MAKE) _test
 
+_test: CFLAGS := -pg
+#_test: LDFLAGS := -lprofiler
 _test:
-	@echo 
+	@echo
 	@if ! test -d "./build/testing" ; then \
 		mkdir -p ./build/testing; \
 	fi
@@ -36,7 +40,7 @@ _test:
 #	@mv *.o build/unlinked/testing/
 	@echo "Linking test programs"
 	@cd scripts/; \
-		export CC="$(CC)"; export CCPLUS="$(CCPLUS)"; export AS="$(AS)"; export LD="$(LD)"; \
+		export CC="$(CC)"; export CCPLUS="$(CCPLUS)"; export AS="$(AS)"; export LD="$(LD)"; export CFLAGS="$(CFLAGS)"; export LDFLASG="$(LDFLAGS)"; \
 	./test_compile.sh
 	@echo
 
@@ -89,5 +93,5 @@ setup:
 
 clean:
 	@if [ -d ./build/ ]; then find ./build/ -type f -exec rm {} +; fi
-	@if [ "$(RESET_PARAMS)" != "false" ]; then rm scripts/params.fpx; fi
+	@if [ "$(RESET_PARAMS)" != "false" ] && [ -f scripts/params.fpx ]; then rm scripts/params.fpx; fi
 	@find . -maxdepth 1 -type f -name "*.o" -exec rm {} +

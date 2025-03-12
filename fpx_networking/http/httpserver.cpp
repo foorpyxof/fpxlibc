@@ -4,6 +4,8 @@
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
+static int count = 0;
+
 #include "httpserver.h"
 
 #include "../../fpx_cpp-utils/exceptions.h"
@@ -123,18 +125,19 @@ static void* HttpProcessingThread(void* threadpack) {
         }
 
         {
-          char* cl = nullptr;
-          if (cli->Request.GetHeaderValue("Content-Length", &cl, false, true) && atol(cl) > 0 &&
-            atol(cl) < package->Caller->GetMaxBodySize()) {
-            cli->Request.Body = (char*)malloc(atol(cl) + 1);
+          char* cl_header = nullptr;
+          if (cli->Request.GetHeaderValue("Content-Length", &cl_header, false, true) && atol(cl_header) > 0 &&
+            atol(cl_header) < package->Caller->GetMaxBodySize()) {
+            cli->Request.Body = (char*)malloc(atol(cl_header) + 1);
             cli->ReadBufSize +=
-              snprintf(cli->Request.Body, atol(cl) + 1, &cli->ReadBufferPTR[cli->ReadBufSize]) + 1;
+              snprintf(cli->Request.Body, atol(cl_header) + 1, &cli->ReadBufferPTR[cli->ReadBufSize]) + 1;
           }
-          if (cl)
-            free(cl);
+          if (cl_header)
+            free(cl_header);
         }
 
         cli->Request.Method = HttpServer::ParseMethod(method);
+        //cli->Request.Method = HttpServer::HttpMethod::GET;
 
         if (!cli->Request.GetHeaderValue("Host", &voidpointer, true, false)) {
           cli->Response.CopyFrom(&package->Caller->Response400);
@@ -688,10 +691,13 @@ static void* HttpKillerThread(void* hs) {
   while (1) {
     usleep(500000 / httpServ->HttpThreads);
     HttpServer::http_threadpackage_t* thread = &httpServ->RequestHandlers[i];
+    // debug print!
+    //printf("clients: %d\n", thread->ClientCount);
+    //printf("time: %ld | lastactive: %ld | diff: %ld\n", time(NULL), thread->Clients[j].LastActiveSeconds, time(NULL) - thread->Clients[j].LastActiveSeconds);
     if (thread->ClientCount == 0)
       continue;
     pthread_mutex_lock(&thread->TalkingStick);
-    for (uint8_t j = 0; j < thread->ClientCount - 1; j++) {
+    for (uint8_t j = 0; j < thread->ClientCount; j++) {
       // compare time for keepalive
       if (thread->Clients[j].LastActiveSeconds > 0 && thread->Clients[j].Keepalive &&
         time(NULL) - thread->Clients[j].LastActiveSeconds > FPX_HTTP_KEEPALIVE) {
@@ -888,6 +894,8 @@ void HttpServer::Listen(const char* ip, unsigned short port, ws_callback_t webso
         }
       }
     }
+    // debug print!
+    //printf("(just accepted a connection) Connected clients: %d\n", ++count);
   }
 }
 
@@ -1079,6 +1087,8 @@ void HttpServer::http_threadpackage_t::HandleDisconnect(int clientIndex, bool cl
     return;
   }
 
+  //printf("Disconnecting someone\n");
+
   if (Clients[clientIndex].ReadBufferPTR) {
     free(Clients[clientIndex].ReadBufferPTR);
   }
@@ -1088,18 +1098,21 @@ void HttpServer::http_threadpackage_t::HandleDisconnect(int clientIndex, bool cl
   if (closeSocket)
     close(PollFDs[clientIndex].fd);
 
-  for (int i = clientIndex; i < FPX_WS_MAX_CLIENTS; i++) {
-    if (i + 1 < FPX_WS_MAX_CLIENTS) {
-      PollFDs[i] = PollFDs[i + 1];
-      if (PollFDs[i + 1].fd == 0)
-        break;
-    } else {
-      memset(&PollFDs[i], 0, sizeof(pollfd));
-      memset(&Clients[i], 0, sizeof(http_client_t));
-      break;
-    }
+  if (clientIndex == FPX_HTTP_MAX_CLIENTS - 1) {
+    memset(&Clients[clientIndex], 0, sizeof(http_client_t));
+  } else {
+    int i = clientIndex;
+    do {
+      //printf("%d\n", PollFDs[i].fd);
+      memcpy(&Clients[i], &Clients[i+1], sizeof(http_client_t));
+      memcpy(&PollFDs[i], &PollFDs[i+1], sizeof(struct pollfd));
+      ++i;
+    } while (PollFDs[i+1].fd != 0);
   }
+
   ClientCount -= 1;
+  // debug print!
+  //printf("just killed one | Connected clients: %d\n", --count);
 }
 
 void HttpServer::websocket_client_t::Ping() {
@@ -1234,6 +1247,7 @@ void HttpServer::websocket_threadpackage_t::SendClose(
 }
 
 HttpServer::HttpMethod HttpServer::ParseMethod(const char* method) {
+  //printf("CALLED!\n");
   if (!strcmp(method, "GET"))
     return HttpServer::GET;
   if (!strcmp(method, "HEAD"))
