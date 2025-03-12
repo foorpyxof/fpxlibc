@@ -84,7 +84,6 @@ static void* HttpProcessingThread(void* threadpack) {
       }
 
       if (pfd->revents & POLLIN) {
-        cli->Keepalive = true;
         if (!cli->ReadBufferPTR) {
           cli->ReadBufferPTR = (char*)malloc(FPX_HTTP_READ_BUF);
         }
@@ -154,6 +153,8 @@ static void* HttpProcessingThread(void* threadpack) {
           // invalid HTTP version
           cli->Response.CopyFrom(&package->Caller->Response505);
         } else {
+          if (!strcmp(cli->Request.Version, "HTTP/1.0")) cli->Keepalive = false;
+          else cli->Keepalive = true;
           // TODO: hashmap
           for (short j = 0; (!endpointPtr) && j < FPX_HTTP_ENDPOINTS; j++) {
             if (!strcmp(package->Endpoints[j].URI, cli->Request.URI))
@@ -280,7 +281,7 @@ static void* HttpProcessingThread(void* threadpack) {
           if (fpx_substringindex(respHeadersLower, "connection: ") == -1 &&
             !strcmp(connectionHeader, "close")) {
             cli->Keepalive = false;
-          }
+          } else cli->Keepalive = true;
           free(respHeadersLower);
         }
 
@@ -689,22 +690,22 @@ static void* HttpKillerThread(void* hs) {
   HttpServer* httpServ = (HttpServer*)hs;
   uint8_t i = 0;
   while (1) {
-    usleep(500000 / httpServ->HttpThreads);
+    // usleep( 1000000 / httpServ->HttpThreads);
     HttpServer::http_threadpackage_t* thread = &httpServ->RequestHandlers[i];
     // debug print!
     //printf("clients: %d\n", thread->ClientCount);
     //printf("time: %ld | lastactive: %ld | diff: %ld\n", time(NULL), thread->Clients[j].LastActiveSeconds, time(NULL) - thread->Clients[j].LastActiveSeconds);
     if (thread->ClientCount == 0)
       continue;
-    pthread_mutex_lock(&thread->TalkingStick);
     for (uint8_t j = 0; j < thread->ClientCount; j++) {
       // compare time for keepalive
       if (thread->Clients[j].LastActiveSeconds > 0 && thread->Clients[j].Keepalive &&
         time(NULL) - thread->Clients[j].LastActiveSeconds > FPX_HTTP_KEEPALIVE) {
+        pthread_mutex_lock(&thread->TalkingStick);
         thread->HandleDisconnect(j);
+        pthread_mutex_unlock(&thread->TalkingStick);
       }
     }
-    pthread_mutex_unlock(&thread->TalkingStick);
 
     i = (i == httpServ->HttpThreads - 1) ? 0 : i + 1;
   }
@@ -1087,7 +1088,7 @@ void HttpServer::http_threadpackage_t::HandleDisconnect(int clientIndex, bool cl
     return;
   }
 
-  //printf("Disconnecting someone\n");
+  // printf("Disconnecting someone\n");
 
   if (Clients[clientIndex].ReadBufferPTR) {
     free(Clients[clientIndex].ReadBufferPTR);
@@ -1110,7 +1111,7 @@ void HttpServer::http_threadpackage_t::HandleDisconnect(int clientIndex, bool cl
     } while (PollFDs[i+1].fd != 0);
   }
 
-  ClientCount -= 1;
+  ClientCount--;
   // debug print!
   //printf("just killed one | Connected clients: %d\n", --count);
 }
