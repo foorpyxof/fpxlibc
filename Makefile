@@ -8,7 +8,7 @@ CCPLUS := g++
 AS := as
 LD := ld
 
-compile: CFLAGS := -O3 -pg
+compile: CFLAGS := -O3
 compile: FPX_MODE := release
 compile: _compile
 
@@ -29,8 +29,6 @@ debug: compile_dbg
 	@find ./testfiles -type f \( -name "*.cpp" \) -exec bash -c 'NAME=$$(basename {} .cpp); echo "[CC] {}" && $(CCPLUS) $(ARGS) -c {} $(CFLAGS) -o ./build/unlinked/testing/$${NAME}.o' \;
 	@$(MAKE) _test
 
-_test: CFLAGS := -pg
-#_test: LDFLAGS := -lprofiler
 _test:
 	@echo
 	@if ! test -d "./build/testing" ; then \
