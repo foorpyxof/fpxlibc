@@ -25,6 +25,8 @@ mem*.o
 tcpserver.o
 crypto.o
 endian*.o
+format*.o
+math*.o
 httpserver.o
 testing/httpserver.o
 

@@ -13,6 +13,7 @@ extern "C" {
 #include "../../fpx_c-utils/crypto.h"
 #include "../../fpx_c-utils/endian.h"
 #include "../../fpx_string/string.h"
+#include "../netutils.h"
 }
 
 #include <limits.h>
@@ -189,13 +190,13 @@ static void* HttpProcessingThread(void* threadpack) {
                     fpx_substr_replace(keyHeader, "==", "==258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
                   char* accept_part_2 = (char*)calloc(21, 1);
                   fpx_sha1_digest(
-                    accept_part_1, fpx_getstringlength(accept_part_1), accept_part_2, 0);
+                    (uint8_t*)accept_part_1, fpx_getstringlength(accept_part_1), (uint8_t*)accept_part_2, 0);
                   //  for (uint8_t i = 0; i < 20; i++) {
                   //    printf("%hhu ", ((uint8_t*)accept_part_2)[i]);
                   //  }
                   //  printf("\n"); fflush(stdout);
 
-                  char* accept_part_3 = fpx_base64_encode(accept_part_2, 20);
+                  char* accept_part_3 = fpx_base64_encode((uint8_t*)accept_part_2, 20);
                   char* accept_part_4 = (char*)calloc(51, 1);
                   strcpy(accept_part_4, "Sec-WebSocket-Accept: ");
                   strncat(accept_part_4, accept_part_3, 28);

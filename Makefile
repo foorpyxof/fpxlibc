@@ -17,13 +17,12 @@ compile_dbg: ASFLAGS := -g
 compile_dbg: FPX_MODE := debug
 compile_dbg: _compile
 
-test:
 test: compile
 	@echo "Compiling test programs"
 	@find ./testfiles -type f \( -name "*.cpp" \) -exec bash -c 'NAME=$$(basename {} .cpp); echo "[CC] {}" && $(CCPLUS) $(ARGS) -c {} $(CFLAGS) -o ./build/unlinked/testing/$${NAME}.o' \;
 	@$(MAKE) _test
 
-debug:
+debug: CFLAGS := -g -Og
 debug: compile_dbg
 	@echo "Compiling test programs"
 	@find ./testfiles -type f \( -name "*.cpp" \) -exec bash -c 'NAME=$$(basename {} .cpp); echo "[CC] {}" && $(CCPLUS) $(ARGS) -c {} $(CFLAGS) -o ./build/unlinked/testing/$${NAME}.o' \;

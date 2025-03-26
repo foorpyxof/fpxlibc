@@ -8,8 +8,14 @@
 ////////////////////////////////////////////////////////////////
 
 #include "../fpx_types.h"
-
 #include "../fpx_c-utils/endian.h"
+
+#ifndef STR_HELPER
+#define STR_HELPER(x) #x
+#endif
+#ifndef STR
+#define STR(x) STR_HELPER(x)
+#endif
 
 static void fpx_network_order(void* address, size_t bytes) {
   uint16_t endian_checker = 0xff00;
