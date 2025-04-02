@@ -18,4 +18,6 @@ int fpx_pow(int base, int power);
  */
 unsigned int fpx_abs(int input);
 
+float fpx_ceil(float input);
+
 #endif

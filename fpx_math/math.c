@@ -30,3 +30,12 @@ int fpx_pow(int base, int power) {
 unsigned int fpx_abs(int input) {
   return (input < 0) ? (0 - input) : input;
 }
+
+float fpx_ceil(float input) {
+  int int_version = (int)input;
+  if (input == (float)int_version) {
+    // number is already a round integer, no need to ceil
+    return input;
+  }
+  return int_version + 1;
+}

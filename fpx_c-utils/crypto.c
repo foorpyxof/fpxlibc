@@ -7,6 +7,7 @@
 #include "crypto.h"
 #include "../fpx_mem/mem.h"
 #include "../fpx_networking/netutils.h"
+#include "../fpx_math/math.h"
 #include "endian.h"
 #include "format.h"
 
@@ -515,7 +516,7 @@ char* fpx_base64_encode(const uint8_t* input, int lengthBytes) {
   return output;
 }
 
-void fpx_hmac(uint8_t* key, size_t keyLengthBytes, uint8_t* data, size_t dataLength,
+void fpx_hmac(const uint8_t* key, size_t keyLengthBytes, const uint8_t* data, size_t dataLength,
   uint8_t* output, enum HashAlgorithms algo) {
   int block_size = 0;
   int digest_size = 0;
@@ -572,4 +573,73 @@ void fpx_hmac(uint8_t* key, size_t keyLengthBytes, uint8_t* data, size_t dataLen
 
   free(first_input);
   free(second_input);
+}
+
+void fpx_hkdf_extract(const uint8_t *salt, size_t salt_len, const uint8_t *ikm, size_t ikm_len, uint8_t *output, enum HashAlgorithms algo) {
+  size_t hash_output_size = 0;
+  switch (algo) {
+    case SHA1:
+      hash_output_size = 20;
+      break;
+
+    case SHA256:
+      hash_output_size = 32;
+      break;
+  }
+
+  uint8_t backup_salt[hash_output_size];
+  if (salt == NULL || salt_len == 0) {
+    fpx_memset(backup_salt, 0, hash_output_size);
+    salt = backup_salt;
+    salt_len = hash_output_size;
+  }
+
+  fpx_hmac(salt, salt_len, ikm, ikm_len, output, algo);
+}
+
+int fpx_hkdf_expand(const uint8_t *prk, const uint8_t *info, size_t info_len, uint8_t *output, size_t output_len, enum HashAlgorithms algo) {
+  size_t hash_output_size = 0;
+  switch (algo) {
+    case SHA1:
+      hash_output_size = 20;
+      break;
+
+    case SHA256:
+      hash_output_size = 32;
+      break;
+  }
+
+  if (output_len > (255 * hash_output_size))
+    return -1;
+
+  int N = fpx_ceil((float)output_len / hash_output_size);
+  uint8_t T[N + 1][hash_output_size];
+
+  // T(0)
+  T[0][0] = 0;
+
+  // T(1)
+  {
+    uint8_t temp[info_len + 1];
+
+    fpx_memcpy(temp, info, info_len);
+    temp[info_len] = 0x01;
+
+    fpx_hmac(prk, hash_output_size, temp, info_len + 1, T[1], algo);
+  }
+
+  // T(2) .. T(N)
+  for (int i = 2; i < (N + 1); ++i) {
+    uint8_t temp[hash_output_size + info_len + 1];
+
+    fpx_memcpy(temp, T[i-1], hash_output_size);
+    fpx_memcpy(temp + hash_output_size, info, info_len);
+    temp[hash_output_size + info_len] = (uint8_t)i;
+
+    fpx_hmac(prk, hash_output_size, temp, hash_output_size + info_len + 1, T[i], algo);
+  }
+
+  fpx_memcpy(output, &T[1], output_len);
+
+  return 0;
 }

@@ -89,7 +89,11 @@ enum HashAlgorithms {
   SHA256 = 1,
 };
 
-void fpx_hmac(uint8_t* key, size_t keyLength, uint8_t* data, size_t dataLength, uint8_t* output,
+void fpx_hmac(const uint8_t* key, size_t keyLength, const uint8_t* data, size_t dataLength, uint8_t* output,
   enum HashAlgorithms algo);
+
+void fpx_hkdf_extract(const uint8_t* salt, size_t salt_len, const uint8_t* ikm, size_t ikm_len, uint8_t output[], enum HashAlgorithms algo);
+
+int fpx_hkdf_expand(const uint8_t prk[], const uint8_t* info, size_t info_len, uint8_t* output, size_t output_len, enum HashAlgorithms algo);
 
 #endif  // FPX_CRYPTO_H
