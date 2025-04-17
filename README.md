@@ -24,12 +24,3 @@ Some parts of the library have been written in x86_64 assembly for optimization 
 These files can be assembled by enabling x86_64 assembly when prompted through ```make``` or ```make compile```.
 
 ### have fun uwu
-
-## Branches
-
-- **main** contains the current, (hopefully) stable build of the library
-- **networking** is used for writing any new code for the networking part of
-the library (servers, clients, other net-functionality)
-- **x86_64** is used for writing x86_64-asm for pre-existing library code, while
-x86_64-asm for new code that has yet to be merged into main will be written
-in the appropriate branch
