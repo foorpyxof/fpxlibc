@@ -445,7 +445,6 @@ class HttpServer : public TcpServer {
     char* m_DefaultHeaders;
     uint16_t m_MaxBodyLen;
 
-    ServerType m_ServerType;
     uint8_t m_Options;
 
     uint16_t m_WebSocketTimeout;

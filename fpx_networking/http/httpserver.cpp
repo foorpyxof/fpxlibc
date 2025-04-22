@@ -717,7 +717,7 @@ HttpServer::HttpServer(uint8_t http_threads, uint8_t ws_threads) :
   m_MaxBodyLen(4096),
   m_Options(0),
   m_WebSocketTimeout(0),
-  m_ServerType(ServerType::Both) {
+  Mode(ServerType::Both) {
   SetDefaultHeaders("Server: fpxHTTP (" FPX_HTTPSERVER_VERSION ")\r\n");
 
   Response101.SetCode("101");
@@ -808,7 +808,7 @@ void HttpServer::Listen(const char* ip, unsigned short port, ws_callback_t webso
   m_Port = port;
   int optvalTrue = 1;
 
-  if (m_ServerType == ServerType::WebSockets)
+  if (Mode == ServerType::WebSockets)
     throw NotImplementedException("\"WebSockets only\" mode has not yet been implemented...");
 
   if ((m_Socket4 = socket(AF_INET, SOCK_STREAM, 0)) < -1) {
@@ -1253,7 +1253,7 @@ HttpServer::HttpMethod HttpServer::ParseMethod(const char* method) {
 }
 
 void HttpServer::SetServerType(HttpServer::ServerType type) {
-  m_ServerType = type;
+  Mode = type;
 }
 
 void HttpServer::SetOption(HttpServerOption option, bool value) {
