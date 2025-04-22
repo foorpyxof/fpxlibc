@@ -7,9 +7,9 @@
 #include "../../fpx_types.h"
 
 #include "quic.h"
-#include "quic_types.h"
 
 // FPXLIBC LINK-TIME DEPENDENCIES
+#include "../../fpx_c-utils/crypto.h"
 #include "../../fpx_mem/mem.h"
 // END OF FPXLIBC LINK-TIME DEPENDENCIES
 
@@ -19,15 +19,19 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 
 #include <pthread.h>
 #include <signal.h>
 
-// length of connection ID in byte IP_DONTFRAGs
-#define QUIC_CONNECTION_ID_LENGTH 16
+static int _hkdf_derive(uint8_t* salt, size_t salt_len, uint8_t* info, size_t info_len,
+  uint8_t* ikm, size_t ikm_len, uint8_t* output, size_t output_len) {
+  uint8_t intermediate[32];
+  fpx_hkdf_extract(salt, salt_len, ikm, ikm_len, intermediate, SHA256);
+  return fpx_hkdf_expand(intermediate, info, info_len, output, output_len, SHA256);
+}
 
 static void* _background_listener(void* arg) {
   fpx_quic_socket_t* quic_sock = (fpx_quic_socket_t*)arg;
@@ -36,10 +40,9 @@ static void* _background_listener(void* arg) {
     pthread_mutex_lock(&quic_sock->ListenerMutex);
 
     // handle new connections
-    {
-
-      recv(quic_sock->FileDescriptor, < buffer >, < length >, MSG_PEEK);
-    }
+    //{
+    // recv(quic_sock->FileDescriptor, <buffer>, <length>, MSG_PEEK);
+    //}
 
     pthread_mutex_unlock(&quic_sock->ListenerMutex);
   }
@@ -58,28 +61,28 @@ static uint8_t _quic_get_varlen(fpx_quic_varlen_t variable) {
   // the two most significant bits anyway
 
   switch (variable.BYTE >> 6) {
-    case 0: // 0b0000 0000
+    case 0:  // 0b0000 0000
       return 1;
 
-    case 1: // 0b0100 0000
+    case 1:  // 0b0100 0000
       return 2;
 
-    case 2: // 0b1000 0000
+    case 2:  // 0b1000 0000
       return 4;
 
-    case 3: // 0b1100 0000
+    case 3:  // 0b1100 0000
       return 8;
 
-    default: // literally not possible wtf?
+    default:  // literally not possible wtf?
       return 0;
   }
 
-  //if (variable.BYTE & 0x80)
-    //if (variable.BYTE & 0x40) return 8; // 0b1100 0000
-    //else return 4;                      // 0b1000 0000
-  //else
-    //if (variable.BYTE & 0x40) return 2; // 0b0100 0000
-    //else return 1;                      // 0b0000 0000
+  // if (variable.BYTE & 0x80)
+  // if (variable.BYTE & 0x40) return 8; // 0b1100 0000
+  // else return 4;                      // 0b1000 0000
+  // else
+  // if (variable.BYTE & 0x40) return 2; // 0b0100 0000
+  // else return 1;                      // 0b0000 0000
 }
 
 static int _quic_set_varlen(fpx_quic_varlen_t* variablePTR, uint64_t value) {
@@ -95,13 +98,15 @@ static int _quic_set_varlen(fpx_quic_varlen_t* variablePTR, uint64_t value) {
   else if (value < 0x3FFFFFFFFFFFFFFF)
     variablePTR->QWORD = (0xC000000000000000 + value);
 
-  else return -1; // number larger than ((2^62) - 1),
-                  // and thus invalid for varlen integer encoding
+  else
+    return -1;  // number larger than ((2^62) - 1),
+                // and thus invalid for varlen integer encoding
 
   return 0;
 }
 
-int fpx_quic_socket_init(fpx_quic_socket_t* quic_sock, const char* ip, uint16_t port, uint8_t ip_version) {
+int fpx_quic_socket_init(
+  fpx_quic_socket_t* quic_sock, const char* ip, uint16_t port, uint8_t ip_version) {
   int listen_fd = -1;
 
   if (ip_version == 4) {
@@ -115,25 +120,15 @@ int fpx_quic_socket_init(fpx_quic_socket_t* quic_sock, const char* ip, uint16_t 
     {
       int optval = 1;
       int setsockopt_result = setsockopt(
-        listen_fd,
-        SOL_SOCKET,
-        SO_REUSEADDR | SO_REUSEPORT,
-        (void*)&optval,
-        sizeof(optval)
-      );
+        listen_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, (void*)&optval, sizeof(optval));
 
       if (setsockopt_result == -1) {
         perror("fpx_quic_init() -> setsockopt() (Reuse Address and Port)");
         return -1;
       }
 
-      setsockopt_result = setsockopt(
-        listen_fd,
-        IPPROTO_IP,
-        IP_PMTUDISC_DO,
-        &optval,
-        sizeof(optval)
-      );
+      setsockopt_result =
+        setsockopt(listen_fd, IPPROTO_IP, IP_PMTUDISC_DO, &optval, sizeof(optval));
 
       if (setsockopt_result == -1) {
         perror("fpx_quic_init() -> setsockopt() (Don't Fragment)");
@@ -165,26 +160,21 @@ int fpx_quic_socket_init(fpx_quic_socket_t* quic_sock, const char* ip, uint16_t 
   return 0;
 }
 
-int fpx_quic_listen(fpx_quic_socket_t* quic_sock, int filedescriptor, uint16_t max_active, uint16_t backlog) {
+int fpx_quic_listen(fpx_quic_socket_t* quic_sock, uint16_t max_active, uint16_t backlog) {
   // TODO: finish proper allocator implementation so it's usable
   // in fpx_quic
   if (quic_sock->Backlog != NULL)
     free(quic_sock->Backlog);
 
-  quic_sock->Backlog = (fpx_quic_connection_t*)calloc(
-    backlog,
-    sizeof(fpx_quic_connection_t)
-  );
+  quic_sock->Backlog = (fpx_quic_connection_t*)calloc(backlog, sizeof(fpx_quic_connection_t));
 
   if (quic_sock->Backlog == NULL) {
     perror("fpx_quic_listen() -> calloc() (backlog)");
     return -1;
   }
 
-  quic_sock->Connections = (fpx_quic_connection_t*)calloc(
-    max_active,
-    sizeof(fpx_quic_connection_t)
-  );
+  quic_sock->Connections =
+    (fpx_quic_connection_t*)calloc(max_active, sizeof(fpx_quic_connection_t));
 
   if (quic_sock->Connections == NULL) {
     perror("fpx_quic_listen() -> calloc() (connections)");
@@ -251,11 +241,7 @@ fpx_quic_connection_t fpx_quic_accept(fpx_quic_socket_t* quic_sock) {
     int i = 0;
 
     do {
-      fpx_memcpy(
-        &quic_sock->Backlog[i],
-        &quic_sock->Backlog[i + 1],
-        sizeof(fpx_quic_connection_t)
-      );
+      fpx_memcpy(&quic_sock->Backlog[i], &quic_sock->Backlog[i + 1], sizeof(fpx_quic_connection_t));
     } while (quic_sock->Backlog[++i].FileDescriptor != 0 && i < quic_sock->BacklogLength);
   }
 
