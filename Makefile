@@ -89,5 +89,5 @@ setup:
 
 clean:
 	@if [ -d ./build/ ]; then find ./build/ -type f -exec rm {} +; fi
-	@if [ "$(RESET_PARAMS)" != "false" ]; then rm scripts/params.fpx; fi
+	@if [ "$(RESET_PARAMS)" != "false" ] && [ -f scripts/params.fpx ]; then rm scripts/params.fpx; fi
 	@find . -maxdepth 1 -type f -name "*.o" -exec rm {} +
