@@ -6,7 +6,7 @@
 
 #include "http.h"
 
-#include <stdlib.h>
+#include <stdlib.h>  // malloc()
 
 // START OF FPXLIBC LINK-TIME DEPENDENCIES
 #include "../../fpx_mem/mem.h"
@@ -14,43 +14,19 @@
 // END OF FPXLIBC LINK-TIME DEPENDENCIES
 
 #define URI_MAXLENGTH 255
-
-struct _fpx_http_content {
-    char version[16];
-
-    char* headers;  // HEAP
-    char* body;     // HEAP
-
-    size_t headers_len;  // no null terminator included
-    size_t body_len;     // no null terminator included
-
-    size_t headers_allocated;
-    size_t body_allocated;
-};
-
 #define HTTP_DATA_ALLOC_BLOCK_SIZE 512
-struct _fpx_httprequest {
-    fpx_httpmethod_t _method;
-    char _uri[256];
 
-    struct _fpx_http_content _content;
-};
+static int _set_http_version(struct _fpx_http_content* _cnt, const char* _version);
+static int _get_http_version(struct _fpx_http_content* _cnt, char* _output, size_t _maxlen);
 
-struct _fpx_httpresponse {
-    uint8_t _status;
-    char _reason[32];
+static int _add_http_header(struct _fpx_http_content* _cnt, const char* _key, const char* _value);
+static int _get_http_header(
+  struct _fpx_http_content* _cnt, const char* _key, char* _output, size_t _maxlen);
 
-    struct _fpx_http_content _content;
-};
+static int _append_http_body(struct _fpx_http_content* _cnt, const char* _chunk, size_t _len);
+static int _get_http_body(struct _fpx_http_content* _cnt, char* _output, size_t _maxlen);
 
-static int _set_http_version(struct _fpx_http_content*, const char*);
-static int _get_http_version(struct _fpx_http_content*, char*, size_t);
-
-static int _add_http_header(struct _fpx_http_content*, const char*, const char*);
-static int _get_http_header(struct _fpx_http_content*, const char*, char*, size_t);
-
-static int _append_http_body(struct _fpx_http_content*, const char*, size_t);
-static int _get_http_body(struct _fpx_http_content*, char*, size_t);
+static int _copy_http_content(struct _fpx_http_content* _dst, const struct _fpx_http_content* _src);
 
 
 int fpx_httprequest_init(fpx_httprequest_t* reqptr) {
@@ -67,7 +43,7 @@ int fpx_httprequest_set_method(fpx_httprequest_t* reqptr, fpx_httpmethod_t metho
   if (NULL == reqptr)
     return -1;
 
-  reqptr->_method = method;
+  reqptr->method = method;
 
   return 0;
 }
@@ -75,9 +51,9 @@ int fpx_httprequest_set_method(fpx_httprequest_t* reqptr, fpx_httpmethod_t metho
 
 fpx_httpmethod_t fpx_httprequest_get_method(fpx_httprequest_t* reqptr) {
   if (NULL == reqptr)
-    return -1;
+    return ERROR;
 
-  return reqptr->_method;
+  return reqptr->method;
 }
 
 
@@ -90,7 +66,7 @@ int fpx_httprequest_set_uri(fpx_httprequest_t* reqptr, const char* newuri) {
     return URI_MAXLENGTH;
 
   // copy URI into request object after determining proper length
-  fpx_memcpy(reqptr->_uri, newuri, urilen);
+  fpx_memcpy(reqptr->uri, newuri, urilen);
 
   return 0;
 }
@@ -101,11 +77,11 @@ int fpx_httprequest_get_uri(fpx_httprequest_t* reqptr, char* store_buf, size_t m
     return -1;
 
   int urilen;
-  if ((urilen = fpx_getstringlength(reqptr->_uri)) > (maxlen - 1))
+  if ((urilen = fpx_getstringlength(reqptr->uri)) > (maxlen - 1))
     return urilen + 1;
 
   // we copy after we confirm the sizes check out
-  fpx_memcpy(store_buf, reqptr->_uri, urilen);
+  fpx_memcpy(store_buf, reqptr->uri, urilen);
   store_buf[urilen] = 0;  // and we NULL-terminate
 
   return 0;
@@ -116,7 +92,7 @@ int fpx_httprequest_set_version(fpx_httprequest_t* reqptr, const char* input) {
   if (NULL == reqptr)
     return -1;
 
-  return _set_http_version(&reqptr->_content, input);
+  return _set_http_version(&reqptr->content, input);
 }
 
 
@@ -124,7 +100,7 @@ int fpx_httprequest_get_version(fpx_httprequest_t* reqptr, char* outbuffer, size
   if (NULL == reqptr)
     return -1;
 
-  return _get_http_version(&reqptr->_content, outbuffer, outbuf_len);
+  return _get_http_version(&reqptr->content, outbuffer, outbuf_len);
 }
 
 
@@ -132,7 +108,7 @@ int fpx_httprequest_add_header(fpx_httprequest_t* reqptr, const char* key, const
   if (NULL == reqptr)
     return -1;
 
-  return _add_http_header(&reqptr->_content, key, value);
+  return _add_http_header(&reqptr->content, key, value);
 }
 
 
@@ -141,7 +117,7 @@ int fpx_httprequest_get_header(
   if (NULL == reqptr)
     return -1;
 
-  return _get_http_header(&reqptr->_content, key, output, output_len);
+  return _get_http_header(&reqptr->content, key, output, output_len);
 }
 
 
@@ -149,7 +125,7 @@ int fpx_httprequest_append_body(fpx_httprequest_t* reqptr, const char* new_chunk
   if (NULL == reqptr)
     return -1;
 
-  return _append_http_body(&reqptr->_content, new_chunk, body_len);
+  return _append_http_body(&reqptr->content, new_chunk, body_len);
 }
 
 
@@ -157,7 +133,27 @@ int fpx_httprequest_get_body(fpx_httprequest_t* reqptr, char* outbuffer, size_t 
   if (NULL == reqptr)
     return -1;
 
-  return _get_http_body(&reqptr->_content, outbuffer, max_len);
+  return _get_http_body(&reqptr->content, outbuffer, max_len);
+}
+
+
+int fpx_httprequest_get_body_length(fpx_httprequest_t* reqptr) {
+  if (NULL == reqptr)
+    return -1;
+
+  return reqptr->content.body_len;
+}
+
+
+int fpx_httprequest_copy(fpx_httprequest_t* _dst, const fpx_httprequest_t* _src) {
+  if (NULL == _dst || NULL == _src)
+    return -1;
+
+  fpx_strcpy(_dst->uri, _src->uri);
+
+  _dst->method = _src->method;
+
+  return _copy_http_content(&_dst->content, &_src->content);
 }
 
 
@@ -175,7 +171,7 @@ int fpx_httpresponse_add_header(fpx_httpresponse_t* resptr, const char* key, con
   if (NULL == resptr)
     return -1;
 
-  return _add_http_header(&resptr->_content, key, value);
+  return _add_http_header(&resptr->content, key, value);
 }
 
 
@@ -184,7 +180,7 @@ int fpx_httpresponse_get_header(
   if (NULL == resptr)
     return -1;
 
-  return _get_http_header(&resptr->_content, key, output, output_len);
+  return _get_http_header(&resptr->content, key, output, output_len);
 }
 
 
@@ -193,7 +189,7 @@ int fpx_httpresponse_append_body(
   if (NULL == resptr)
     return -1;
 
-  return _append_http_body(&resptr->_content, new_chunk, body_len);
+  return _append_http_body(&resptr->content, new_chunk, body_len);
 }
 
 
@@ -201,7 +197,26 @@ int fpx_httpresponse_get_body(fpx_httpresponse_t* resptr, char* outbuffer, size_
   if (NULL == resptr)
     return -1;
 
-  return _get_http_body(&resptr->_content, outbuffer, max_len);
+  return _get_http_body(&resptr->content, outbuffer, max_len);
+}
+
+
+int fpx_httpresponse_get_body_length(fpx_httpresponse_t* resptr) {
+  if (NULL == resptr)
+    return -1;
+
+  return resptr->content.body_len;
+}
+
+
+int fpx_httpresponse_copy(fpx_httpresponse_t* _dst, const fpx_httpresponse_t* _src) {
+  if (NULL == _dst || NULL == _src)
+    return -1;
+
+  _dst->status = _src->status;
+  fpx_strcpy(_dst->reason, _src->reason);
+
+  return _copy_http_content(&_dst->content, &_src->content);
 }
 
 
@@ -397,6 +412,7 @@ static int _append_http_body(
   return 0;
 }
 
+
 static int _get_http_body(struct _fpx_http_content* cntptr, char* outbuffer, size_t max_len) {
   if (NULL == cntptr || NULL == outbuffer)
     return -1;
@@ -417,4 +433,35 @@ static int _get_http_body(struct _fpx_http_content* cntptr, char* outbuffer, siz
   outbuffer[lesser] = 0;
 
   return retval;
+}
+
+
+static int _copy_http_content(
+  struct _fpx_http_content* _dst, const struct _fpx_http_content* _src) {
+  if (NULL == _dst || NULL == _src)
+    return -3;
+
+  fpx_memcpy(_dst, _src, sizeof(*_dst));
+
+  if (_dst->headers_allocated > 0) {
+    _dst->headers = (char*)malloc(_dst->headers_allocated);
+    if (NULL == _dst->headers) {
+      // bad alloc
+      return -2;
+    }
+
+    fpx_memcpy(_dst->headers, _src->headers, _dst->headers_len);
+  }
+
+  if (_dst->body_allocated > 0) {
+    _dst->body = (char*)malloc(_dst->body_allocated);
+    if (NULL == _dst->body) {
+      // bad alloc
+      return -2;
+    }
+
+    fpx_memcpy(_dst->body, _src->body, _dst->body_len);
+  }
+
+  return 0;
 }

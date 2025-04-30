@@ -9,6 +9,9 @@
 
 #include "../../fpx_types.h"
 
+typedef struct _fpx_httprequest   fpx_httprequest_t;
+typedef struct _fpx_httpresponse  fpx_httpresponse_t;
+
 typedef enum {
   NONE = 0x000,
   GET = 0x001,
@@ -20,10 +23,8 @@ typedef enum {
   OPTIONS = 0x040,
   TRACE = 0x080,
   PATCH = 0x100,
+  ERROR = 0x8000,
 } fpx_httpmethod_t;
-
-typedef struct _fpx_httprequest   fpx_httprequest_t;
-typedef struct _fpx_httpresponse  fpx_httpresponse_t;
 
 /**
  * Initialize a httprequest object to defaults (zeroes)
@@ -57,7 +58,8 @@ int fpx_httprequest_set_method(fpx_httprequest_t*, fpx_httpmethod_t);
  * - Pointer to request object
  *
  * returns:
- * - The associated HTTP method
+ * - The associated HTTP method on success
+ * - ERROR on error
  */
 fpx_httpmethod_t fpx_httprequest_get_method(fpx_httprequest_t*);
 
@@ -206,6 +208,33 @@ int fpx_httprequest_append_body(fpx_httprequest_t*, const char*, size_t);
 int fpx_httprequest_get_body(fpx_httprequest_t*, char*, size_t);
 
 /**
+ * Get the request body length of an fpx_httprequest_t object
+ *
+ * Input:
+ * - Pointer to request object
+ *
+ * Returns:
+ * -  0 on success
+ * - -1 if any passed pointer is unexpectedly NULL
+ */
+int fpx_httprequest_get_body_length(fpx_httprequest_t*);
+
+/**
+ * Copy the contents of *_src to *_dst
+ *
+ * Input:
+ * - Pointer to the destination request object (to copy into)
+ * - Pointer to the source request object (to copy from)
+ *
+ * Returns:
+ * -  0 on success
+ * - -1 if any passed pointer is unexpectedly NULL
+ * - -2 if any memory allocation fails for any reason
+ * - -3 if an unknown error occurs
+ */
+int fpx_httprequest_copy(fpx_httprequest_t* _dst, const fpx_httprequest_t* _src);
+
+/**
  * Initialize a httpresponse object to defaults (zeroes)
  *
  * Input:
@@ -326,5 +355,59 @@ int fpx_httpresponse_append_body(fpx_httpresponse_t*, const char*, size_t);
  * - The body stored in the output_buffer is always NULL-terminated
  */
 int fpx_httpresponse_get_body(fpx_httpresponse_t*, char*, size_t);
+
+/**
+ * Get the response body length of an fpx_httpresponse_t object
+ *
+ * Input:
+ * - Pointer to response object
+ *
+ * Returns:
+ * -  0 on success
+ * - -1 if any passed pointer is unexpectedly NULL
+ */
+int fpx_httpresponse_get_body_length(fpx_httpresponse_t*);
+
+/**
+ * Copy the contents of *_src to *_dst
+ *
+ * Input:
+ * - Pointer to the destination response object (to copy into)
+ * - Pointer to the source response object (to copy from)
+ *
+ * Returns:
+ * -  0 on success
+ * - -1 if any passed pointer is unexpectedly NULL
+ * - -2 if any memory allocation fails for any reason
+ * - -3 if an unknown error occurs
+ */
+int fpx_httpresponse_copy(fpx_httpresponse_t* _dst, const fpx_httpresponse_t* _src);
+
+struct _fpx_http_content {
+    char version[16];
+
+    char* headers;  // HEAP
+    char* body;     // HEAP
+
+    size_t headers_len;  // no null terminator included
+    size_t body_len;     // no null terminator included
+
+    size_t headers_allocated;
+    size_t body_allocated;
+};
+
+struct _fpx_httprequest {
+    fpx_httpmethod_t method;
+    char uri[256];
+
+    struct _fpx_http_content content;
+};
+
+struct _fpx_httpresponse {
+    uint8_t status;
+    char reason[32];
+
+    struct _fpx_http_content content;
+};
 
 #endif // FPX_HTTP_H
