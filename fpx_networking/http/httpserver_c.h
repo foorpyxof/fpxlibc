@@ -55,7 +55,8 @@ int fpx_httpserver_init(fpx_httpserver_t*, const uint8_t http_threads, const uin
  * Returns:
  * -  0 on success
  * - -1 if any passed pointer is unexpectedly NULL
- * - -2 if the format of the passed headers is incorrect
+ * - -2 if the server object is uninitialized
+ * - -3 if the format of the passed headers is incorrect
  *
  * Notes:
  * - The header key can only contain human readable ASCII characters,
@@ -70,14 +71,20 @@ int fpx_httpserver_set_default_headers(fpx_httpserver_t*, const char*);
  *
  * Input:
  * - Pointer to the server to read the default headers from
- * - Output buffer to store output in
+ * - Output buffer to store NULL-terminated output in
  * - Maximum length of the output
  *
  * Returns:
  * -  0 on success
  * - -1 if any passed pointer is unexpectedly NULL
+ * - -2 if the server object is uninitialized
+ * - -3 if there are no default headers to read
  * - any positive number to indicate the maximum buffer length
  * if the current one is deemed too small
+ *
+ * Notes:
+ * - The operation will PARTIALLY complete if the output buffer is deemed too small
+ * - A null-terminator will ALWAYS be appended. Even if the buffer is too short.
  */
 int fpx_httpserver_get_default_headers(fpx_httpserver_t*, char*, size_t);
 
@@ -92,6 +99,7 @@ int fpx_httpserver_get_default_headers(fpx_httpserver_t*, char*, size_t);
  * Returns:
  * -  0 on success
  * - -1 if any passed pointer is unexpectedly NULL
+ * - -2 if the server object is uninitialized
  */
 int fpx_httpserver_set_max_body(fpx_httpserver_t*, int16_t);
 
@@ -104,6 +112,7 @@ int fpx_httpserver_set_max_body(fpx_httpserver_t*, int16_t);
  * Returns:
  * -  any number >= 0 to indicate the maximum body length of the server
  * - -1 if any passed pointer is unexpectedly NULL
+ * - -2 if the server object is uninitialized
  */
 int16_t fpx_httpserver_get_max_body(fpx_httpserver_t*);
 
@@ -112,7 +121,7 @@ int16_t fpx_httpserver_get_max_body(fpx_httpserver_t*);
  *
  * Input:
  * - Pointer to the server to add an endpoint to
- * - String to represent the URI
+ * - Null-terminated string to represent the URI
  * - Bitwise OR of the HTTP methods that are allowed on this endpoint
  * (e.g. GET | POST | PUT allows GET, POST and PUT)
  * - A callback function to run every time the endpoint is successfully contacted
@@ -120,7 +129,9 @@ int16_t fpx_httpserver_get_max_body(fpx_httpserver_t*);
  * Returns:
  * - The index of the endpoint in the array on success
  * - -1 if any passed pointer is unexpectedly NULL
- * - -2 if an unknown error occurs
+ * - -2 if the server object is uninitialized
+ * - -3 if the limit of endpoints is reached
+ * - -4 if the given URI is too long to fit (maximum 255)
  *
  * Notes:
  * - If the URI is missing a leading '/', this will be prepended.
@@ -140,6 +151,9 @@ int fpx_httpserver_create_endpoint(fpx_httpserver_t*, const char* uri, const uin
  * Returns:
  * -  0 on success
  * - -1 if any passed pointer is unexpectedly NULL
+ * - -2 if the server object is uninitialized
+ * - -3 is the passed IP address is invalid
+ * - -4 if the passed port is invalid ( == 0 )
  * -  the value of `errno` on other failure
  */
 int fpx_httpserver_listen(fpx_httpserver_t*, const char* ip, const uint16_t port);
@@ -153,6 +167,8 @@ int fpx_httpserver_listen(fpx_httpserver_t*, const char* ip, const uint16_t port
  * Returns:
  * -  0 on success
  * - -1 if any passed pointer is unexpectedly NULL
+ * - -2 if the server object is uninitialized
+ * - -3 if the server object is not currently listening
  * -  the value of `errno` on other failure
  */
 int fpx_httpserver_close(fpx_httpserver_t*);
