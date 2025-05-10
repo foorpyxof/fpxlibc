@@ -6,9 +6,9 @@
 
 #include "http.h"
 
-#include <stdlib.h>  // malloc()
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>  // malloc()
 
 // START OF FPXLIBC LINK-TIME DEPENDENCIES
 #include "../../fpx_mem/mem.h"
@@ -169,6 +169,22 @@ int fpx_httpresponse_init(fpx_httpresponse_t* resptr) {
 }
 
 
+int fpx_httpresponse_set_version(fpx_httpresponse_t* resptr, const char* input) {
+  if (NULL == resptr)
+    return -1;
+
+  return _set_http_version(&resptr->content, input);
+}
+
+
+int fpx_httpresponse_get_version(fpx_httpresponse_t* resptr, char* outbuffer, size_t outbuf_len) {
+  if (NULL == resptr)
+    return -1;
+
+  return _get_http_version(&resptr->content, outbuffer, outbuf_len);
+}
+
+
 int fpx_httpresponse_add_header(fpx_httpresponse_t* resptr, const char* key, const char* value) {
   if (NULL == resptr)
     return -1;
@@ -279,7 +295,8 @@ static int _add_http_header(struct _fpx_http_content* cntptr, const char* key, c
     valuelen +             // header value length
     2;                     // "\r\n"
 
-  to_allocate = HTTP_DATA_ALLOC_BLOCK_SIZE * ((cntptr->headers_len + new_header_len) / HTTP_DATA_ALLOC_BLOCK_SIZE);
+  to_allocate = HTTP_DATA_ALLOC_BLOCK_SIZE *
+    ((cntptr->headers_len + new_header_len) / HTTP_DATA_ALLOC_BLOCK_SIZE);
   if ((cntptr->headers_len + new_header_len) % HTTP_DATA_ALLOC_BLOCK_SIZE != 0)
     to_allocate += HTTP_DATA_ALLOC_BLOCK_SIZE;
 
@@ -396,9 +413,13 @@ static int _append_http_body(
   if (NULL == cntptr || NULL == new_chunk)
     return -1;
 
+  if (body_len < 1)
+    return 0;
+
   size_t to_allocate;
 
-  to_allocate = HTTP_DATA_ALLOC_BLOCK_SIZE * ((cntptr->body_len + body_len) / HTTP_DATA_ALLOC_BLOCK_SIZE);
+  to_allocate =
+    HTTP_DATA_ALLOC_BLOCK_SIZE * ((cntptr->body_len + body_len) / HTTP_DATA_ALLOC_BLOCK_SIZE);
   if ((cntptr->body_len + body_len) % HTTP_DATA_ALLOC_BLOCK_SIZE != 0)
     to_allocate += HTTP_DATA_ALLOC_BLOCK_SIZE;
 

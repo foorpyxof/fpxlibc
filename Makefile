@@ -12,7 +12,7 @@ compile: CFLAGS := -O3
 compile: FPX_MODE := release
 compile: _compile
 
-compile_dbg: CFLAGS := -g -Og
+compile_dbg: CFLAGS := -g -Og -DFPX_DEBUG_ENABLE
 compile_dbg: ASFLAGS := -g
 compile_dbg: FPX_MODE := debug
 compile_dbg: _compile
@@ -22,7 +22,7 @@ test: compile
 	@find ./testfiles -type f \( -name "*.cpp" \) -exec bash -c 'NAME=$$(basename {} .cpp); echo "[CC] {}" && $(CCPLUS) $(ARGS) -c {} $(CFLAGS) -o ./build/unlinked/testing/$${NAME}.o' \;
 	@$(MAKE) _test
 
-debug: CFLAGS := -g -Og
+debug: CFLAGS := -g -Og -DFPX_DEBUG_ENABLE
 debug: compile_dbg
 	@echo "Compiling test programs"
 	@find ./testfiles -type f \( -name "*.cpp" \) -exec bash -c 'NAME=$$(basename {} .cpp); echo "[CC] {}" && $(CCPLUS) $(ARGS) -c {} $(CFLAGS) -o ./build/unlinked/testing/$${NAME}.o' \;

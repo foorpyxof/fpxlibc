@@ -6,8 +6,11 @@
 
 #include "httpserver_c.h"
 #include "../../fpx_types.h"
+#include "../netutils.h"
+#include "../../fpx_debug.h"
 
 #include <arpa/inet.h>
+#include <bits/pthreadtypes.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <poll.h>
@@ -16,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <time.h>
 
 
 // START OF FPXLIBC LINK-TIME DEPENDENCIES
@@ -24,7 +28,6 @@
 #include "../../fpx_c-utils/format.h"
 #include "http.h"
 // END OF FPXLIBC LINK-TIME DEPENDENCIES
-
 
 /* this is the default thread count for the HTTP or WS threads */
 #define THREADS_DEFAULT 4
@@ -41,6 +44,14 @@
 #define MAX_HEADERS 4096
 #define MAX_BODY 8192
 
+/* this is the HTTP version that will be used in responses */
+#define HTTP_VERSION 1.1
+
+/* this is the keepalive time to enforce on the server */
+#define KEEPALIVE_SECONDS 7
+
+#define SERVER_HEADER "fpx_http"
+
 // returns out of the function this macro is placed in if
 // the server pointer is not valid or the server is not initialized
 #define SRV_ASSERT(ptr)              \
@@ -51,7 +62,10 @@
   }
 
 // struct forward declarations
+struct _http_client_metadata;
 struct _http_thread;
+
+// TODO: struct _websocket_client_metadata;
 // TODO: struct _websocket_thread;
 
 // TODO: struct _websocket_frame;
@@ -67,6 +81,7 @@ static void* _fpx_http_loop(void* thread_package);
 // TODO: static void* _fpx_websocket_loop(void* thread_package);
 static void* _fpx_http_killer(void* http_server_metadata);
 
+static int _fpx_http_add_client(struct _http_thread*, int client_fd);
 static int _fpx_http_handle_client(struct _http_thread* thread, int idx);
 static int _fpx_http_disconnect_client(struct _http_thread* thread, int idx);
 
@@ -75,6 +90,37 @@ static int _fpx_http_parse_request_line(const char*, fpx_httprequest_t* output);
 // returns -2 on invalid request (400)
 // returns -3 if no content-length was passed, and thus no body was read
 static int _fpx_http_parse_request(char* readbuf, int readbuf_len, fpx_httprequest_t* output);
+
+static int _fpx_apply_default_headers(fpx_httpserver_t* srvptr, fpx_httpresponse_t* resptr);
+
+static int _fpx_send_response(struct _http_thread* threadptr, fpx_httpresponse_t* resptr, int client_id);
+
+
+#define SET_HTTPRESPONSE_PRESET(srvptr, res, code, reason_text, body, body_len)       \
+  (                                                                                   \
+    0 == fpx_httpresponse_set_version(&res, STR(HTTP_VERSION)) &&                     \
+    (res.status = code) &&                                                            \
+    fpx_strcpy(res.reason, reason_text) &&                                            \
+    0 == fpx_httpresponse_append_body(&res, body, body_len)                           \
+  )
+
+#define SET_HTTP_200(srvptr, res, body, body_len) \
+  SET_HTTPRESPONSE_PRESET(srvptr, res, 200, "OK", body, body_len)
+
+#define SET_HTTP_400(srvptr, res, body, body_len) \
+  SET_HTTPRESPONSE_PRESET(srvptr, res, 400, "Bad Request", body, body_len)
+
+#define SET_HTTP_404(srvptr, res, body, body_len) \
+  SET_HTTPRESPONSE_PRESET(srvptr, res, 404, "Not Found", body, body_len)
+
+#define SET_HTTP_411(srvptr, res, body, body_len) \
+  SET_HTTPRESPONSE_PRESET(srvptr, res, 411, "Length Required", body, body_len)
+
+#define SET_HTTP_500(srvptr, res, body, body_len) \
+  SET_HTTPRESPONSE_PRESET(srvptr, res, 500, "Internal Server Error", body, body_len)
+
+#define SET_HTTP_503(srvptr, res, body, body_len) \
+  SET_HTTPRESPONSE_PRESET(srvptr, res, 503, "Service Unavailable", body, body_len)
 
 
 // start struct definitions
@@ -87,6 +133,10 @@ struct _fpx_httpendpoint {
     fpx_httpcallback_t callback;
 };
 
+struct _http_client_metadata {
+  time_t last_time;
+};
+
 struct _http_thread {
     fpx_httpserver_t* server;
     pthread_t thread;
@@ -96,6 +146,7 @@ struct _http_thread {
 
     int connection_count;
     struct pollfd* pfds;
+    struct _http_client_metadata* client_data;
 };
 
 struct _fpx_httpserver_metadata {
@@ -161,6 +212,8 @@ int fpx_httpserver_init(fpx_httpserver_t* srvptr, const uint8_t http_threads,
     free(meta);
     return errno;
   }
+
+  fpx_httpserver_set_default_headers(srvptr, "server: " SERVER_HEADER "\r\n");
 
   return 0;
 }
@@ -304,6 +357,7 @@ int fpx_httpserver_create_endpoint(
   ptr->active = TRUE;
   ptr->allowed_methods = methods;
   ptr->callback = callback;
+  meta->active_endpoints++;
 
   fpx_strcpy(ptr->uri, uri);
 
@@ -361,6 +415,8 @@ int fpx_httpserver_listen(fpx_httpserver_t* srvptr, const char* ip, const uint16
 
     meta->socket_4 = listen_socket;
     meta->addr_4 = listen_addr;
+
+    meta->is_listening = TRUE;
   }
   // end of socket things
 
@@ -384,10 +440,20 @@ int fpx_httpserver_listen(fpx_httpserver_t* srvptr, const char* ip, const uint16
   }
   // end of threading things
 
+  {
+    char debug_line[64];
+    int index = fpx_getstringlength(debug_line);
+
+    struct sockaddr_in* addr = &srvptr->_metadata->addr_4;
+    snprintf(debug_line, sizeof(debug_line), "fpx_http is listening on %s:%hu", inet_ntoa(addr->sin_addr), ntohs(addr->sin_port));
+
+    FPX_DEBUG(debug_line);
+  }
+
   while (TRUE) {
     int client = accept(meta->socket_4, NULL, NULL);
 
-    int current_lowest = CLIENTS_DEFAULT + 1;
+    int current_lowest = CLIENTS_DEFAULT;
     int lowest_thread = 0;
 
     for (int i = 0; i < meta->http_thread_count; ++i) {
@@ -400,9 +466,21 @@ int fpx_httpserver_listen(fpx_httpserver_t* srvptr, const char* ip, const uint16
       pthread_mutex_unlock(&t->loop_mutex);
     }
 
-    if (current_lowest > CLIENTS_DEFAULT) {
+    if (current_lowest >= CLIENTS_DEFAULT) {
       // server full; respond with 503 Service Unavailable
+      fpx_httpresponse_t res;
+      fpx_httpresponse_init(&res);
+      _fpx_apply_default_headers(srvptr, &res);
+      SET_HTTP_503(srvptr, res, "", 0);
+      fpx_httpresponse_add_header(&res, "retry-after", "60");
     }
+
+    pthread_mutex_lock(&meta->http_threads[current_lowest].loop_mutex);
+
+    if (0 == _fpx_http_add_client(&srvptr->_metadata->http_threads[current_lowest], client))
+      pthread_cond_signal(&srvptr->_metadata->http_threads[current_lowest].loop_condition);
+
+    pthread_mutex_unlock(&meta->http_threads[current_lowest].loop_mutex);
   }
 
   return 0;
@@ -572,9 +650,17 @@ static void* _fpx_http_loop(void* tp) {
     fpx_memset(t->pfds, -1, bytes);
   }
 
-  while (TRUE) {
+  {
+    int bytes = CLIENTS_DEFAULT * sizeof(struct _http_client_metadata);
+    t->client_data = (struct _http_client_metadata*)malloc(bytes);
+    fpx_memset(t->client_data, -1, bytes);
+  }
+
+  while (t->server->_metadata->is_listening) {
     // loop logic
     pthread_mutex_lock(&t->loop_mutex);
+
+
     if (t->connection_count < 1)
       pthread_cond_wait(&t->loop_condition, &t->loop_mutex);
 
@@ -619,26 +705,133 @@ static void* _http_killer(void* meta) {
 }
 
 
-static int _fpx_http_handle_client(struct _http_thread* thread, int idx) {
-  // we enter this function assuming the client-socket is ready to be read from
+static int _fpx_http_add_client(struct _http_thread* t, int client_fd) {
+  if (NULL == t)
+    return -1;
 
-  char read_buffer[BUFFER_DEFAULT] = { 0 };
-  char write_buffer[BUFFER_DEFAULT] = { 0 };
+  if (0 > client_fd)
+    return -2;
 
+  if (CLIENTS_DEFAULT <= t->connection_count)
+    return -3;
 
-  // read from socket
-  struct pollfd* pfd = &thread->pfds[idx];
-  int amount_read = recv(pfd->fd, read_buffer, sizeof(read_buffer), 0);
+  struct pollfd* pfd = &t->pfds[t->connection_count];
+  struct _http_client_metadata* client_meta = &t->client_data[t->connection_count];
 
-  fpx_httprequest_t incoming_request = { 0 };
+  fpx_memset(pfd, 0, sizeof(struct pollfd));
+  pfd->fd = client_fd;
+  pfd->events = POLLIN;
 
-  _fpx_http_parse_request(read_buffer, amount_read, &incoming_request);
+  time(&client_meta->last_time);
+
+  t->connection_count++;
 
   return 0;
 }
 
 
-static int _fpx_http_disconnect_client(struct _http_thread* thread, int idx) {
+static int _fpx_http_handle_client(struct _http_thread* thread, int idx) {
+  // we enter this function assuming the client-socket is ready to be read from
+
+  time(&thread->client_data[idx].last_time);
+
+  char read_buffer[BUFFER_DEFAULT] = { 0 };
+
+  // read from socket
+  struct pollfd* pfd = &thread->pfds[idx];
+  int amount_read = recv(pfd->fd, read_buffer, sizeof(read_buffer), 0);
+  if (1 > amount_read) {
+    pthread_mutex_unlock(&thread->loop_mutex);
+    _fpx_http_disconnect_client(thread, idx);
+    pthread_mutex_lock(&thread->loop_mutex);
+    return 0;
+  }
+
+  fpx_httprequest_t incoming_request = { 0 };
+  fpx_httpresponse_t outgoing_response = { 0 };
+
+  fpx_httprequest_init(&incoming_request);
+
+  fpx_httpresponse_init(&outgoing_response);
+  _fpx_apply_default_headers(thread->server, &outgoing_response);
+  fpx_httpresponse_set_version(&outgoing_response, STR(HTTP_VERSION));
+
+  int parse_result = _fpx_http_parse_request(read_buffer, amount_read, &incoming_request);
+
+  switch (parse_result) {
+    case -1:
+      // nullptrs passed
+      break;
+    case -2:
+      // bad
+      SET_HTTP_400(thread->server, outgoing_response, "", 0);
+      break;
+
+    case -3:
+      // no content-length header was passed
+      {
+        switch (incoming_request.method) {
+          case POST:
+          case PUT:
+          case PATCH:
+            // HTTP 411: Length Required
+            SET_HTTP_411(thread->server, outgoing_response, "", 0);
+            break;
+
+          default:
+            break;
+        }
+      }
+      break;
+  }
+
+  if (outgoing_response.status > 0) {
+    // that means we already set a response!
+    // now we send it
+    _fpx_send_response(thread, &outgoing_response, idx);
+
+    return 0;
+  }
+
+
+  {
+    int endpoint_found = -1;
+
+    for (int i = 0; i < thread->server->_metadata->active_endpoints && endpoint_found < 0; ++i) {
+      struct _fpx_httpendpoint* endp = &thread->server->_metadata->endpoints[i];
+
+      if (0 == strncmp(endp->uri, incoming_request.uri, sizeof(endp->uri))) {
+        endpoint_found = i;
+        break;
+      }
+    }
+
+    if (endpoint_found < 0)
+      SET_HTTP_404(thread->server, outgoing_response, "", 0);
+    else {
+      SET_HTTP_200(thread->server, outgoing_response, "", 0);
+      thread->server->_metadata->endpoints[endpoint_found].callback(&incoming_request, &outgoing_response);
+    }
+  }
+
+  _fpx_send_response(thread, &outgoing_response, idx);
+
+
+  return 0;
+}
+
+
+static int _fpx_http_disconnect_client(struct _http_thread* t, int idx) {
+  for (int i = idx; i < (t->connection_count - 1); ++i) {
+    t->pfds[i] = t->pfds[i + 1];
+    t->client_data[i] = t->client_data[i + 1];
+  }
+
+  fpx_memset(&t->pfds[t->connection_count], -1, sizeof(t->pfds[0]));
+  fpx_memset(&t->client_data[t->connection_count], -1, sizeof(t->client_data[0]));
+
+  t->connection_count--;
+
   return 0;
 }
 
@@ -706,6 +899,8 @@ static int _fpx_http_parse_request_line(const char* reql, fpx_httprequest_t* req
   reql += 5;
 
   int ver_len = fpx_substringindex(reql, "\r\n");
+  if (0 > ver_len)
+    return -5;
 
   char ver[8] = { 0 };
   fpx_memset(ver, 0, sizeof(ver));
@@ -786,8 +981,8 @@ static int _fpx_http_parse_request(
     body = current_header + 2;
   }
 
-  char content_length_value[8];
-  if (0 != fpx_httprequest_get_header(reqptr, "content-length", content_length_value, sizeof(content_length_value))) {
+  char content_length_value[32];
+  if (-2 == fpx_httprequest_get_header(reqptr, "content-length", content_length_value, sizeof(content_length_value))) {
     // no content-length header in POST request body
     // so we just return now
     return -3;
@@ -795,6 +990,95 @@ static int _fpx_http_parse_request(
 
   // now copy body over
   fpx_httprequest_append_body(reqptr, body, fpx_strint(content_length_value));
+
+  return 0;
+}
+
+
+static int _fpx_apply_default_headers(fpx_httpserver_t* srvptr, fpx_httpresponse_t* resptr) {
+  char* def_headers = srvptr->_metadata->default_headers;
+
+  char key[32];
+  char value[512];
+
+  while (*def_headers != 0) {
+    int colon = fpx_substringindex(def_headers, ":");
+    int crlf = fpx_substringindex(def_headers, "\r\n");
+
+    if (colon > crlf || -1 == colon)
+      break;
+
+    fpx_memset(key, 0, sizeof(key));
+    fpx_memset(value, 0, sizeof(value));
+
+    fpx_memcpy(key, def_headers, colon);
+    fpx_memcpy(value, def_headers + colon + 1, crlf - (colon + 1));
+
+    int result = fpx_httpresponse_add_header(resptr, key, value);
+    if (result != 0)
+      return result;
+
+    def_headers += crlf + 2;
+  }
+
+  return 0;
+}
+
+
+static int _fpx_send_response(struct _http_thread* threadptr, fpx_httpresponse_t* resptr, int client_id) {
+  if (NULL == resptr || NULL == threadptr)
+    return -1;
+
+  if (client_id < 0)
+    return -2;
+
+  char write_buffer[BUFFER_DEFAULT] = { 0 };
+  char* write_copy = write_buffer;
+  fpx_memset(write_buffer, 0, sizeof(write_buffer));
+
+  // some prerequisites (content-length header etc.)
+  {
+    char content_length_header[32] = { 0 };
+    if (-2 == fpx_httpresponse_get_header(resptr, "content-length", content_length_header, sizeof(content_length_header))) {
+      // header not yet set, so we set it
+      fpx_intstr(resptr->content.body_len, content_length_header);
+      fpx_httpresponse_add_header(resptr, "content-length", content_length_header);
+    }
+  }
+
+  // response status line
+  {
+    char version[16] = { 0 };
+    fpx_httpresponse_get_version(resptr, version, sizeof(version));
+
+    write_copy += snprintf(write_copy, 1024, "HTTP/%s %hu %s\r\n", version, resptr->status, resptr->reason);
+  }
+
+  // headers
+  {
+    fpx_memcpy(write_copy, resptr->content.headers, resptr->content.headers_len);
+    write_copy += resptr->content.headers_len;
+
+    fpx_memcpy(write_copy, "\r\n", 2);
+    write_copy += 2;
+  }
+
+  // body
+  {
+    int content_length;
+    char content_length_stringvalue[32] = { 0 };
+
+    fpx_httpresponse_get_header(resptr, "content-length", content_length_stringvalue, sizeof(content_length_stringvalue));
+    content_length = fpx_strint(content_length_stringvalue);
+
+    fpx_memcpy(write_copy, resptr->content.body, content_length);
+    write_copy += content_length;
+  }
+
+  // debug print for the response
+  // FPX_DEBUG(write_buffer);
+
+  send(threadptr->pfds[client_id].fd, write_buffer, write_copy - write_buffer, 0);
 
   return 0;
 }

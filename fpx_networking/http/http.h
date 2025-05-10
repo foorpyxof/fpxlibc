@@ -9,8 +9,8 @@
 
 #include "../../fpx_types.h"
 
-typedef struct _fpx_httprequest   fpx_httprequest_t;
-typedef struct _fpx_httpresponse  fpx_httpresponse_t;
+typedef struct _fpx_httprequest fpx_httprequest_t;
+typedef struct _fpx_httpresponse fpx_httpresponse_t;
 
 typedef enum {
   NONE = 0x000,
@@ -154,7 +154,7 @@ int fpx_httprequest_add_header(fpx_httprequest_t*, const char*, const char*);
 
 /**
  * Get the Header value attached to the first occurence of a key
- * in an fpx_httprequest_t object, and store it in 
+ * in an fpx_httprequest_t object, and store it in
  *
  * Input:
  * - Pointer to request object
@@ -304,7 +304,7 @@ int fpx_httpresponse_add_header(fpx_httpresponse_t*, const char*, const char*);
 
 /**
  * Get the Header value attached to the first occurence of a key
- * in an fpx_httpresponse_t object, and store it in 
+ * in an fpx_httpresponse_t object, and store it in
  *
  * Input:
  * - Pointer to response object
@@ -405,10 +405,10 @@ struct _fpx_httprequest {
 };
 
 struct _fpx_httpresponse {
-    uint8_t status;
+    uint16_t status;
     char reason[32];
 
     struct _fpx_http_content content;
 };
 
-#endif // FPX_HTTP_H
+#endif  // FPX_HTTP_H
