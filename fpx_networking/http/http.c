@@ -7,6 +7,8 @@
 #include "http.h"
 
 #include <stdlib.h>  // malloc()
+#include <errno.h>
+#include <stdio.h>
 
 // START OF FPXLIBC LINK-TIME DEPENDENCIES
 #include "../../fpx_mem/mem.h"
@@ -277,8 +279,8 @@ static int _add_http_header(struct _fpx_http_content* cntptr, const char* key, c
     valuelen +             // header value length
     2;                     // "\r\n"
 
-  to_allocate = (cntptr->headers_len + new_header_len) / HTTP_DATA_ALLOC_BLOCK_SIZE;
-  if (new_header_len % HTTP_DATA_ALLOC_BLOCK_SIZE == 0)
+  to_allocate = HTTP_DATA_ALLOC_BLOCK_SIZE * ((cntptr->headers_len + new_header_len) / HTTP_DATA_ALLOC_BLOCK_SIZE);
+  if ((cntptr->headers_len + new_header_len) % HTTP_DATA_ALLOC_BLOCK_SIZE != 0)
     to_allocate += HTTP_DATA_ALLOC_BLOCK_SIZE;
 
   if (NULL == cntptr->headers) {
@@ -305,6 +307,11 @@ static int _add_http_header(struct _fpx_http_content* cntptr, const char* key, c
   fpx_string_to_lower(&cntptr->headers[cntptr->headers_len], FALSE);
 
   fpx_memcpy(&cntptr->headers[cntptr->headers_len + keylen], ": ", 2);
+
+  // remove leading whitespace from header value
+  for (; *value == ' '; ++value, --valuelen)
+    ;
+
   fpx_memcpy(&cntptr->headers[cntptr->headers_len + keylen + 2], value, valuelen);
   fpx_memcpy(&cntptr->headers[cntptr->headers_len + keylen + 2 + valuelen], "\r\n", 2);
 
@@ -332,6 +339,8 @@ static int _get_http_header(
 
     keylen = fpx_getstringlength(key);
     key_but_lowercase = (char*)malloc(keylen + 3);
+    if (NULL == key_but_lowercase)
+      return -3;
     fpx_memcpy(key_but_lowercase, key, keylen);
     fpx_memcpy(&key_but_lowercase[keylen], ": ", 2);
     key_but_lowercase[keylen + 2] = 0;  // NULL-terminator
@@ -389,8 +398,8 @@ static int _append_http_body(
 
   size_t to_allocate;
 
-  to_allocate = (cntptr->body_len + body_len) / HTTP_DATA_ALLOC_BLOCK_SIZE;
-  if (body_len % HTTP_DATA_ALLOC_BLOCK_SIZE == 0)
+  to_allocate = HTTP_DATA_ALLOC_BLOCK_SIZE * ((cntptr->body_len + body_len) / HTTP_DATA_ALLOC_BLOCK_SIZE);
+  if ((cntptr->body_len + body_len) % HTTP_DATA_ALLOC_BLOCK_SIZE != 0)
     to_allocate += HTTP_DATA_ALLOC_BLOCK_SIZE;
 
   if (NULL == cntptr->body) {
@@ -408,6 +417,9 @@ static int _append_http_body(
   }
 
   fpx_memcpy(&cntptr->body[cntptr->body_len], new_chunk, body_len);
+
+  cntptr->body_len += body_len;
+  cntptr->body_allocated = to_allocate;
 
   return 0;
 }

@@ -177,7 +177,8 @@ int fpx_httprequest_get_header(fpx_httprequest_t*, const char*, char*, size_t);
  *
  * Input:
  * - Pointer to request object
- * - String containing NULL-terminated Body data to append
+ * - String containing Body data to append
+ * - Size of the content body to append
  *
  * Returns:
  * -  0 on success
