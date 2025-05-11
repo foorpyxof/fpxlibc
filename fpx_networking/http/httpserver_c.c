@@ -1,16 +1,15 @@
 ////////////////////////////////////////////////////////////////
-//  "httpserver.h"                                            //
+//  "httpserver_c.c"                                          //
 //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
 #include "httpserver_c.h"
+#include "../../fpx_debug.h"
 #include "../../fpx_types.h"
 #include "../netutils.h"
-#include "../../fpx_debug.h"
 
 #include <arpa/inet.h>
-#include <bits/pthreadtypes.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <poll.h>
@@ -20,12 +19,13 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <time.h>
+#include <unistd.h>
 
 
 // START OF FPXLIBC LINK-TIME DEPENDENCIES
+#include "../../fpx_c-utils/format.h"
 #include "../../fpx_mem/mem.h"
 #include "../../fpx_string/string.h"
-#include "../../fpx_c-utils/format.h"
 #include "http.h"
 // END OF FPXLIBC LINK-TIME DEPENDENCIES
 
@@ -74,35 +74,33 @@ struct _fpx_httpendpoint;
 struct _fpx_httpserver_metadata;
 // end of struct forward declarations
 
-static int _fpx_header_sanitize(const char* in, char* out, size_t out_len, size_t* copied_count);
 static int _server_init_check(fpx_httpserver_t*);
+
+static int _sanitize_headers(const char* in, char* out, size_t out_len, size_t* copied_count);
 
 static void* _fpx_http_loop(void* thread_package);
 // TODO: static void* _fpx_websocket_loop(void* thread_package);
 static void* _fpx_http_killer(void* http_server_metadata);
 
-static int _fpx_http_add_client(struct _http_thread*, int client_fd);
-static int _fpx_http_handle_client(struct _http_thread* thread, int idx);
-static int _fpx_http_disconnect_client(struct _http_thread* thread, int idx);
+static int _http_add_client(struct _http_thread*, int client_fd);
+static int _http_handle_client(struct _http_thread* thread, int idx);
+static int _http_disconnect_client(struct _http_thread* thread, int idx);
 
-static int _fpx_http_parse_request_line(const char*, fpx_httprequest_t* output);
+static int _http_parse_request_line(const char*, fpx_httprequest_t* output);
 
 // returns -2 on invalid request (400)
 // returns -3 if no content-length was passed, and thus no body was read
-static int _fpx_http_parse_request(char* readbuf, int readbuf_len, fpx_httprequest_t* output);
+static int _http_parse_request(char* readbuf, int readbuf_len, fpx_httprequest_t* output);
 
-static int _fpx_apply_default_headers(fpx_httpserver_t* srvptr, fpx_httpresponse_t* resptr);
+static int _apply_default_headers(fpx_httpserver_t* srvptr, fpx_httpresponse_t* resptr);
 
-static int _fpx_send_response(struct _http_thread* threadptr, fpx_httpresponse_t* resptr, int client_id);
+static int _send_response(fpx_httprequest_t*, fpx_httpresponse_t*, int client_fd);
 
 
-#define SET_HTTPRESPONSE_PRESET(srvptr, res, code, reason_text, body, body_len)       \
-  (                                                                                   \
-    0 == fpx_httpresponse_set_version(&res, STR(HTTP_VERSION)) &&                     \
-    (res.status = code) &&                                                            \
-    fpx_strcpy(res.reason, reason_text) &&                                            \
-    0 == fpx_httpresponse_append_body(&res, body, body_len)                           \
-  )
+#define SET_HTTPRESPONSE_PRESET(srvptr, res, code, reason_text, body, body_len)         \
+  (0 == fpx_httpresponse_set_version(&res, STR(HTTP_VERSION)) && (res.status = code) && \
+    fpx_strcpy(res.reason, reason_text) &&                                              \
+    0 == fpx_httpresponse_append_body(&res, body, body_len))
 
 #define SET_HTTP_200(srvptr, res, body, body_len) \
   SET_HTTPRESPONSE_PRESET(srvptr, res, 200, "OK", body, body_len)
@@ -112,6 +110,9 @@ static int _fpx_send_response(struct _http_thread* threadptr, fpx_httpresponse_t
 
 #define SET_HTTP_404(srvptr, res, body, body_len) \
   SET_HTTPRESPONSE_PRESET(srvptr, res, 404, "Not Found", body, body_len)
+
+#define SET_HTTP_405(srvptr, res, body, body_len) \
+  SET_HTTPRESPONSE_PRESET(srvptr, res, 405, "Method Not Allowed", body, body_len)
 
 #define SET_HTTP_411(srvptr, res, body, body_len) \
   SET_HTTPRESPONSE_PRESET(srvptr, res, 411, "Length Required", body, body_len)
@@ -134,7 +135,7 @@ struct _fpx_httpendpoint {
 };
 
 struct _http_client_metadata {
-  time_t last_time;
+    time_t last_time;
 };
 
 struct _http_thread {
@@ -160,6 +161,8 @@ struct _fpx_httpserver_metadata {
     struct _http_thread* http_threads;
     uint8_t ws_thread_count;
     struct _ws_thread* ws_threads;
+
+    struct _fpx_httpendpoint default_endpoint;
 
     struct _fpx_httpendpoint* endpoints;
     uint8_t active_endpoints;
@@ -205,6 +208,7 @@ int fpx_httpserver_init(fpx_httpserver_t* srvptr, const uint8_t http_threads,
   else
     meta->max_endpoints = max_endpoints;
 
+  meta->default_endpoint.active = 0;
   meta->endpoints =
     (struct _fpx_httpendpoint*)calloc(meta->max_endpoints, sizeof(*(meta->endpoints)));
 
@@ -242,7 +246,7 @@ int fpx_httpserver_set_default_headers(fpx_httpserver_t* srvptr, const char* hea
   size_t new_headers_len;
   char* temp_output = (char*)malloc(headers_len + 1);
 
-  int retval = _fpx_header_sanitize(headers, temp_output, headers_len + 1, &new_headers_len);
+  int retval = _sanitize_headers(headers, temp_output, headers_len + 1, &new_headers_len);
 
 
   if (retval < 0)
@@ -321,6 +325,23 @@ int16_t fpx_httpserver_get_max_body(fpx_httpserver_t* srvptr) {
 }
 
 
+int fpx_httpserver_set_default_endpoint(
+  fpx_httpserver_t* srvptr, const uint16_t methods, fpx_httpcallback_t callback) {
+  SRV_ASSERT(srvptr);
+
+  if (NULL == callback)
+    return -1;
+
+  struct _fpx_httpserver_metadata* meta = srvptr->_metadata;
+
+  meta->default_endpoint.allowed_methods = methods;
+  meta->default_endpoint.callback = callback;
+  meta->default_endpoint.active = TRUE;
+
+  return 0;
+}
+
+
 int fpx_httpserver_create_endpoint(
   fpx_httpserver_t* srvptr, const char* uri, const uint16_t methods, fpx_httpcallback_t callback) {
   SRV_ASSERT(srvptr);
@@ -354,9 +375,14 @@ int fpx_httpserver_create_endpoint(
 
 
   struct _fpx_httpendpoint* ptr = &meta->endpoints[available_endpoint];
-  ptr->active = TRUE;
   ptr->allowed_methods = methods;
+  if (methods & GET) {
+    // if allowing GET, also allow HEAD
+    ptr->allowed_methods |= HEAD;
+  }
+
   ptr->callback = callback;
+  ptr->active = TRUE;
   meta->active_endpoints++;
 
   fpx_strcpy(ptr->uri, uri);
@@ -431,6 +457,8 @@ int fpx_httpserver_listen(fpx_httpserver_t* srvptr, const char* ip, const uint16
 
       t->server = srvptr;
 
+      pthread_mutex_init(&t->loop_mutex, NULL);
+
       if (0 != pthread_create(&t->thread, NULL, _fpx_http_loop, t)) {
         int err = errno;
         perror("pthread_create()");
@@ -441,27 +469,33 @@ int fpx_httpserver_listen(fpx_httpserver_t* srvptr, const char* ip, const uint16
   // end of threading things
 
   {
-    char debug_line[64];
-    int index = fpx_getstringlength(debug_line);
-
     struct sockaddr_in* addr = &srvptr->_metadata->addr_4;
-    snprintf(debug_line, sizeof(debug_line), "fpx_http is listening on %s:%hu", inet_ntoa(addr->sin_addr), ntohs(addr->sin_port));
-
-    FPX_DEBUG(debug_line);
+    FPX_DEBUG("fpx_http is listening on %s:%hu", inet_ntoa(addr->sin_addr), ntohs(addr->sin_port));
   }
 
   while (TRUE) {
-    int client = accept(meta->socket_4, NULL, NULL);
+    struct sockaddr_in client_addr;
+    socklen_t client_addr_len = sizeof(client_addr);
+    int client = accept(meta->socket_4, (struct sockaddr*)&client_addr, &client_addr_len);
+
+    {
+      FPX_DEBUG("connection accepted from %s:%hu",
+        inet_ntoa(client_addr.sin_addr),
+        ntohs(client_addr.sin_port));
+    }
 
     int current_lowest = CLIENTS_DEFAULT;
-    int lowest_thread = 0;
+    struct _http_thread* lowest_thread = NULL;
 
     for (int i = 0; i < meta->http_thread_count; ++i) {
       struct _http_thread* t = &meta->http_threads[i];
+
       pthread_mutex_lock(&t->loop_mutex);
 
-      if (t->connection_count < current_lowest)
+      if (t->connection_count < current_lowest) {
         current_lowest = t->connection_count;
+        lowest_thread = t;
+      }
 
       pthread_mutex_unlock(&t->loop_mutex);
     }
@@ -470,17 +504,20 @@ int fpx_httpserver_listen(fpx_httpserver_t* srvptr, const char* ip, const uint16
       // server full; respond with 503 Service Unavailable
       fpx_httpresponse_t res;
       fpx_httpresponse_init(&res);
-      _fpx_apply_default_headers(srvptr, &res);
+      _apply_default_headers(srvptr, &res);
       SET_HTTP_503(srvptr, res, "", 0);
       fpx_httpresponse_add_header(&res, "retry-after", "60");
+      _send_response(NULL, &res, client);
+
+      FPX_WARN("Server full; connection refused");
     }
 
-    pthread_mutex_lock(&meta->http_threads[current_lowest].loop_mutex);
+    pthread_mutex_lock(&lowest_thread->loop_mutex);
 
-    if (0 == _fpx_http_add_client(&srvptr->_metadata->http_threads[current_lowest], client))
-      pthread_cond_signal(&srvptr->_metadata->http_threads[current_lowest].loop_condition);
+    if (0 == _http_add_client(lowest_thread, client))
+      pthread_cond_signal(&lowest_thread->loop_condition);
 
-    pthread_mutex_unlock(&meta->http_threads[current_lowest].loop_mutex);
+    pthread_mutex_unlock(&lowest_thread->loop_mutex);
   }
 
   return 0;
@@ -510,7 +547,7 @@ int fpx_httpserver_close(fpx_httpserver_t* srvptr) {
  * - return -1 if any passed pointers are NULL
  * - return -3 if the general header formatting is incorrect
  */
-static int _fpx_header_sanitize(const char* in, char* out, size_t out_len, size_t* copied_count) {
+static int _sanitize_headers(const char* in, char* out, size_t out_len, size_t* copied_count) {
   if (NULL == in || NULL == out || NULL == copied_count)
     return -1;
 
@@ -657,9 +694,13 @@ static void* _fpx_http_loop(void* tp) {
   }
 
   while (t->server->_metadata->is_listening) {
+    usleep(50);  // NOTE: i hate this <3
+                 // but it needs to be done
+                 // because otherwise it regrabs
+                 // the mutex too quickly
+
     // loop logic
     pthread_mutex_lock(&t->loop_mutex);
-
 
     if (t->connection_count < 1)
       pthread_cond_wait(&t->loop_condition, &t->loop_mutex);
@@ -676,10 +717,10 @@ static void* _fpx_http_loop(void* tp) {
 
       if (t->pfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
         // client disconnect
-        _fpx_http_disconnect_client(t, i);
+        _http_disconnect_client(t, i);
       } else if (t->pfds[i].revents & POLLIN) {
         // client has written
-        _fpx_http_handle_client(t, i);
+        _http_handle_client(t, i);
       }
 
       ++j;
@@ -705,7 +746,7 @@ static void* _http_killer(void* meta) {
 }
 
 
-static int _fpx_http_add_client(struct _http_thread* t, int client_fd) {
+static int _http_add_client(struct _http_thread* t, int client_fd) {
   if (NULL == t)
     return -1;
 
@@ -730,10 +771,165 @@ static int _fpx_http_add_client(struct _http_thread* t, int client_fd) {
 }
 
 
-static int _fpx_http_handle_client(struct _http_thread* thread, int idx) {
-  // we enter this function assuming the client-socket is ready to be read from
+static void _on_response_ready(
+  struct _http_thread* thread, fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr, int idx) {
+  char method[16] = { 0 };
+
+
+  switch (reqptr->method) {
+    case NONE:
+      fpx_strcpy(method, "NONE");
+      break;
+    case OPTIONS:
+      fpx_strcpy(method, "OPTIONS");
+      break;
+    case GET:
+      fpx_strcpy(method, "GET");
+      break;
+    case HEAD:
+      fpx_strcpy(method, "HEAD");
+      break;
+    case POST:
+      fpx_strcpy(method, "POST");
+      break;
+    case PUT:
+      fpx_strcpy(method, "PUT");
+      break;
+    case PATCH:
+      fpx_strcpy(method, "PATCH");
+      break;
+    case DELETE:
+      fpx_strcpy(method, "DELETE");
+      break;
+    case CONNECT:
+      fpx_strcpy(method, "CONNECT");
+      break;
+    case TRACE:
+      fpx_strcpy(method, "TRACE");
+      break;
+
+    case ERROR:
+      fpx_strcpy(method, "ERROR");
+      break;
+  }
+
+
+  /* debug print */
+  FPX_DEBUG(
+    "%hu | %s | %s | HTTP/%s", resptr->status, method, reqptr->uri, reqptr->content.version);
+
+
+  uint16_t s = resptr->status;
+  uint8_t closing = (s == 429);
+
+  {
+    char header_val[32];
+    if (-2 ==
+      fpx_httpresponse_get_header(resptr, "connection", header_val, sizeof(header_val) - 1)) {
+      // there is no connection header set in the response
+      if (closing)
+        fpx_httpresponse_add_header(resptr, "connection", "close");
+      else {
+        fpx_httpresponse_add_header(resptr, "connection", "keep-alive");
+        fpx_httpresponse_add_header(resptr, "keep-alive", STR(KEEPALIVE_SECONDS));
+      }
+    }
+  }
+
+
+  _send_response(reqptr, resptr, thread->pfds[idx].fd);
 
   time(&thread->client_data[idx].last_time);
+
+
+  if (closing)
+    _http_disconnect_client(thread, idx);
+
+
+  return;
+}
+
+
+static void _handle_endpoint(
+  struct _http_thread* thread, fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr) {
+  // check for endpoints
+  struct _fpx_httpendpoint* endpoint = NULL;
+
+
+  for (int i = 0; i < thread->server->_metadata->active_endpoints && NULL == endpoint; ++i) {
+    struct _fpx_httpendpoint* endp = &thread->server->_metadata->endpoints[i];
+
+    if (0 == strncmp(endp->uri, reqptr->uri, sizeof(endp->uri))) {
+      // endpoint found
+      endpoint = endp;
+      break;
+    }
+  }
+
+
+  // check wether to use the default endpoint
+  if (FALSE != thread->server->_metadata->default_endpoint.active && NULL == endpoint) {
+    endpoint = &thread->server->_metadata->default_endpoint;
+  }
+
+
+  if (NULL == endpoint) {
+    // 404
+    SET_HTTP_404(thread->server, (*resptr), "", 0);
+  } else if (!(endpoint->allowed_methods & reqptr->method)) {
+    // 405 | method not allowed
+    // TODO: add allowed methods into the response body
+    SET_HTTP_405(thread->server, (*resptr), "", 0);
+  } else {
+    // :thumbsup:
+    SET_HTTP_200(thread->server, (*resptr), "", 0);
+    endpoint->callback(reqptr, resptr);
+  }
+
+
+  return;
+}
+
+
+static void _set_keepalive(fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr) {
+  uint8_t keepalive = TRUE;
+  int return_value;
+
+  // this is never read afterwards,
+  // so we'll reuse it later
+  char header_val[32];
+
+
+  return_value =
+    fpx_httprequest_get_header(reqptr, "connection", header_val, sizeof(header_val) - 1);
+
+  if (0 == return_value && 0 == strncmp(header_val, "close", fpx_getstringlength(header_val))) {
+    // connection close
+    keepalive = FALSE;
+  }
+
+
+  return_value =
+    fpx_httpresponse_get_header(resptr, "connection", header_val, sizeof(header_val) - 1);
+
+  if (-2 == return_value)
+    fpx_httpresponse_add_header(
+      resptr, "connection", (TRUE == keepalive) ? ("keep-alive") : ("close"));
+
+
+  return_value =
+    fpx_httpresponse_get_header(resptr, "keep-alive", header_val, sizeof(header_val) - 1);
+
+  if (-2 == return_value && TRUE == keepalive)
+    fpx_httpresponse_add_header(resptr, "keep-alive", STR(KEEPALIVE_SECONDS));
+
+
+  return;
+}
+
+
+static int _http_handle_client(struct _http_thread* thread, int idx) {
+  // we enter this function assuming the client-socket is ready to be read from
 
   char read_buffer[BUFFER_DEFAULT] = { 0 };
 
@@ -742,7 +938,7 @@ static int _fpx_http_handle_client(struct _http_thread* thread, int idx) {
   int amount_read = recv(pfd->fd, read_buffer, sizeof(read_buffer), 0);
   if (1 > amount_read) {
     pthread_mutex_unlock(&thread->loop_mutex);
-    _fpx_http_disconnect_client(thread, idx);
+    _http_disconnect_client(thread, idx);
     pthread_mutex_lock(&thread->loop_mutex);
     return 0;
   }
@@ -753,10 +949,10 @@ static int _fpx_http_handle_client(struct _http_thread* thread, int idx) {
   fpx_httprequest_init(&incoming_request);
 
   fpx_httpresponse_init(&outgoing_response);
-  _fpx_apply_default_headers(thread->server, &outgoing_response);
+  _apply_default_headers(thread->server, &outgoing_response);
   fpx_httpresponse_set_version(&outgoing_response, STR(HTTP_VERSION));
 
-  int parse_result = _fpx_http_parse_request(read_buffer, amount_read, &incoming_request);
+  int parse_result = _http_parse_request(read_buffer, amount_read, &incoming_request);
 
   switch (parse_result) {
     case -1:
@@ -785,50 +981,42 @@ static int _fpx_http_handle_client(struct _http_thread* thread, int idx) {
       break;
   }
 
+
   if (outgoing_response.status > 0) {
     // that means we already set a response!
+    // specifically for a bad request or similar
     // now we send it
-    _fpx_send_response(thread, &outgoing_response, idx);
+
+    _on_response_ready(thread, &incoming_request, &outgoing_response, idx);
 
     return 0;
   }
 
 
-  {
-    int endpoint_found = -1;
+  // do endpoint things
+  // (this includes running the programmer's callback)
+  _handle_endpoint(thread, &incoming_request, &outgoing_response);
 
-    for (int i = 0; i < thread->server->_metadata->active_endpoints && endpoint_found < 0; ++i) {
-      struct _fpx_httpendpoint* endp = &thread->server->_metadata->endpoints[i];
 
-      if (0 == strncmp(endp->uri, incoming_request.uri, sizeof(endp->uri))) {
-        endpoint_found = i;
-        break;
-      }
-    }
+  // keepalive
+  _set_keepalive(&incoming_request, &outgoing_response);
 
-    if (endpoint_found < 0)
-      SET_HTTP_404(thread->server, outgoing_response, "", 0);
-    else {
-      SET_HTTP_200(thread->server, outgoing_response, "", 0);
-      thread->server->_metadata->endpoints[endpoint_found].callback(&incoming_request, &outgoing_response);
-    }
-  }
 
-  _fpx_send_response(thread, &outgoing_response, idx);
+  _on_response_ready(thread, &incoming_request, &outgoing_response, idx);
 
 
   return 0;
 }
 
 
-static int _fpx_http_disconnect_client(struct _http_thread* t, int idx) {
+static int _http_disconnect_client(struct _http_thread* t, int idx) {
   for (int i = idx; i < (t->connection_count - 1); ++i) {
     t->pfds[i] = t->pfds[i + 1];
     t->client_data[i] = t->client_data[i + 1];
   }
 
-  fpx_memset(&t->pfds[t->connection_count], -1, sizeof(t->pfds[0]));
-  fpx_memset(&t->client_data[t->connection_count], -1, sizeof(t->client_data[0]));
+  fpx_memset(&t->pfds[t->connection_count - 1], -1, sizeof(t->pfds[0]));
+  fpx_memset(&t->client_data[t->connection_count - 1], -1, sizeof(t->client_data[0]));
 
   t->connection_count--;
 
@@ -836,7 +1024,7 @@ static int _fpx_http_disconnect_client(struct _http_thread* t, int idx) {
 }
 
 
-static int _fpx_http_parse_request_line(const char* reql, fpx_httprequest_t* reqptr) {
+static int _http_parse_request_line(const char* reql, fpx_httprequest_t* reqptr) {
   int reqline_len;
   const char* reql_start = reql;
 
@@ -919,7 +1107,7 @@ static int _fpx_http_parse_request_line(const char* reql, fpx_httprequest_t* req
 }
 
 
-static int _fpx_http_parse_request(
+static int _http_parse_request(
   char* read_buffer, int read_buffer_length, fpx_httprequest_t* reqptr) {
   char* req_line = NULL;
   char* headers = NULL;
@@ -941,7 +1129,7 @@ static int _fpx_http_parse_request(
 
   // parse request line into request object
   {
-    int req_line_len = _fpx_http_parse_request_line(req_line, reqptr);
+    int req_line_len = _http_parse_request_line(req_line, reqptr);
 
     if (req_line_len < 0)
       return -2;
@@ -982,7 +1170,9 @@ static int _fpx_http_parse_request(
   }
 
   char content_length_value[32];
-  if (-2 == fpx_httprequest_get_header(reqptr, "content-length", content_length_value, sizeof(content_length_value))) {
+  if (-2 ==
+    fpx_httprequest_get_header(
+      reqptr, "content-length", content_length_value, sizeof(content_length_value))) {
     // no content-length header in POST request body
     // so we just return now
     return -3;
@@ -995,7 +1185,7 @@ static int _fpx_http_parse_request(
 }
 
 
-static int _fpx_apply_default_headers(fpx_httpserver_t* srvptr, fpx_httpresponse_t* resptr) {
+static int _apply_default_headers(fpx_httpserver_t* srvptr, fpx_httpresponse_t* resptr) {
   char* def_headers = srvptr->_metadata->default_headers;
 
   char key[32];
@@ -1025,11 +1215,11 @@ static int _fpx_apply_default_headers(fpx_httpserver_t* srvptr, fpx_httpresponse
 }
 
 
-static int _fpx_send_response(struct _http_thread* threadptr, fpx_httpresponse_t* resptr, int client_id) {
-  if (NULL == resptr || NULL == threadptr)
+static int _send_response(fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr, int client_fd) {
+  if (NULL == resptr)
     return -1;
 
-  if (client_id < 0)
+  if (client_fd < 0)
     return -2;
 
   char write_buffer[BUFFER_DEFAULT] = { 0 };
@@ -1039,7 +1229,9 @@ static int _fpx_send_response(struct _http_thread* threadptr, fpx_httpresponse_t
   // some prerequisites (content-length header etc.)
   {
     char content_length_header[32] = { 0 };
-    if (-2 == fpx_httpresponse_get_header(resptr, "content-length", content_length_header, sizeof(content_length_header))) {
+    if (-2 ==
+      fpx_httpresponse_get_header(
+        resptr, "content-length", content_length_header, sizeof(content_length_header))) {
       // header not yet set, so we set it
       fpx_intstr(resptr->content.body_len, content_length_header);
       fpx_httpresponse_add_header(resptr, "content-length", content_length_header);
@@ -1051,7 +1243,8 @@ static int _fpx_send_response(struct _http_thread* threadptr, fpx_httpresponse_t
     char version[16] = { 0 };
     fpx_httpresponse_get_version(resptr, version, sizeof(version));
 
-    write_copy += snprintf(write_copy, 1024, "HTTP/%s %hu %s\r\n", version, resptr->status, resptr->reason);
+    write_copy +=
+      snprintf(write_copy, 1024, "HTTP/%s %hu %s\r\n", version, resptr->status, resptr->reason);
   }
 
   // headers
@@ -1064,21 +1257,41 @@ static int _fpx_send_response(struct _http_thread* threadptr, fpx_httpresponse_t
   }
 
   // body
-  {
+  if (resptr->content.body_len > 0 && (NULL == reqptr || FALSE == (reqptr->method & HEAD))) {
+    int content_written = 0;
+
     int content_length;
     char content_length_stringvalue[32] = { 0 };
 
-    fpx_httpresponse_get_header(resptr, "content-length", content_length_stringvalue, sizeof(content_length_stringvalue));
+    fpx_httpresponse_get_header(
+      resptr, "content-length", content_length_stringvalue, sizeof(content_length_stringvalue));
     content_length = fpx_strint(content_length_stringvalue);
 
-    fpx_memcpy(write_copy, resptr->content.body, content_length);
-    write_copy += content_length;
+    while (content_written < content_length) {
+
+      int to_write = (content_length - content_written);
+      int remaining_space = (sizeof(write_buffer) - (write_copy - write_buffer));
+      if (to_write > remaining_space)
+        to_write = remaining_space;
+
+      fpx_memcpy(write_copy, resptr->content.body + content_written, to_write);
+      write_copy += to_write;
+      content_written += to_write;
+
+
+      {
+        // debug
+        // FPX_DEBUG("serving %s - %hhu%%", reqptr->uri, (content_written * 100) / content_length);
+      }
+
+
+      send(client_fd, write_buffer, write_copy - write_buffer, 0);
+
+      write_copy = write_buffer;
+    }
+  } else {
+    send(client_fd, write_buffer, write_copy - write_buffer, 0);
   }
-
-  // debug print for the response
-  // FPX_DEBUG(write_buffer);
-
-  send(threadptr->pfds[client_id].fd, write_buffer, write_copy - write_buffer, 0);
 
   return 0;
 }

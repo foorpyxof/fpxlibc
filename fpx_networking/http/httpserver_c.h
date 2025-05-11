@@ -2,24 +2,25 @@
 #define FPX_HTTPSERVER_H
 
 ////////////////////////////////////////////////////////////////
-//  "httpserver.h"                                            //
+//  "httpserver_c.h"                                          //
 //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
 #include "http.h"
 
-typedef struct _fpx_httpserver        fpx_httpserver_t;
+typedef struct _fpx_httpserver fpx_httpserver_t;
 struct _fpx_httpserver_metadata;
-typedef void (*fpx_httpcallback_t)(fpx_httprequest_t*, fpx_httpresponse_t*);
+typedef void (*fpx_httpcallback_t)(const fpx_httprequest_t*, fpx_httpresponse_t*);
 
 // TODO: typedef struct _fpx_websocketclient   fpx_websocketclient_t;
 // TODO: typedef struct _fpx_websocketframe    fpx_websocketframe_t;
-// TODO: typedef void (*fpx_websocketcallback_t)(fpx_websocketclient_t*, const fpx_websocketframe_t);
+// TODO: typedef void (*fpx_websocketcallback_t)(const fpx_websocketclient_t*, const
+// fpx_websocketframe_t);
 
 
 enum fpx_httpserver_type {
-  Http = 0,       // this means HTTP ONLY
+  Http = 0,  // this means HTTP ONLY
   // TODO: WebSockets = 1, // this means HTTP + WebSockets
 };
 
@@ -42,7 +43,8 @@ enum fpx_httpserver_type {
  * will set it to the default instead. The default is specified
  * in the implementation file
  */
-int fpx_httpserver_init(fpx_httpserver_t*, const uint8_t http_threads, const uint8_t ws_threads, uint8_t max_endpoints);
+int fpx_httpserver_init(
+  fpx_httpserver_t*, const uint8_t http_threads, const uint8_t ws_threads, uint8_t max_endpoints);
 
 /**
  * Set the default headers to be applied to every outgoing response\
@@ -117,6 +119,24 @@ int fpx_httpserver_set_max_body(fpx_httpserver_t*, int16_t);
 int16_t fpx_httpserver_get_max_body(fpx_httpserver_t*);
 
 /**
+ * Set the callback function for the default, catch-all endpoint.
+ * If this function is never called, the endpoint will not be used.
+ *
+ * Input:
+ * - Pointer to the server to set the default callback for
+ * - Bitwise OR of the HTTP methods that are allowed on this endpoint
+ * (e.g. GET | POST | PUT allows GET, POST and PUT)
+ * - A callback function to run every time the endpoint is successfully contacted
+ *
+ * Returns:
+ * -  0 on success
+ * - -1 if any passed pointer is unexpectedly NULL
+ * - -2 if the server object is uninitialized
+ */
+int fpx_httpserver_set_default_endpoint(
+  fpx_httpserver_t*, const uint16_t methods, fpx_httpcallback_t);
+
+/**
  * Append an HTTP endpoint to the current list of endpoints
  *
  * Input:
@@ -137,7 +157,8 @@ int16_t fpx_httpserver_get_max_body(fpx_httpserver_t*);
  * - If the URI is missing a leading '/', this will be prepended.
  * - The URI will be processed first and any '.'s or '..'s will be removed.
  */
-int fpx_httpserver_create_endpoint(fpx_httpserver_t*, const char* uri, const uint16_t methods, fpx_httpcallback_t callback);
+int fpx_httpserver_create_endpoint(
+  fpx_httpserver_t*, const char* uri, const uint16_t methods, fpx_httpcallback_t callback);
 
 /**
  * Start listening for HTTP requests on [ip]:[port]
@@ -174,7 +195,7 @@ int fpx_httpserver_listen(fpx_httpserver_t*, const char* ip, const uint16_t port
 int fpx_httpserver_close(fpx_httpserver_t*);
 
 struct _fpx_httpserver {
-  struct _fpx_httpserver_metadata* _metadata;
+    struct _fpx_httpserver_metadata* _metadata;
 };
 
-#endif // FPX_HTTPSERVER_H
+#endif  // FPX_HTTPSERVER_H
