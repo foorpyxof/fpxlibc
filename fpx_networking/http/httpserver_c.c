@@ -10,7 +10,6 @@
 #include "../netutils.h"
 
 #include <arpa/inet.h>
-#include <bits/pthreadtypes.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <poll.h>
@@ -46,13 +45,16 @@
 #define BUFFER_DEFAULT 16384
 
 #define MAX_HEADERS 4096
-#define MAX_BODY 8192
+// #define MAX_BODY 8192
 
 /* this is the HTTP version that will be used in responses */
 #define HTTP_VERSION 1.1
 
-/* this is the keepalive time to enforce on the server */
+/* this is the default keepalive time to enforce on the server */
 #define KEEPALIVE_SECONDS 7
+
+/* this is the default maximum idle timer for websocket connections */
+#define WS_TIMEOUT_SECONDS 60
 
 #define SERVER_HEADER "fpx_http"
 
@@ -66,7 +68,7 @@
   }
 
 // struct forward declarations
-union _client_meta;
+struct _client_meta;
 
 struct _thread;
 
@@ -134,16 +136,13 @@ enum _ws_client_flags {
 };
 
 struct _fpx_websocketclient {
-    time_t last_time;
-    struct sockaddr in_address;
-
+    char uri[256];
     uint8_t flags;
 };
 
-union _client_meta {
-    struct {
-        time_t last_time;
-    } http;
+struct _client_meta {
+    time_t last_time;
+    struct sockaddr in_address;
 
     fpx_websocketclient_t ws;
 };
@@ -157,7 +156,7 @@ struct _thread {
 
     int connection_count;
     struct pollfd* pfds;
-    union _client_meta* client_data;
+    struct _client_meta* client_data;
 
     // function pointer to the client handler; (HTTP or websockets)
     int (*handler)(struct _thread*, int);
@@ -194,7 +193,7 @@ struct _fpx_httpserver_metadata {
 
     uint8_t is_listening;
 
-    int16_t max_body_size;
+    // int16_t max_body_size;
 };
 // end struct definitions
 
@@ -239,6 +238,9 @@ int fpx_httpserver_init(fpx_httpserver_t* srvptr, const uint8_t http_threads,
     free(meta);
     return errno;
   }
+
+  srvptr->keepalive_timeout = KEEPALIVE_SECONDS;
+  srvptr->websockets_timeout = WS_TIMEOUT_SECONDS;
 
   fpx_httpserver_set_default_headers(srvptr, "server: " SERVER_HEADER "\r\n");
 
@@ -332,20 +334,20 @@ int fpx_httpserver_get_default_headers(fpx_httpserver_t* srvptr, char* outbuf, s
 }
 
 
-int fpx_httpserver_set_max_body(fpx_httpserver_t* srvptr, int16_t maxsize) {
-  SRV_ASSERT(srvptr);
-
-  srvptr->_internal->max_body_size = maxsize;
-
-  return 0;
-}
-
-
-int16_t fpx_httpserver_get_max_body(fpx_httpserver_t* srvptr) {
-  SRV_ASSERT(srvptr);
-
-  return srvptr->_internal->max_body_size;
-}
+// int fpx_httpserver_set_max_body(fpx_httpserver_t* srvptr, int16_t maxsize) {
+//   SRV_ASSERT(srvptr);
+//
+//   srvptr->_internal->max_body_size = maxsize;
+//
+//   return 0;
+// }
+//
+//
+// int16_t fpx_httpserver_get_max_body(fpx_httpserver_t* srvptr) {
+//   SRV_ASSERT(srvptr);
+//
+//   return srvptr->_internal->max_body_size;
+// }
 
 
 int fpx_httpserver_set_default_endpoint(
@@ -554,7 +556,9 @@ int fpx_httpserver_listen(fpx_httpserver_t* srvptr, const char* ip, const uint16
       _apply_default_headers(srvptr, &res);
       SET_HTTP_503(srvptr, res, "", 0);
       fpx_httpresponse_add_header(&res, "retry-after", "60");
-      _send_response(NULL, &res, client);
+      if (-10 == _send_response(NULL, &res, client)) {
+        // broken pipe
+      }
 
       FPX_WARN("Server full; connection refused\n");
       continue;
@@ -736,8 +740,8 @@ static void _thread_init(struct _thread* t) {
   }
 
   {
-    int bytes = CLIENTS_DEFAULT * sizeof(union _client_meta);
-    t->client_data = (union _client_meta*)malloc(bytes);
+    int bytes = CLIENTS_DEFAULT * sizeof(struct _client_meta);
+    t->client_data = (struct _client_meta*)malloc(bytes);
     fpx_memset(t->client_data, -1, bytes);
   }
 
@@ -766,8 +770,17 @@ static void* _thread_loop(void* tp) {
       // if http_thread, check for keepalive
       if (t->thread_type == HttpThread) {
         for (int i = 0; i < t->connection_count; ++i) {
-          if ((time(NULL) - t->client_data[i].http.last_time) > KEEPALIVE_SECONDS) {
+          if ((time(NULL) - t->client_data[i].last_time) > t->server->keepalive_timeout) {
             FPX_DEBUG("Keepalive timeout reached\n");
+            _disconnect_client(t, i, TRUE);
+          }
+        }
+      }
+
+      if (t->thread_type == WebSocketsThread) {
+        for (int i = 0; i < t->connection_count; ++i) {
+          if ((time(NULL) - t->client_data[i].last_time) > t->server->websockets_timeout) {
+            FPX_DEBUG("WebSocket timeout reached\n");
             _disconnect_client(t, i, TRUE);
           }
         }
@@ -814,7 +827,7 @@ static int _add_client_to_thread(struct _thread* t, int client_fd) {
     return -3;
 
   struct pollfd* pfd = &t->pfds[t->connection_count];
-  union _client_meta* client_meta = &t->client_data[t->connection_count];
+  struct _client_meta* client_meta = &t->client_data[t->connection_count];
 
   fpx_memset(pfd, 0, sizeof(struct pollfd));
   pfd->fd = client_fd;
@@ -822,7 +835,7 @@ static int _add_client_to_thread(struct _thread* t, int client_fd) {
 
   fpx_memset(client_meta, 0, sizeof(*client_meta));
 
-  time(&client_meta->http.last_time);
+  time(&client_meta->last_time);
 
   return t->connection_count++;
 }
@@ -897,9 +910,12 @@ static void _on_response_ready(
     }
   }
 
-  _send_response(reqptr, resptr, thread->pfds[idx].fd);
+  if (-10 == _send_response(reqptr, resptr, thread->pfds[idx].fd)) {
+    // broken pipe
+    closing = TRUE;
+  }
 
-  time(&thread->client_data[idx].http.last_time);
+  time(&thread->client_data[idx].last_time);
 
   if (closing) {
     FPX_DEBUG("Disconnecting client %d in thread %lu\n", idx, thread->thread);
@@ -1065,6 +1081,8 @@ static void _upgrade_to_ws(struct _thread* thread, int idx) {
   int new_index = _add_client_to_thread(lowest_thread, thread->pfds[idx].fd);
   if (0 == new_index)
     pthread_cond_signal(&lowest_thread->loop_condition);
+
+  lowest_thread->client_data[new_index] = thread->client_data[idx];
 
   pthread_mutex_unlock(&lowest_thread->loop_mutex);
 
@@ -1444,6 +1462,8 @@ static int _send_response(fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr,
     write_copy += 2;
   }
 
+  int sent_success = 0;
+
   // body
   if (resptr->content.body_len > 0 && (NULL == reqptr || FALSE == (reqptr->method & HEAD))) {
     int content_written = 0;
@@ -1466,12 +1486,17 @@ static int _send_response(fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr,
       write_copy += to_write;
       content_written += to_write;
 
-      send(client_fd, write_buffer, write_copy - write_buffer, send_flags);
+      sent_success = send(client_fd, write_buffer, write_copy - write_buffer, send_flags);
 
       write_copy = write_buffer;
     }
   } else {
-    send(client_fd, write_buffer, write_copy - write_buffer, send_flags);
+    sent_success = send(client_fd, write_buffer, write_copy - write_buffer, send_flags);
+  }
+
+  if (-1 == sent_success) {
+    if (errno == EPIPE)
+      return -10;
   }
 
   return 0;
@@ -1528,7 +1553,14 @@ static void _handle_control_frame(
         fpx_websocketframe_append_payload(
           &close_frame, incoming_frame->payload, incoming_frame->payload_length);
 
-        fpx_websocketframe_send(&close_frame, fd);
+        int sent_status = fpx_websocketframe_send(&close_frame, fd);
+        if (sent_status > 0) {
+          // error happened
+          if (sent_status == EPIPE)
+            FPX_WARN("Broken client pipe");
+          else
+            perror("fpx_websocketframe_send()");
+        }
 
         fpx_websocketframe_destroy(&close_frame);
       }
@@ -1546,8 +1578,18 @@ static void _handle_control_frame(
 
         fpx_websocketframe_append_payload(
           &pong_frame, incoming_frame->payload, incoming_frame->payload_length);
-      }
 
+        int sent_status = fpx_websocketframe_send(&pong_frame, fd);
+        if (sent_status > 0) {
+          // error happened
+          if (sent_status == EPIPE)
+            FPX_WARN("Broken client pipe");
+          else
+            perror("fpx_websocketframe_send()");
+        }
+
+        fpx_websocketframe_destroy(&pong_frame);
+      }
       break;
 
     case WEBSOCKET_PONG:
@@ -1567,7 +1609,7 @@ static int _ws_handle_client(struct _thread* thread, int idx) {
 
   uint8_t read_buffer[BUFFER_DEFAULT] = { 0 };
 
-  fpx_websocketclient_t* cliptr = &(thread->client_data[idx].ws);
+  struct _client_meta* cliptr = &(thread->client_data[idx]);
 
   // read from socket
   int fd = thread->pfds[idx].fd;
@@ -1596,8 +1638,8 @@ static int _ws_handle_client(struct _thread* thread, int idx) {
       return parse_result;
   }
 
-  if (FALSE == (cliptr->flags & CLOSE_SENT)) {
-    _ws_frame_validate(&incoming_frame, cliptr, fd);
+  if (FALSE == (cliptr->ws.flags & CLOSE_SENT)) {
+    _ws_frame_validate(&incoming_frame, &cliptr->ws, fd);
   }
 
   time(&cliptr->last_time);
@@ -1605,15 +1647,15 @@ static int _ws_handle_client(struct _thread* thread, int idx) {
   for (int i = 0; i < incoming_frame.payload_length; ++i)
     incoming_frame.payload[i] ^= incoming_frame.masking_key[i % 4];
 
-  if (FALSE == (incoming_frame.opcode & 0x80) && FALSE == (cliptr->flags & CLOSE_SENT)) {
+  if (FALSE == (incoming_frame.opcode & 0x80) && FALSE == (cliptr->ws.flags & CLOSE_SENT)) {
     // NOT a control frame
     thread->server->ws_callback(&incoming_frame, fd, &(cliptr->in_address));
   } else if (125 >= incoming_frame.payload_length) {
     // 125 is max payload length for control frames
-    _handle_control_frame(&incoming_frame, cliptr, fd);
+    _handle_control_frame(&incoming_frame, &cliptr->ws, fd);
   }
 
-  if (cliptr->flags & (CLOSE_SENT | CLOSE_RECV))
+  if (cliptr->ws.flags & (CLOSE_SENT | CLOSE_RECV))
     // we close
     _disconnect_client(thread, idx, TRUE);
 

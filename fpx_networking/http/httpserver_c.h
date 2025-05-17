@@ -104,7 +104,7 @@ int fpx_httpserver_get_default_headers(fpx_httpserver_t*, char*, size_t);
  * - -1 if any passed pointer is unexpectedly NULL
  * - -2 if the server object is uninitialized
  */
-int fpx_httpserver_set_max_body(fpx_httpserver_t*, int16_t);
+// int fpx_httpserver_set_max_body(fpx_httpserver_t*, int16_t);
 
 /**
  * Get the current max body length enforced on the HTTP server
@@ -117,7 +117,7 @@ int fpx_httpserver_set_max_body(fpx_httpserver_t*, int16_t);
  * - -1 if any passed pointer is unexpectedly NULL
  * - -2 if the server object is uninitialized
  */
-int16_t fpx_httpserver_get_max_body(fpx_httpserver_t*);
+// int16_t fpx_httpserver_get_max_body(fpx_httpserver_t*);
 
 /**
  * Set the callback function for the default, catch-all endpoint.
@@ -205,6 +205,9 @@ struct _fpx_httpserver {
     uint8_t ws_thread_count;
 
     fpx_websocketcallback_t ws_callback;
+
+    uint32_t keepalive_timeout;
+    uint32_t websockets_timeout;
 
     struct _fpx_httpserver_metadata* _internal;
 };

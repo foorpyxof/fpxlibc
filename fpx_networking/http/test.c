@@ -27,7 +27,11 @@ void ws_callback(
   out_frame.final = TRUE;
   out_frame.opcode = incoming->opcode;
 
-  FPX_DEBUG("payload: %s", incoming->payload);
+  if (NULL != incoming->payload)
+    FPX_DEBUG("payload: %s\n", incoming->payload);
+
+  // uint8_t msg[] = "Message from WS-server: ";
+  // fpx_websocketframe_append_payload(&out_frame, msg, sizeof(msg) - 1);
 
   fpx_websocketframe_append_payload(&out_frame, incoming->payload, incoming->payload_length);
 

@@ -350,13 +350,18 @@ int fpx_websocketframe_append_payload(
 int fpx_websocketframe_send(const fpx_websocketframe_t* frameptr, int fd) {
   uint8_t write_buf[BUFFER_DEFAULT] = { 0 };
 
+  // to ignore SIGPIPE when writing to a disconnected client
+  int send_flags = MSG_NOSIGNAL;
+
   {
     uint8_t meta_byte = 0x0;
     meta_byte |= ((frameptr->final != 0) << 7);  // fin bit is MSB of byte
     meta_byte |= (frameptr->opcode & 0x0f);      // set op-code
 
-    send(fd, &meta_byte, 1, MSG_MORE);  // send meta_byte
+    if (0 > send(fd, &meta_byte, 1, MSG_MORE | send_flags))  // send meta_byte
+      return errno;
   }
+
 
   uint8_t len_len = 0;
 
@@ -376,8 +381,10 @@ int fpx_websocketframe_send(const fpx_websocketframe_t* frameptr, int fd) {
     if (frameptr->mask_set)
       payload_len_first_byte |= 0x80;
 
-    send(fd, &payload_len_first_byte, 1, MSG_MORE);
+    if (0 > send(fd, &payload_len_first_byte, 1, MSG_MORE | send_flags))
+      return errno;
   }
+
 
   {
     uint16_t short_len;
@@ -396,7 +403,7 @@ int fpx_websocketframe_send(const fpx_websocketframe_t* frameptr, int fd) {
     fpx_network_order(the_length, len_len);
 
     int flag = (0 < frameptr->payload_length) ? MSG_MORE : 0;
-    if (0 > send(fd, the_length, len_len, flag))
+    if (0 > send(fd, the_length, len_len, flag | send_flags))
       return errno;
   }
 
@@ -419,7 +426,7 @@ int fpx_websocketframe_send(const fpx_websocketframe_t* frameptr, int fd) {
 
     payload_written += to_write;
 
-    if (0 > send(fd, write_buf, to_write, 0))
+    if (0 > send(fd, write_buf, to_write, 0 | send_flags))
       return errno;
   }
 

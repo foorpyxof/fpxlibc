@@ -1,12 +1,12 @@
 #!/bin/bash
 
-CFLAGS="-g -O0"
+CFLAGS="-g -O3"
 
 if [[ "$1" == "debug" ]]; then
   CFLAGS+=" -DFPX_DEBUG_ENABLE"
 fi
 
-clang \
+gcc \
   test.c \
   http.c \
   httpserver_c.c \
