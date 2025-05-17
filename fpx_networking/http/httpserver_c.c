@@ -1557,7 +1557,7 @@ static void _handle_control_frame(
         if (sent_status > 0) {
           // error happened
           if (sent_status == EPIPE)
-            FPX_WARN("Broken client pipe");
+            FPX_WARN("Broken client pipe\n");
           else
             perror("fpx_websocketframe_send()");
         }

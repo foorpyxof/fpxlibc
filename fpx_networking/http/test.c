@@ -6,8 +6,10 @@
 #include "websockets.h"
 
 #include <fcntl.h>
+#include <pthread.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 #define IP "0.0.0.0"
 #define PORT 8080
@@ -18,26 +20,66 @@ struct file_to_serve {
     int file_size;
 };
 
+void* sender(void* filedescriptor) {
+  int fd = *((int*)filedescriptor);
+
+  while (TRUE) {
+    fpx_websocketframe_t out_frame;
+    fpx_websocketframe_init(&out_frame);
+
+    out_frame.final = TRUE;
+    out_frame.opcode = WEBSOCKET_TEXT;
+
+    const uint8_t msg[] = "websocket looper message!";
+    fpx_websocketframe_append_payload(&out_frame, msg, sizeof(msg) - 1);
+    int sent_status = fpx_websocketframe_send(&out_frame, fd);
+    fpx_websocketframe_destroy(&out_frame);
+
+    if (sent_status != 0) {
+      // something went wrong ooops
+      char file_and_line[64] = { 0 };
+      FPX_LINE_INFO(file_and_line);
+
+      FPX_WARN("sending went wrong: return code %d | %s\n", sent_status, file_and_line);
+
+      break;
+    }
+
+    usleep(500000);
+  }
+
+  return NULL;
+}
+
 void ws_callback(
   const fpx_websocketframe_t* incoming, int fd, const struct sockaddr* client_address) {
 
-  fpx_websocketframe_t out_frame;
-  fpx_websocketframe_init(&out_frame);
+  // fpx_websocketframe_t out_frame;
+  // fpx_websocketframe_init(&out_frame);
+  //
+  // out_frame.final = TRUE;
+  // out_frame.opcode = incoming->opcode;
+  //
+  // if (NULL != incoming->payload)
+  //   FPX_DEBUG("payload: %s\n", incoming->payload);
+  //
+  // // uint8_t msg[] = "Message from WS-server: ";
+  // // fpx_websocketframe_append_payload(&out_frame, msg, sizeof(msg) - 1);
+  //
+  // fpx_websocketframe_append_payload(&out_frame, incoming->payload, incoming->payload_length);
+  //
+  // fpx_websocketframe_send(&out_frame, fd);
+  //
+  // fpx_websocketframe_destroy(&out_frame);
 
-  out_frame.final = TRUE;
-  out_frame.opcode = incoming->opcode;
+  pthread_t t;
 
-  if (NULL != incoming->payload)
-    FPX_DEBUG("payload: %s\n", incoming->payload);
+  pthread_create(&t, NULL, sender, &fd);
 
-  // uint8_t msg[] = "Message from WS-server: ";
-  // fpx_websocketframe_append_payload(&out_frame, msg, sizeof(msg) - 1);
+  usleep(10000);
+  pthread_detach(t);
 
-  fpx_websocketframe_append_payload(&out_frame, incoming->payload, incoming->payload_length);
-
-  fpx_websocketframe_send(&out_frame, fd);
-
-  fpx_websocketframe_destroy(&out_frame);
+  return;
 }
 
 void root_callback(const fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr) {
