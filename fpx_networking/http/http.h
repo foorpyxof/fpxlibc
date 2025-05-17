@@ -236,6 +236,19 @@ int fpx_httprequest_get_body_length(fpx_httprequest_t*);
 int fpx_httprequest_copy(fpx_httprequest_t* _dst, const fpx_httprequest_t* _src);
 
 /**
+ * Free all the underlying memory contained within the httprequest object
+ *
+ * Input:
+ * - Pointer to the request object to prepare for destruction
+ *
+ * Returns:
+ * -  0 on success
+ * - -1 if any passed pointer is unexpectedly NULL
+ * - -2 if an unknown error occured
+ */
+int fpx_httprequest_destroy(fpx_httprequest_t*);
+
+/**
  * Initialize a httpresponse object to defaults (zeroes)
  *
  * Input:
@@ -383,6 +396,19 @@ int fpx_httpresponse_get_body_length(fpx_httpresponse_t*);
  * - -3 if an unknown error occurs
  */
 int fpx_httpresponse_copy(fpx_httpresponse_t* _dst, const fpx_httpresponse_t* _src);
+
+/**
+ * Free all the underlying memory contained within the httpresponse object
+ *
+ * Input:
+ * - Pointer to the response object to prepare for destruction
+ *
+ * Returns:
+ * -  0 on success
+ * - -1 if any passed pointer is unexpectedly NULL
+ * - -2 if an unknown error occured
+ */
+int fpx_httpresponse_destroy(fpx_httpresponse_t*);
 
 struct _fpx_http_content {
     char version[16];

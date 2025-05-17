@@ -3,9 +3,11 @@
 
 #include "../../fpx_mem/mem.h"
 #include "http.h"
+#include "websockets.h"
 
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/socket.h>
 
 #define IP "0.0.0.0"
 #define PORT 8080
@@ -16,13 +18,36 @@ struct file_to_serve {
     int file_size;
 };
 
+void ws_callback(
+  const fpx_websocketframe_t* incoming, int fd, const struct sockaddr* client_address) {
+
+  fpx_websocketframe_t out_frame;
+  fpx_websocketframe_init(&out_frame);
+
+  out_frame.final = TRUE;
+  out_frame.opcode = incoming->opcode;
+
+  FPX_DEBUG("payload: %s", incoming->payload);
+
+  fpx_websocketframe_append_payload(&out_frame, incoming->payload, incoming->payload_length);
+
+  fpx_websocketframe_send(&out_frame, fd);
+
+  fpx_websocketframe_destroy(&out_frame);
+}
+
 void root_callback(const fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr) {
-  static struct file_to_serve files[4];
+  return;
+}
+
+void source_callback(const fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr) {
+  static struct file_to_serve files[5];
 
   fpx_memcpy(files[0].name, "http.h", 7);
   fpx_memcpy(files[1].name, "http.c", 7);
   fpx_memcpy(files[2].name, "httpserver_c.h", 15);
   fpx_memcpy(files[3].name, "httpserver_c.c", 15);
+  fpx_memcpy(files[4].name, "test.c", 7);
 
   for (int i = 0; i < sizeof(files) / sizeof(files[0]); ++i) {
 
@@ -40,7 +65,7 @@ void root_callback(const fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr) 
 
         FPX_ERROR("%s", body);
 
-        continue;
+        return;
       }
 
       fseek(fp, 0, SEEK_END);
@@ -63,9 +88,12 @@ void root_callback(const fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr) 
 int main() {
   fpx_httpserver_t serv;
 
-  fpx_httpserver_init(&serv, 1, 1, 16);
+  fpx_httpserver_init(&serv, 8, 1, 16);
+
+  serv.ws_callback = ws_callback;
 
   fpx_httpserver_create_endpoint(&serv, "/", GET, root_callback);
+  fpx_httpserver_create_endpoint(&serv, "/source", GET, source_callback);
 
   fpx_httpserver_listen(&serv, IP, PORT);
 }

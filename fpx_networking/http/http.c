@@ -5,10 +5,14 @@
 ////////////////////////////////////////////////////////////////
 
 #include "http.h"
+#include "../netutils.h"
+#include "websockets.h"
 
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>  // malloc()
+#include <sys/socket.h>
 
 // START OF FPXLIBC LINK-TIME DEPENDENCIES
 #include "../../fpx_mem/mem.h"
@@ -17,6 +21,8 @@
 
 #define URI_MAXLENGTH 255
 #define HTTP_DATA_ALLOC_BLOCK_SIZE 512
+
+#define BUFFER_DEFAULT 16384
 
 static int _set_http_version(struct _fpx_http_content* _cnt, const char* _version);
 static int _get_http_version(struct _fpx_http_content* _cnt, char* _output, size_t _maxlen);
@@ -30,6 +36,7 @@ static int _get_http_body(struct _fpx_http_content* _cnt, char* _output, size_t 
 
 static int _copy_http_content(struct _fpx_http_content* _dst, const struct _fpx_http_content* _src);
 
+static int _destroy_http_content(struct _fpx_http_content* cntptr);
 
 int fpx_httprequest_init(fpx_httprequest_t* reqptr) {
   if (NULL == reqptr)
@@ -159,6 +166,14 @@ int fpx_httprequest_copy(fpx_httprequest_t* _dst, const fpx_httprequest_t* _src)
 }
 
 
+int fpx_httprequest_destroy(fpx_httprequest_t* reqptr) {
+  if (NULL == reqptr)
+    return -1;
+
+  return _destroy_http_content(&reqptr->content);
+}
+
+
 int fpx_httpresponse_init(fpx_httpresponse_t* resptr) {
   if (NULL == resptr)
     return -1;
@@ -238,11 +253,219 @@ int fpx_httpresponse_copy(fpx_httpresponse_t* _dst, const fpx_httpresponse_t* _s
 }
 
 
+int fpx_httpresponse_destroy(fpx_httpresponse_t* resptr) {
+  if (NULL == resptr)
+    return -1;
+
+  return _destroy_http_content(&resptr->content);
+}
+
+
+int fpx_websocket_send_close(
+  int filedescriptor, int16_t code, const uint8_t* reason, uint8_t reason_length, uint8_t masked) {
+
+  fpx_websocketframe_t close_frame = { .final = TRUE,
+    .mask_set = ((FALSE == masked) ? 0 : 1),
+    .opcode = WEBSOCKET_CLOSE,
+    .reserved1 = FALSE,
+    .reserved2 = FALSE,
+    .reserved3 = FALSE,
+    .payload = NULL,
+    .payload_length = 0,
+    .payload_allocated = 0 };
+
+  if (0 > code) {
+    reason_length = 0;
+  } else {
+    fpx_network_order(&code, sizeof(code));
+    fpx_websocketframe_append_payload(&close_frame, (uint8_t*)&code, sizeof(code));
+  }
+
+  if (reason_length > 123)
+    reason_length = 123;
+
+  if (NULL != reason && reason_length > 0)
+    fpx_websocketframe_append_payload(&close_frame, reason, reason_length);
+
+  int retval = fpx_websocketframe_send(&close_frame, filedescriptor);
+
+  fpx_websocketframe_destroy(&close_frame);
+
+  return retval;
+}
+
+
+int fpx_websocketframe_init(fpx_websocketframe_t* frameptr) {
+  if (NULL == frameptr)
+    return -1;
+
+  fpx_memset(frameptr, 0, sizeof(*frameptr));
+
+  return 0;
+}
+
+
+#define FPX_ALLOC_CALC(output, old_len, new_len)                                            \
+  output = HTTP_DATA_ALLOC_BLOCK_SIZE * ((old_len + new_len) / HTTP_DATA_ALLOC_BLOCK_SIZE); \
+  if ((old_len + new_len) % HTTP_DATA_ALLOC_BLOCK_SIZE != 0)                                \
+  output += HTTP_DATA_ALLOC_BLOCK_SIZE
+
+int fpx_websocketframe_append_payload(
+  fpx_websocketframe_t* frameptr, const uint8_t* payload, size_t payload_len) {
+  if (NULL == frameptr)
+    return -1;
+
+  if (payload_len < 1)
+    return 0;
+
+  size_t to_allocate;
+
+  FPX_ALLOC_CALC(to_allocate, frameptr->payload_length, payload_len);
+
+  if (NULL == frameptr->payload) {
+    frameptr->payload_length = 0;
+    frameptr->payload_allocated = 0;
+  }
+
+  if (frameptr->payload_allocated == 0) {
+    frameptr->payload = (uint8_t*)calloc(to_allocate, 1);
+  } else if (frameptr->payload_allocated < to_allocate) {
+    frameptr->payload = (uint8_t*)realloc(frameptr->payload, to_allocate);
+  }
+
+  if (NULL == frameptr->payload) {
+    // bad alloc
+    return -2;
+  }
+
+  fpx_memcpy(&frameptr->payload[frameptr->payload_length], payload, payload_len);
+
+  frameptr->payload_length += payload_len;
+  frameptr->payload_allocated = to_allocate;
+
+  return 0;
+}
+
+
+int fpx_websocketframe_send(const fpx_websocketframe_t* frameptr, int fd) {
+  uint8_t write_buf[BUFFER_DEFAULT] = { 0 };
+
+  {
+    uint8_t meta_byte = 0x0;
+    meta_byte |= ((frameptr->final != 0) << 7);  // fin bit is MSB of byte
+    meta_byte |= (frameptr->opcode & 0x0f);      // set op-code
+
+    send(fd, &meta_byte, 1, MSG_MORE);  // send meta_byte
+  }
+
+  uint8_t len_len = 0;
+
+  {
+    uint8_t payload_len_first_byte = 0;
+
+    if (frameptr->payload_length < 126)
+      payload_len_first_byte = frameptr->payload_length;
+    else if (frameptr->payload_length <= USHRT_MAX) {
+      payload_len_first_byte = 126;
+      len_len = 2;
+    } else {
+      payload_len_first_byte = 127;
+      len_len = 8;
+    }
+
+    if (frameptr->mask_set)
+      payload_len_first_byte |= 0x80;
+
+    send(fd, &payload_len_first_byte, 1, MSG_MORE);
+  }
+
+  {
+    uint16_t short_len;
+    uint64_t longlong_len;
+
+    void* the_length;
+
+    if (2 == len_len) {
+      short_len = frameptr->payload_length;
+      the_length = &short_len;
+    } else if (8 == len_len) {
+      longlong_len = frameptr->payload_length;
+      the_length = &longlong_len;
+    }
+
+    fpx_network_order(the_length, len_len);
+
+    int flag = (0 < frameptr->payload_length) ? MSG_MORE : 0;
+    if (0 > send(fd, the_length, len_len, flag))
+      return errno;
+  }
+
+  uint64_t payload_written = 0;
+  while (payload_written < frameptr->payload_length) {
+    int to_write = (frameptr->payload_length - payload_written);
+    int remaining_space = sizeof(write_buf);
+
+    if (to_write > remaining_space)
+      to_write = remaining_space;
+
+    fpx_memcpy(write_buf, frameptr->payload + payload_written, to_write);
+
+    // mask the payload
+    if (frameptr->mask_set) {
+      for (int i = 0; i < to_write; ++i) {
+        write_buf[i] ^= frameptr->masking_key[i % 4];
+      }
+    }
+
+    payload_written += to_write;
+
+    if (0 > send(fd, write_buf, to_write, 0))
+      return errno;
+  }
+
+  return 0;
+}
+
+
+int fpx_websocketframe_destroy(fpx_websocketframe_t* frameptr) {
+  if (NULL == frameptr)
+    return -1;
+
+  if (0 < frameptr->payload_allocated) {
+    fpx_memset(frameptr->payload, 0, frameptr->payload_length);
+    free(frameptr->payload);
+    frameptr->payload_length = 0;
+  }
+
+  return 0;
+}
+
+
 // ------------------------------------------------------- //
 // ------------------------------------------------------- //
 // ---------- STATIC FUNCTION DEFINITIONS BELOW ---------- //
 // ------------------------------------------------------- //
 // ------------------------------------------------------- //
+
+
+static int _destroy_http_content(struct _fpx_http_content* cntptr) {
+  if (NULL == cntptr)
+    return -2;
+
+  if (0 < cntptr->body_allocated) {
+    fpx_memset(cntptr->body, 0, cntptr->body_len);
+    free(cntptr->body);
+    cntptr->body_len = 0;
+  }
+
+  if (0 < cntptr->headers_allocated) {
+    fpx_memset(cntptr->headers, 0, cntptr->headers_len);
+    free(cntptr->headers);
+    cntptr->headers_len = 0;
+  }
+
+  return 0;
+}
 
 
 int _set_http_version(struct _fpx_http_content* cntptr, const char* input) {
@@ -295,16 +518,15 @@ static int _add_http_header(struct _fpx_http_content* cntptr, const char* key, c
     valuelen +             // header value length
     2;                     // "\r\n"
 
-  to_allocate = HTTP_DATA_ALLOC_BLOCK_SIZE *
-    ((cntptr->headers_len + new_header_len) / HTTP_DATA_ALLOC_BLOCK_SIZE);
-  if ((cntptr->headers_len + new_header_len) % HTTP_DATA_ALLOC_BLOCK_SIZE != 0)
-    to_allocate += HTTP_DATA_ALLOC_BLOCK_SIZE;
+  FPX_ALLOC_CALC(to_allocate, cntptr->headers_len, new_header_len);
 
   if (NULL == cntptr->headers) {
     cntptr->headers_len = 0;
     cntptr->headers_allocated = 0;
+  }
 
-    cntptr->headers = (char*)malloc(to_allocate);
+  if (cntptr->headers_allocated == 0) {
+    cntptr->headers = (char*)calloc(to_allocate, 1);
   } else if (to_allocate > cntptr->headers_allocated) {
     cntptr->headers = (char*)realloc(cntptr->headers, to_allocate);
   }
@@ -418,16 +640,15 @@ static int _append_http_body(
 
   size_t to_allocate;
 
-  to_allocate =
-    HTTP_DATA_ALLOC_BLOCK_SIZE * ((cntptr->body_len + body_len) / HTTP_DATA_ALLOC_BLOCK_SIZE);
-  if ((cntptr->body_len + body_len) % HTTP_DATA_ALLOC_BLOCK_SIZE != 0)
-    to_allocate += HTTP_DATA_ALLOC_BLOCK_SIZE;
+  FPX_ALLOC_CALC(to_allocate, cntptr->body_len, body_len);
 
   if (NULL == cntptr->body) {
     cntptr->body_len = 0;
     cntptr->body_allocated = 0;
+  }
 
-    cntptr->body = (char*)malloc(to_allocate);
+  if (cntptr->body_allocated == 0) {
+    cntptr->body = (char*)calloc(to_allocate, 1);
   } else if (cntptr->body_allocated < to_allocate) {
     cntptr->body = (char*)realloc(cntptr->body, to_allocate);
   }

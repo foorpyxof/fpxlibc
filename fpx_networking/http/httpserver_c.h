@@ -1,27 +1,28 @@
 #ifndef FPX_HTTPSERVER_H
 #define FPX_HTTPSERVER_H
 
+#include "http.h"
+#include "websockets.h"
+#include <sys/socket.h>
+
 ////////////////////////////////////////////////////////////////
 //  "httpserver_c.h"                                          //
 //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "http.h"
-
 typedef struct _fpx_httpserver fpx_httpserver_t;
 struct _fpx_httpserver_metadata;
 typedef void (*fpx_httpcallback_t)(const fpx_httprequest_t*, fpx_httpresponse_t*);
 
-// TODO: typedef struct _fpx_websocketclient   fpx_websocketclient_t;
-// TODO: typedef struct _fpx_websocketframe    fpx_websocketframe_t;
-// TODO: typedef void (*fpx_websocketcallback_t)(const fpx_websocketclient_t*, const
-// fpx_websocketframe_t);
+typedef struct _fpx_websocketclient fpx_websocketclient_t;
+typedef void (*fpx_websocketcallback_t)(
+  const fpx_websocketframe_t* _incoming, int file_descriptor, const struct sockaddr*);
 
 
 enum fpx_httpserver_type {
-  Http = 0,  // this means HTTP ONLY
-  // TODO: WebSockets = 1, // this means HTTP + WebSockets
+  Http = 0,        // this means HTTP ONLY
+  WebSockets = 1,  // this means HTTP + WebSockets
 };
 
 /**
@@ -194,8 +195,18 @@ int fpx_httpserver_listen(fpx_httpserver_t*, const char* ip, const uint16_t port
  */
 int fpx_httpserver_close(fpx_httpserver_t*);
 
+
 struct _fpx_httpserver {
-    struct _fpx_httpserver_metadata* _metadata;
+    enum fpx_httpserver_type server_type;
+
+    uint8_t max_endpoints;
+
+    uint8_t http_thread_count;
+    uint8_t ws_thread_count;
+
+    fpx_websocketcallback_t ws_callback;
+
+    struct _fpx_httpserver_metadata* _internal;
 };
 
 #endif  // FPX_HTTPSERVER_H
