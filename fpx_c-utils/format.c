@@ -59,7 +59,7 @@ int fpx_intstr(int input, char* output) {
 void* fpx_hexstr(void* input, size_t bytes, char* output, size_t buflen) {
   // output buffer too small;
   // we return NULL to indicate error
-  if (buflen < (bytes * 2)) return NULL;
+  if ((buflen < (bytes * 2)) || buflen == 0) return NULL;
 
   uint8_t terminate = 0;
   if (buflen > (bytes * 2)) terminate = 1;
@@ -85,18 +85,21 @@ void* fpx_hexstr(void* input, size_t bytes, char* output, size_t buflen) {
   for(int i = bytes-1; i > -1; --i) {
     uint8_t byte = ((uint8_t*)input)[i];
 
-    if (!started) {
-      if (byte / 16) { output[outputindex++] = hex_alphabet[byte / 16]; started = 1; }
-      if (byte % 16) { output[outputindex++] = hex_alphabet[byte % 16]; started = 1; }
-    } else {
+    //if (!started) {
+      //if (byte / 16) { output[outputindex++] = hex_alphabet[byte / 16]; started = 1; }
+      //if (byte % 16) { output[outputindex++] = hex_alphabet[byte % 16]; started = 1; }
+    //} else {
       output[outputindex++] = hex_alphabet[byte / 16];
       output[outputindex++] = hex_alphabet[byte % 16];
-    }
+    //}
   }
 
+  // this should literally never happen
   if (!output[0]) {
     output[0] = '0';
-    ++outputindex;
+    output[1] = '0';
+
+    outputindex += 2;
   }
 
   if (terminate) output[outputindex] = 0;
