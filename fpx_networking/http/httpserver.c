@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////////////////
-//  "httpserver_c.c"                                          //
+//  "httpserver.c"                                            //
 //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
 //  Author: Erynn 'foorpyxof' Scholtes                        //
 ////////////////////////////////////////////////////////////////
 
-#include "httpserver_c.h"
+#include "httpserver.h"
 #include "../../fpx_debug.h"
 #include "../../fpx_types.h"
 #include "../netutils.h"
@@ -24,6 +24,7 @@
 
 // START OF FPXLIBC LINK-TIME DEPENDENCIES
 #include "../../fpx_c-utils/crypto.h"  // requires crypto*.o
+#include "../../fpx_c-utils/endian.h"  // requires endian*.o
 #include "../../fpx_c-utils/format.h"  // requires format*.o
 #include "../../fpx_mem/mem.h"         // requires mem*.o
 #include "../../fpx_string/string.h"   // requires string*.o
@@ -76,30 +77,53 @@ struct _websocket_thread;
 
 struct _websocket_frame;
 
-struct _fpx_httpendpoint;
+struct _fpx_endpoint;
 struct _fpx_httpserver_metadata;
 // end of struct forward declarations
 
+/* start of static function declarations */
 static int _server_init_check(fpx_httpserver_t*);
 
-static int _sanitize_headers(const char* in, char* out, size_t out_len, size_t* copied_count);
+static int _endpoint_get(fpx_httpserver_t*, const char* uri);
+static int _available_endpoint_index(fpx_httpserver_t*, const char* uri);
+static int _fix_endpoint_uri(const char* in, char* out, size_t maxlen);
 
+
+static void _thread_init(struct _thread*);
 static void* _thread_loop(void* thread_package);
 
 static int _add_client_to_thread(struct _thread*, int client_fd);
 static int _disconnect_client(struct _thread* thread, int idx, uint8_t close_socket);
 
-static int _http_handle_client(struct _thread* thread, int idx);
-static int _http_parse_request_line(const char*, fpx_httprequest_t* output);
 
-// returns -2 on invalid request (400)
-// returns -3 if no content-length was passed, and thus no body was read
+static int _http_handle_client(struct _thread* thread, int idx);
 static int _http_parse_request(char* readbuf, int readbuf_len, fpx_httprequest_t* output);
-static int _apply_default_headers(fpx_httpserver_t* srvptr, fpx_httpresponse_t* resptr);
+static void _handle_http_endpoint(struct _thread*, fpx_httprequest_t*, fpx_httpresponse_t*);
 static int _send_response(fpx_httprequest_t*, fpx_httpresponse_t*, int client_fd);
+
 
 static int _ws_handle_client(struct _thread* thread, int idx);
 static int _ws_parse_request(uint8_t* readbuf, int readbuf_len, fpx_websocketframe_t* output);
+
+
+// returns -2 on invalid request (400)
+// returns -3 if no content-length was passed, and thus no body was read
+static int _apply_default_headers(fpx_httpserver_t* srvptr, fpx_httpresponse_t* resptr);
+static int _http_parse_request_line(const char*, fpx_httprequest_t* output);
+static int _sanitize_headers(const char* in, char* out, size_t out_len, size_t* copied_count);
+static int _is_upgradable(fpx_httprequest_t*);
+static void _set_keepalive(fpx_httprequest_t*, fpx_httpresponse_t*);
+static void _upgrade_to_ws(struct _thread*, int idx, fpx_websocketcallback_t);
+static void _on_response_ready(struct _thread*, fpx_httprequest_t*, fpx_httpresponse_t*, int idx);
+
+
+static int _ws_frame_validate(fpx_websocketframe_t*, fpx_websocketclient_t*, int fd);
+static void _handle_control_frame(fpx_websocketframe_t*, fpx_websocketclient_t*, int fd);
+static int _generate_ws_accept_header(fpx_httprequest_t*, char[32]);
+
+
+static int _check_manual_ws_upgrade(fpx_httprequest_t*, fpx_httpresponse_t*);
+/* end of static function declarations */
 
 
 #define SET_HTTPRESPONSE_PRESET(srvptr, res, code, reason_text, body, body_len)         \
@@ -128,6 +152,9 @@ static int _ws_parse_request(uint8_t* readbuf, int readbuf_len, fpx_websocketfra
 #define SET_HTTP_503(srvptr, res, body, body_len) \
   SET_HTTPRESPONSE_PRESET(srvptr, res, 503, "Service Unavailable", body, body_len)
 
+#define SET_HTTP_505(srvptr, res, body, body_len) \
+  SET_HTTPRESPONSE_PRESET(srvptr, res, 505, "HTTP Version Not Supported", body, body_len)
+
 
 // start struct definitions
 enum _ws_client_flags {
@@ -136,8 +163,8 @@ enum _ws_client_flags {
 };
 
 struct _fpx_websocketclient {
-    char uri[256];
     uint8_t flags;
+    fpx_websocketcallback_t callback;
 };
 
 struct _client_meta {
@@ -164,13 +191,14 @@ struct _thread {
     enum { HttpThread, WebSocketsThread } thread_type;
 };
 
-struct _fpx_httpendpoint {
+struct _fpx_endpoint {
     uint8_t active;
 
     char uri[256];
     uint16_t allowed_methods;
 
-    fpx_httpcallback_t callback;
+    fpx_httpcallback_t http_callback;
+    fpx_websocketcallback_t ws_callback;
 };
 
 struct _fpx_httpserver_metadata {
@@ -183,9 +211,9 @@ struct _fpx_httpserver_metadata {
     struct _thread* http_threads;
     struct _thread* ws_threads;
 
-    struct _fpx_httpendpoint default_endpoint;
+    struct _fpx_endpoint default_endpoint;
 
-    struct _fpx_httpendpoint* endpoints;
+    struct _fpx_endpoint* endpoints;
     uint8_t active_endpoints;
 
     char* default_headers;
@@ -232,7 +260,7 @@ int fpx_httpserver_init(fpx_httpserver_t* srvptr, const uint8_t http_threads,
 
   meta->default_endpoint.active = 0;
   meta->endpoints =
-    (struct _fpx_httpendpoint*)calloc(srvptr->max_endpoints, sizeof(*(meta->endpoints)));
+    (struct _fpx_endpoint*)calloc(srvptr->max_endpoints, sizeof(*(meta->endpoints)));
 
   if (NULL == meta->endpoints) {
     free(meta);
@@ -350,7 +378,7 @@ int fpx_httpserver_get_default_headers(fpx_httpserver_t* srvptr, char* outbuf, s
 // }
 
 
-int fpx_httpserver_set_default_endpoint(
+int fpx_httpserver_set_default_http_endpoint(
   fpx_httpserver_t* srvptr, const uint16_t methods, fpx_httpcallback_t callback) {
   SRV_ASSERT(srvptr);
 
@@ -360,7 +388,7 @@ int fpx_httpserver_set_default_endpoint(
   struct _fpx_httpserver_metadata* meta = srvptr->_internal;
 
   meta->default_endpoint.allowed_methods = methods;
-  meta->default_endpoint.callback = callback;
+  meta->default_endpoint.http_callback = callback;
   meta->default_endpoint.active = TRUE;
 
   return 0;
@@ -373,44 +401,42 @@ int fpx_httpserver_create_endpoint(
   if (NULL == uri || NULL == callback)
     return -1;
 
+  int endpoint_index = _endpoint_get(srvptr, uri);
 
-  struct _fpx_httpserver_metadata* meta = srvptr->_internal;
+  if (0 > endpoint_index)
+    return endpoint_index;
 
-  int uri_len = fpx_getstringlength(uri);
+  struct _fpx_endpoint* ptr = &srvptr->_internal->endpoints[endpoint_index];
 
-  if (uri_len > sizeof(meta->endpoints->uri) - 1)
-    return -4;
-
-  int available_endpoint = 0;
-  {
-    int i;
-
-    i = 0;
-    for (int j = 0; i < srvptr->max_endpoints && j < meta->active_endpoints; ++i) {
-      if (TRUE == meta->endpoints[i].active)
-        ++j;
-    }
-
-    available_endpoint = i;
-  }
-
-
-  if (available_endpoint >= srvptr->max_endpoints)
-    return -3;
-
-
-  struct _fpx_httpendpoint* ptr = &meta->endpoints[available_endpoint];
   ptr->allowed_methods = methods;
   if (methods & GET) {
-    // if allowing GET, also allow HEAD
+    // if GEt is allowed, also allow HEAD
     ptr->allowed_methods |= HEAD;
   }
 
-  ptr->callback = callback;
+  ptr->http_callback = callback;
   ptr->active = TRUE;
-  meta->active_endpoints++;
 
-  fpx_strcpy(ptr->uri, uri);
+
+  return 0;
+}
+
+
+int fpx_httpserver_create_ws_endpoint(
+  fpx_httpserver_t* srvptr, const char* uri, fpx_websocketcallback_t callback) {
+  SRV_ASSERT(srvptr);
+  if (NULL == uri || NULL == callback)
+    return -1;
+
+  int endpoint_index = _endpoint_get(srvptr, uri);
+
+  if (0 > endpoint_index)
+    return endpoint_index;
+
+  struct _fpx_endpoint* ptr = &srvptr->_internal->endpoints[endpoint_index];
+
+  ptr->ws_callback = callback;
+  ptr->active = TRUE;
 
 
   return 0;
@@ -732,6 +758,77 @@ static int _server_init_check(fpx_httpserver_t* srvptr) {
 }
 
 
+static int _available_endpoint_index(fpx_httpserver_t* srvptr, const char* uri) {
+  SRV_ASSERT(srvptr);
+
+  struct _fpx_httpserver_metadata* meta = srvptr->_internal;
+
+  int i = 0;
+
+  for (; i < srvptr->max_endpoints; ++i) {
+    struct _fpx_endpoint* endp = &meta->endpoints[i];
+    if (FALSE == endp->active || (0 == strcmp(uri, endp->uri)))
+      break;
+  }
+
+  return i;
+}
+
+
+static int _fix_endpoint_uri(const char* input, char* output, size_t maxlen) {
+
+  int uri_len = fpx_getstringlength(input);
+
+  char* output_clone = output;
+
+  output[0] = '/';
+  if (*input != '/') {
+    ++output_clone;
+    uri_len += 1;
+  }
+
+  if (uri_len > maxlen)
+    return -4;
+
+  fpx_memcpy(output_clone, input, uri_len - (output_clone - output));
+
+  return 0;
+}
+
+static int _endpoint_get(fpx_httpserver_t* srvptr, const char* uri) {
+  SRV_ASSERT(srvptr);
+
+  if (NULL == uri)
+    return -1;
+
+
+  struct _fpx_httpserver_metadata* meta = srvptr->_internal;
+
+  char the_uri[sizeof(meta->endpoints->uri)] = { 0 };
+
+  {
+    int fix_status = _fix_endpoint_uri(uri, the_uri, sizeof(the_uri) - 1);
+    if (0 > fix_status)
+      return fix_status;
+  }
+
+  int available_endpoint = _available_endpoint_index(srvptr, the_uri);
+
+  if (available_endpoint >= srvptr->max_endpoints)
+    return -3;
+
+
+  struct _fpx_endpoint* ptr = &meta->endpoints[available_endpoint];
+  if (FALSE == ptr->active) {
+    fpx_memset(ptr, 0, sizeof(*ptr));
+    fpx_strcpy(ptr->uri, the_uri);
+    meta->active_endpoints++;
+  }
+
+  return available_endpoint;
+}
+
+
 static void _thread_init(struct _thread* t) {
   {
     int bytes = CLIENTS_DEFAULT * sizeof(struct pollfd);
@@ -892,7 +989,7 @@ static void _on_response_ready(
   uint16_t s = resptr->status;
   uint8_t add_close_header = (s == 429);
 
-  uint8_t closing = FALSE;
+  uint8_t closing = add_close_header;
 
   {
     char header_val[32] = { 0 };
@@ -929,14 +1026,14 @@ static void _on_response_ready(
 }
 
 
-static void _handle_endpoint(
+static void _handle_http_endpoint(
   struct _thread* thread, fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr) {
   // check for endpoints
-  struct _fpx_httpendpoint* endpoint = NULL;
+  struct _fpx_endpoint* endpoint = NULL;
 
 
   for (int i = 0; i < thread->server->_internal->active_endpoints && NULL == endpoint; ++i) {
-    struct _fpx_httpendpoint* endp = &thread->server->_internal->endpoints[i];
+    struct _fpx_endpoint* endp = &thread->server->_internal->endpoints[i];
 
     if (0 == strncmp(endp->uri, reqptr->uri, sizeof(endp->uri))) {
       // endpoint found
@@ -962,7 +1059,7 @@ static void _handle_endpoint(
   } else {
     // :thumbsup:
     SET_HTTP_200(thread->server, (*resptr), "", 0);
-    endpoint->callback(reqptr, resptr);
+    endpoint->http_callback(reqptr, resptr);
   }
 
 
@@ -1058,7 +1155,7 @@ static int _is_upgradable(fpx_httprequest_t* reqptr) {
   return TRUE;
 }
 
-static void _upgrade_to_ws(struct _thread* thread, int idx) {
+static void _upgrade_to_ws(struct _thread* thread, int idx, fpx_websocketcallback_t ws_cb) {
   fpx_httpserver_t* srv = thread->server;
   struct _thread* ws_thread = srv->_internal->ws_threads;
 
@@ -1083,12 +1180,50 @@ static void _upgrade_to_ws(struct _thread* thread, int idx) {
     pthread_cond_signal(&lowest_thread->loop_condition);
 
   lowest_thread->client_data[new_index] = thread->client_data[idx];
+  lowest_thread->client_data[new_index].ws.callback = ws_cb;
 
   pthread_mutex_unlock(&lowest_thread->loop_mutex);
 
   _disconnect_client(thread, idx, FALSE);
 
   return;
+}
+
+static int _generate_ws_accept_header(fpx_httprequest_t* reqptr, char outbuf[32]) {
+  char key_header[128] = { 0 };
+  int key_len = 24;
+
+  uint8_t sha_intermediate[20];
+
+  char* accept_header;
+
+  if (0 > fpx_httprequest_get_header(reqptr, "sec-websocket-key", key_header, key_len))
+    return -1;
+
+  fpx_strcpy(&key_header[key_len], "258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
+  fpx_sha1_digest((uint8_t*)key_header, fpx_getstringlength(key_header), sha_intermediate, FALSE);
+  accept_header = fpx_base64_encode(sha_intermediate, 20);
+
+  if (NULL == accept_header) {
+    // mem allocation failed
+    return -10;
+  }
+
+  fpx_memcpy(outbuf, accept_header, 28);
+  outbuf[28] = 0;
+
+  free(accept_header);
+
+  return 0;
+}
+
+static int _check_manual_ws_upgrade(fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr) {
+  {
+    if (101 != resptr->status)
+      return 0;
+  }
+
+  return 1;
 }
 
 static int _http_handle_client(struct _thread* thread, int idx) {
@@ -1114,6 +1249,15 @@ static int _http_handle_client(struct _thread* thread, int idx) {
   fpx_httpresponse_set_version(&outgoing_response, STR(HTTP_VERSION));
 
   int parse_result = _http_parse_request(read_buffer, amount_read, &incoming_request);
+
+  if (incoming_request.content.version[0] != '1') {
+    const char msg[] = "Only HTTP/1.X is supported";
+    SET_HTTP_505(thread->server, outgoing_response, msg, sizeof(msg) - 1);
+
+    _on_response_ready(thread, &incoming_request, &outgoing_response, idx);
+
+    return 0;
+  }
 
   switch (parse_result) {
     case -1:
@@ -1144,47 +1288,61 @@ static int _http_handle_client(struct _thread* thread, int idx) {
 
 
   uint8_t ws_upgrade = FALSE;
+  fpx_websocketcallback_t ws_callback = NULL;
 
   if (_is_upgradable(&incoming_request)) {
-    char key_header[128] = { 0 };
-    uint8_t sha_intermediate[20] = { 0 };
-    int key_len = 24;
+    // TODO: Fix this; it is very smelly code
+    // to the point where it feels like a hack
+    // even though it isn't
 
-    char* accept_header;
+    int endpoint_index = thread->server->max_endpoints;
+    for (int i = 0; i < thread->server->max_endpoints; ++i) {
+      struct _fpx_endpoint* endp = &thread->server->_internal->endpoints[i];
 
-    fpx_httprequest_get_header(&incoming_request, "sec-websocket-key", key_header, key_len);
+      if (!strcmp(incoming_request.uri, endp->uri)) {
+        endpoint_index = i;
+        break;
+      }
 
-    fpx_strcpy(&key_header[key_len], "258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
-    fpx_sha1_digest((uint8_t*)key_header, fpx_getstringlength(key_header), sha_intermediate, FALSE);
-    accept_header = fpx_base64_encode(sha_intermediate, 20);
-
-    if (NULL == accept_header) {
-      // mem allocation failed
-      return -10;
+      if (FALSE == endp->active)
+        break;
     }
 
-    outgoing_response.status = 101;
-    fpx_strcpy(outgoing_response.reason, "Switching Protocols");
+    if (endpoint_index < thread->server->max_endpoints) {
+      // WS endpoint available, so we can upgrade
+      char accept_header[32] = { 0 };
 
-    fpx_httpresponse_add_header(&outgoing_response, "sec-websocket-accept", accept_header);
-    fpx_httpresponse_add_header(&outgoing_response, "upgrade", "websocket");
-    fpx_httpresponse_add_header(&outgoing_response, "connection", "Upgrade");
+      ws_callback = thread->server->_internal->endpoints[endpoint_index].ws_callback;
 
-    free(accept_header);
+      if (0 > _generate_ws_accept_header(&incoming_request, accept_header))
+        return -10;
 
-    ws_upgrade = TRUE;
+      outgoing_response.status = 101;
+      fpx_strcpy(outgoing_response.reason, "Switching Protocols");
+
+      fpx_httpresponse_add_header(&outgoing_response, "sec-websocket-accept", accept_header);
+      fpx_httpresponse_add_header(&outgoing_response, "upgrade", "websocket");
+      fpx_httpresponse_add_header(&outgoing_response, "connection", "Upgrade");
+
+      ws_upgrade = TRUE;
+    } else {
+      SET_HTTP_404(thread->server, outgoing_response, "", 0);
+
+      ws_upgrade = FALSE;
+    }
   }
 
 
   if (outgoing_response.status > 0) {
     // that means we already set a response!
     // specifically for a bad request or similar
-    // now we send it
+
+    // now we send it!
 
     _on_response_ready(thread, &incoming_request, &outgoing_response, idx);
 
     if (TRUE == ws_upgrade) {
-      _upgrade_to_ws(thread, idx);
+      _upgrade_to_ws(thread, idx, ws_callback);
     }
 
     return 0;
@@ -1193,15 +1351,13 @@ static int _http_handle_client(struct _thread* thread, int idx) {
 
   // do endpoint things
   // (this includes running the programmer's callback)
-  _handle_endpoint(thread, &incoming_request, &outgoing_response);
-
+  _handle_http_endpoint(thread, &incoming_request, &outgoing_response);
 
   // keepalive
   _set_keepalive(&incoming_request, &outgoing_response);
 
 
   _on_response_ready(thread, &incoming_request, &outgoing_response, idx);
-
 
   return 0;
 }
@@ -1503,7 +1659,7 @@ static int _send_response(fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr,
 }
 
 
-static void _ws_frame_validate(
+static int _ws_frame_validate(
   fpx_websocketframe_t* incoming_frame, fpx_websocketclient_t* cliptr, int fd) {
   if (FALSE == incoming_frame->mask_set) {
     const uint8_t msg[] = "no mask set";
@@ -1516,6 +1672,8 @@ static void _ws_frame_validate(
     } else {
       cliptr->flags |= CLOSE_SENT;
     }
+
+    return FALSE;
   }
 
   if (incoming_frame->reserved1 || incoming_frame->reserved2 || incoming_frame->reserved3) {
@@ -1529,9 +1687,11 @@ static void _ws_frame_validate(
     } else {
       cliptr->flags |= CLOSE_SENT;
     }
+
+    return FALSE;
   }
 
-  return;
+  return TRUE;
 }
 
 static void _handle_control_frame(
@@ -1615,7 +1775,7 @@ static int _ws_handle_client(struct _thread* thread, int idx) {
   int fd = thread->pfds[idx].fd;
   int amount_read = recv(fd, read_buffer, sizeof(read_buffer), 0);
   if (1 > amount_read) {
-    FPX_DEBUG("0 data was available to read from WS client\n");
+    // FPX_DEBUG("0 data was available to read from WS client\n");
     _disconnect_client(thread, idx, TRUE);
     return 0;
   }
@@ -1639,7 +1799,10 @@ static int _ws_handle_client(struct _thread* thread, int idx) {
   }
 
   if (FALSE == (cliptr->ws.flags & CLOSE_SENT)) {
-    _ws_frame_validate(&incoming_frame, &cliptr->ws, fd);
+    if (FALSE == _ws_frame_validate(&incoming_frame, &cliptr->ws, fd)) {
+      fpx_websocketframe_destroy(&incoming_frame);
+      return -1;
+    }
   }
 
   time(&cliptr->last_time);
@@ -1649,13 +1812,13 @@ static int _ws_handle_client(struct _thread* thread, int idx) {
 
   if (FALSE == (incoming_frame.opcode & 0x80) && FALSE == (cliptr->ws.flags & CLOSE_SENT)) {
     // NOT a control frame
-    thread->server->ws_callback(&incoming_frame, fd, &(cliptr->in_address));
+    cliptr->ws.callback(&incoming_frame, fd, &(cliptr->in_address));
   } else if (125 >= incoming_frame.payload_length) {
     // 125 is max payload length for control frames
     _handle_control_frame(&incoming_frame, &cliptr->ws, fd);
   }
 
-  if (cliptr->ws.flags & (CLOSE_SENT | CLOSE_RECV))
+  if ((cliptr->ws.flags & (CLOSE_SENT | CLOSE_RECV)) == (CLOSE_SENT | CLOSE_RECV))
     // we close
     _disconnect_client(thread, idx, TRUE);
 

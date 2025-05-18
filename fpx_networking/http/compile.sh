@@ -9,11 +9,12 @@ fi
 gcc \
   test.c \
   http.c \
-  httpserver_c.c \
+  httpserver.c \
   ../../build/unlinked/mem* \
   ../../build/unlinked/string* \
   ../../build/unlinked/format* \
   ../../build/unlinked/math* \
   ../../build/unlinked/endian* \
   ../../build/unlinked/crypto.o \
-  $CFLAGS
+  $CFLAGS \
+  -o c.out

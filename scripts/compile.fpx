@@ -19,14 +19,13 @@ tcpserver.o
 testing/tcpserver.o
 
 testing/httpserver.out
-exceptions.o
 string*.o
 mem*.o
-tcpserver.o
 crypto.o
 endian*.o
 format*.o
 math*.o
+http.o
 httpserver.o
 testing/httpserver.o
 
