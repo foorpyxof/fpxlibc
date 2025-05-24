@@ -5,9 +5,9 @@
 ////////////////////////////////////////////////////////////////
 
 #include "crypto.h"
+#include "../fpx_math/math.h"
 #include "../fpx_mem/mem.h"
 #include "../fpx_networking/netutils.h"
-#include "../fpx_math/math.h"
 #include "endian.h"
 #include "format.h"
 
@@ -272,7 +272,7 @@ void fpx_sha256_pad(SHA256_Context* ctx_ptr) {
   ctx_ptr->buffer[ctx_ptr->index] = 0x80;
 
   // add size in bits to end
-  fpx_network_order(&length_bits, 8);
+  fpx_endian_swap_if_host(&length_bits, 8);
   fpx_memcpy(&ctx_ptr->buffer[buffer_length - 8], &length_bits, 8);
 }
 
@@ -348,12 +348,11 @@ void fpx_sha256_transform(SHA256_Context* ctx_ptr, size_t offset) {
   uint32_t temp1, temp2;
 
   // fpx_memcpy(W, ctx_ptr->buffer, 16 * sizeof(uint32_t));
-  
+
   uint8_t* offset_buffer = ctx_ptr->buffer + offset;
 
   for (int i = 0; i < 16; ++i) {
-    W[i] = (((uint32_t)offset_buffer[i * 4]) << 24) |
-      (((uint32_t)offset_buffer[i * 4 + 1]) << 16) |
+    W[i] = (((uint32_t)offset_buffer[i * 4]) << 24) | (((uint32_t)offset_buffer[i * 4 + 1]) << 16) |
       (((uint32_t)offset_buffer[i * 4 + 2]) << 8) | (((uint32_t)offset_buffer[i * 4 + 3]));
   }
 
@@ -414,7 +413,7 @@ void fpx_sha256_final(SHA256_Context* ctx_ptr) {
   }
 
   for (int i = 0; i < 8; ++i) {
-    fpx_network_order(&ctx_ptr->state[i], 4);
+    fpx_endian_swap_if_host(&ctx_ptr->state[i], 4);
   }
 }
 
@@ -575,7 +574,8 @@ void fpx_hmac(const uint8_t* key, size_t keyLengthBytes, const uint8_t* data, si
   free(second_input);
 }
 
-void fpx_hkdf_extract(const uint8_t *salt, size_t salt_len, const uint8_t *ikm, size_t ikm_len, uint8_t *output, enum HashAlgorithms algo) {
+void fpx_hkdf_extract(const uint8_t* salt, size_t salt_len, const uint8_t* ikm, size_t ikm_len,
+  uint8_t* output, enum HashAlgorithms algo) {
   size_t hash_output_size = 0;
   switch (algo) {
     case SHA1:
@@ -597,7 +597,8 @@ void fpx_hkdf_extract(const uint8_t *salt, size_t salt_len, const uint8_t *ikm, 
   fpx_hmac(salt, salt_len, ikm, ikm_len, output, algo);
 }
 
-int fpx_hkdf_expand(const uint8_t *prk, const uint8_t *info, size_t info_len, uint8_t *output, size_t output_len, enum HashAlgorithms algo) {
+int fpx_hkdf_expand(const uint8_t* prk, const uint8_t* info, size_t info_len, uint8_t* output,
+  size_t output_len, enum HashAlgorithms algo) {
   size_t hash_output_size = 0;
   switch (algo) {
     case SHA1:
@@ -632,7 +633,7 @@ int fpx_hkdf_expand(const uint8_t *prk, const uint8_t *info, size_t info_len, ui
   for (int i = 2; i < (N + 1); ++i) {
     uint8_t temp[hash_output_size + info_len + 1];
 
-    fpx_memcpy(temp, T[i-1], hash_output_size);
+    fpx_memcpy(temp, T[i - 1], hash_output_size);
     fpx_memcpy(temp + hash_output_size, info, info_len);
     temp[hash_output_size + info_len] = (uint8_t)i;
 

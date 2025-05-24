@@ -35,6 +35,8 @@ struct _fpx_websocketframe {
     uint64_t payload_length;
     uint64_t payload_allocated;
     uint8_t* payload;
+
+    uint64_t payload_left_to_read;
 };
 
 /**

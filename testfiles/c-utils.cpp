@@ -1,10 +1,11 @@
 #include "test-definitions.h"
 
 extern "C" {
-	#include "../fpx_c-utils/crypto.h"
-	#include "../fpx_c-utils/endian.h"
-  #include "../fpx_c-utils/format.h"
-  #include "../fpx_mem/mem.h"
+#include "../fpx_c-utils/crypto.h"
+#include "../fpx_c-utils/endian.h"
+#include "../fpx_c-utils/format.h"
+#include "../fpx_mem/mem.h"
+#include "../fpx_networking/netutils.h"
 }
 
 int main() {
@@ -111,7 +112,12 @@ int main() {
     FPX_EXPECT(output2, "15b6007b8bf9d9032f41ef43f75cfc74527eb91f")
 
     char output3[20];
-    fpx_hmac((uint8_t*)"you will never guess this key!!!", 32, (uint8_t*)"asdhHJKSDHWHSDAJHiasukdhGKWSiudhUAGDHAS", 39, (uint8_t*)output3, SHA1);
+    fpx_hmac((uint8_t*)"you will never guess this key!!!",
+      32,
+      (uint8_t*)"asdhHJKSDHWHSDAJHiasukdhGKWSiudhUAGDHAS",
+      39,
+      (uint8_t*)output3,
+      SHA1);
     char output4[41] = { 0 };
     for (int i = 0; i < 20; ++i)
       fpx_hexstr(&output3[i], 1, &output4[i * 2], 2);
@@ -133,17 +139,19 @@ int main() {
     printf("SHA-256 test:\n");
 
     uint8_t input1[] = "abcdefghijkl";
-    uint8_t output1[65] = {0};
+    uint8_t output1[65] = { 0 };
     fpx_sha256_digest(input1, sizeof(input1) - 1, output1, 1);
     FPX_EXPECT(output1, "d682ed4ca4d989c134ec94f1551e1ec580dd6d5a6ecde9f3d35e6e4a717fbde4")
 
-    uint8_t input2[] = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzghijklmnopqrstuvwxyzab";
-    uint8_t output2[65] = {0};
+    uint8_t input2[] =
+      "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzghijklmnopqrstuvwxyzab";
+    uint8_t output2[65] = { 0 };
     fpx_sha256_digest(input2, sizeof(input2) - 1, output2, 1);
     FPX_EXPECT(output2, "c99255c79746b5d3e9d58d2a6c9d6c91e620dfe152f301b38caf5e1ec43e377e")
 
-    uint8_t input3[] = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzghijklmnopqrstuvwxyz";
-    uint8_t output3[65] = {0};
+    uint8_t input3[] =
+      "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzghijklmnopqrstuvwxyz";
+    uint8_t output3[65] = { 0 };
     fpx_sha256_digest(input3, sizeof(input3) - 1, output3, 1);
     FPX_EXPECT(output3, "5eafc33ce66722eb020d6fe703b0b3e97afbc7aa9a011fd9e8bafe684f97d541")
   }
@@ -259,7 +267,8 @@ int main() {
       fpx_hexstr(&output2[i], 1, outbuf2 + i * 2, 2);
     }
 
-    FPX_EXPECT(outbuf2, "48142b8f2e6569b8895b8fba2220c5c9a8a667f7d978d35bab8b6a90d39cf859809759b17d052450f0c98626c5a7aefd")
+    FPX_EXPECT(outbuf2,
+      "48142b8f2e6569b8895b8fba2220c5c9a8a667f7d978d35bab8b6a90d39cf859809759b17d052450f0c98626c5a7aefd")
   }
 
   return 0;

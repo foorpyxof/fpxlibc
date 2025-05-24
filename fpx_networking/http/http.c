@@ -277,7 +277,7 @@ int fpx_websocket_send_close(
   if (0 > code) {
     reason_length = 0;
   } else {
-    fpx_network_order(&code, sizeof(code));
+    fpx_endian_swap_if_host(&code, sizeof(code));
     fpx_websocketframe_append_payload(&close_frame, (uint8_t*)&code, sizeof(code));
   }
 
@@ -400,7 +400,7 @@ int fpx_websocketframe_send(const fpx_websocketframe_t* frameptr, int fd) {
       the_length = &longlong_len;
     }
 
-    fpx_network_order(the_length, len_len);
+    fpx_endian_swap_if_host(the_length, len_len);
 
     int flag = (0 < frameptr->payload_length) ? MSG_MORE : 0;
     if (0 > send(fd, the_length, len_len, flag | send_flags))

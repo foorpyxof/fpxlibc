@@ -59,14 +59,17 @@ void* sender(void* filedescriptor) {
 
 void ws_root_callback(
   const fpx_websocketframe_t* in, int fd, const struct sockaddr* client_address) {
+  FPX_DEBUG("%s\n", (in->final) ? "TRUE" : "FALSE");
+
   fpx_websocketframe_t out_frame;
   fpx_websocketframe_init(&out_frame);
 
   out_frame.final = TRUE;
   out_frame.opcode = in->opcode;
 
-  if (NULL != in->payload)
-    FPX_DEBUG("payload: %s\n", in->payload);
+  if (NULL != in->payload) {
+    // FPX_DEBUG("payload: %s\n", in->payload);
+  }
 
   // uint8_t msg[] = "Message from WS-server: ";
   // fpx_websocketframe_append_payload(&out_frame, msg, sizeof(msg) - 1);

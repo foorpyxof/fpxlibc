@@ -1049,7 +1049,7 @@ static void _handle_http_endpoint(
   }
 
 
-  if (NULL == endpoint) {
+  if (NULL == endpoint || NULL == endpoint->http_callback) {
     // 404
     SET_HTTP_404(thread->server, (*resptr), "", 0);
   } else if (!(endpoint->allowed_methods & reqptr->method)) {
@@ -1774,6 +1774,7 @@ static int _ws_handle_client(struct _thread* thread, int idx) {
   // read from socket
   int fd = thread->pfds[idx].fd;
   int amount_read = recv(fd, read_buffer, sizeof(read_buffer), 0);
+  // FPX_DEBUG("WE ARE RECEIVING ON WS POG\n");
   if (1 > amount_read) {
     // FPX_DEBUG("0 data was available to read from WS client\n");
     _disconnect_client(thread, idx, TRUE);
@@ -1789,13 +1790,27 @@ static int _ws_handle_client(struct _thread* thread, int idx) {
   int parse_result = _ws_parse_request(read_buffer, amount_read, &incoming_frame);
 
   switch (parse_result) {
+    case 0:
+      break;
     case -1:
     case -2:
       // bad data
-    case -3:
-      // length too large
+      break;
 
-      return parse_result;
+    default:
+      // length too large
+      // do payload manually
+
+      do {
+        uint64_t to_write;
+        if (sizeof(read_buffer) > incoming_frame.payload_left_to_read)
+          to_write = incoming_frame.payload_left_to_read;
+        else
+          to_write = sizeof(read_buffer);
+        fpx_websocketframe_append_payload(&incoming_frame, read_buffer + parse_result, to_write);
+        parse_result = 0;
+        incoming_frame.payload_left_to_read -= to_write;
+      } while (incoming_frame.payload_left_to_read > 0);
   }
 
   if (FALSE == (cliptr->ws.flags & CLOSE_SENT)) {
@@ -1867,13 +1882,13 @@ static int _ws_parse_request(uint8_t* readbuf, int readbuf_len, fpx_websocketfra
 
     } else if (126 == length_first) {
       uint16_t extended = *((uint16_t*)readbuf_copy);
-      fpx_host_order(&extended, sizeof(extended));
+      fpx_endian_swap_if_host(&extended, sizeof(extended));
       p_length = extended;
 
       readbuf_copy += sizeof(extended);
     } else {
-      uint64_t extended = *((uint64_t*)&(readbuf[2]));
-      fpx_host_order(&extended, sizeof(extended));
+      uint64_t extended = *((uint64_t*)readbuf_copy);
+      fpx_endian_swap_if_host(&extended, sizeof(extended));
       p_length = extended;
 
       readbuf_copy += sizeof(extended);
@@ -1886,8 +1901,10 @@ static int _ws_parse_request(uint8_t* readbuf, int readbuf_len, fpx_websocketfra
 
   int length_so_far = readbuf_copy - readbuf;
 
-  if (length_so_far + p_length > readbuf_len)
-    return -3;
+  if (length_so_far + p_length > readbuf_len) {
+    output->payload_left_to_read = p_length;
+    return length_so_far;
+  }
 
 
   return fpx_websocketframe_append_payload(output, readbuf_copy, p_length);
