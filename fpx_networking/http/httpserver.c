@@ -103,7 +103,7 @@ static int _send_response(fpx_httprequest_t*, fpx_httpresponse_t*, int client_fd
 
 
 static int _ws_handle_client(struct _thread* thread, int idx);
-static int _ws_parse_request(uint8_t* readbuf, int readbuf_len, fpx_websocketframe_t* output);
+static int _ws_parse_request(int fd, fpx_websocketframe_t* output);
 
 
 // returns -2 on invalid request (400)
@@ -1773,13 +1773,6 @@ static int _ws_handle_client(struct _thread* thread, int idx) {
 
   // read from socket
   int fd = thread->pfds[idx].fd;
-  int amount_read = recv(fd, read_buffer, sizeof(read_buffer), 0);
-  // FPX_DEBUG("WE ARE RECEIVING ON WS POG\n");
-  if (1 > amount_read) {
-    // FPX_DEBUG("0 data was available to read from WS client\n");
-    _disconnect_client(thread, idx, TRUE);
-    return 0;
-  }
 
   // READ READ READ
   // https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
@@ -1787,31 +1780,33 @@ static int _ws_handle_client(struct _thread* thread, int idx) {
   fpx_websocketframe_t incoming_frame;
   fpx_websocketframe_init(&incoming_frame);
 
-  int parse_result = _ws_parse_request(read_buffer, amount_read, &incoming_frame);
-
-  switch (parse_result) {
-    case 0:
-      break;
-    case -1:
-    case -2:
-      // bad data
-      break;
-
-    default:
-      // length too large
-      // do payload manually
-
-      do {
-        uint64_t to_write;
-        if (sizeof(read_buffer) > incoming_frame.payload_left_to_read)
-          to_write = incoming_frame.payload_left_to_read;
-        else
-          to_write = sizeof(read_buffer);
-        fpx_websocketframe_append_payload(&incoming_frame, read_buffer + parse_result, to_write);
-        parse_result = 0;
-        incoming_frame.payload_left_to_read -= to_write;
-      } while (incoming_frame.payload_left_to_read > 0);
+  int parse_result = _ws_parse_request(fd, &incoming_frame);
+  if (parse_result == -1) {
+    _disconnect_client(thread, idx, TRUE);
+    return -1;
   }
+
+  if (0 > parse_result) {
+    const uint8_t* msg = NULL;
+    switch (parse_result) {
+      case -1:
+        // too short
+        msg = (uint8_t*)"frame too short";
+        break;
+
+      case -2:
+        // unmasked
+        msg = (uint8_t*)"client frame unmasked";
+        break;
+
+      case -3:
+        msg = (uint8_t*)"incomplete frame received";
+        break;
+    }
+
+    fpx_websocket_send_close(fd, 1002, msg, fpx_getstringlength((char*)msg), FALSE);
+  }
+
 
   if (FALSE == (cliptr->ws.flags & CLOSE_SENT)) {
     if (FALSE == _ws_frame_validate(&incoming_frame, &cliptr->ws, fd)) {
@@ -1819,6 +1814,10 @@ static int _ws_handle_client(struct _thread* thread, int idx) {
       return -1;
     }
   }
+
+  if (0 > parse_result)
+    return -1;
+
 
   time(&cliptr->last_time);
 
@@ -1844,16 +1843,18 @@ static int _ws_handle_client(struct _thread* thread, int idx) {
 
 
 // return 0 on success; -1 on passed nullptrs; -2 if the data is bad; -3 if data too long
-static int _ws_parse_request(uint8_t* readbuf, int readbuf_len, fpx_websocketframe_t* output) {
-  if (NULL == readbuf || NULL == output)
-    return -1;
+static int _ws_parse_request(int fd, fpx_websocketframe_t* output) {
+  uint8_t readbuf[BUFFER_DEFAULT] = { 0 };
 
   int minimum_length = 1 +  // meta-byte
     1 +                     // length-byte
     4;                      // masking key
-  if (readbuf_len < minimum_length)
-    return -2;
 
+  int amount_read = recv(fd, readbuf, sizeof(readbuf), 0);
+
+  if (minimum_length > amount_read) {
+    return -1;
+  }
 
   output->final = (readbuf[0] >> 7) & 0x01;  // MSB; 1 or 0
   output->reserved1 = (readbuf[0] >> 6) & 0x01;
@@ -1865,7 +1866,6 @@ static int _ws_parse_request(uint8_t* readbuf, int readbuf_len, fpx_websocketfra
   output->mask_set = (readbuf[1] >> 7) & 0x01;
 
   uint8_t length_first = readbuf[1] & 0x7f;
-
 
   if (FALSE == output->mask_set)
     return -2;
@@ -1881,12 +1881,18 @@ static int _ws_parse_request(uint8_t* readbuf, int readbuf_len, fpx_websocketfra
       p_length = length_first;
 
     } else if (126 == length_first) {
+      if (amount_read < minimum_length + 2)
+        return -1;
+
       uint16_t extended = *((uint16_t*)readbuf_copy);
       fpx_endian_swap_if_host(&extended, sizeof(extended));
       p_length = extended;
 
       readbuf_copy += sizeof(extended);
     } else {
+      if (amount_read < minimum_length + 8)
+        return -1;
+
       uint64_t extended = *((uint64_t*)readbuf_copy);
       fpx_endian_swap_if_host(&extended, sizeof(extended));
       p_length = extended;
@@ -1900,12 +1906,25 @@ static int _ws_parse_request(uint8_t* readbuf, int readbuf_len, fpx_websocketfra
   readbuf_copy += 4;
 
   int length_so_far = readbuf_copy - readbuf;
+  int left_to_read = p_length;
 
-  if (length_so_far + p_length > readbuf_len) {
-    output->payload_left_to_read = p_length;
-    return length_so_far;
-  }
+  int recv_size;
+  do {
+    fpx_websocketframe_append_payload(output, readbuf + length_so_far, amount_read - length_so_far);
+    left_to_read -= (amount_read - length_so_far);
+
+    length_so_far = 0;
 
 
-  return fpx_websocketframe_append_payload(output, readbuf_copy, p_length);
+    if (sizeof(readbuf) > left_to_read)
+      recv_size = left_to_read;
+    else
+      recv_size = sizeof(readbuf);
+  } while (0 < left_to_read && -1 != (amount_read = recv(fd, readbuf, recv_size, 0)));
+
+
+  if (0 < left_to_read)
+    return -3;
+
+  return 0;
 }

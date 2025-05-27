@@ -45,7 +45,6 @@ void* sender(void* filedescriptor) {
       // something went wrong ooops
       char file_and_line[64] = { 0 };
       FPX_LINE_INFO(file_and_line);
-
       FPX_WARN("sending went wrong: return code %d | %s\n", sent_status, file_and_line);
 
       break;
@@ -59,7 +58,6 @@ void* sender(void* filedescriptor) {
 
 void ws_root_callback(
   const fpx_websocketframe_t* in, int fd, const struct sockaddr* client_address) {
-  FPX_DEBUG("%s\n", (in->final) ? "TRUE" : "FALSE");
 
   fpx_websocketframe_t out_frame;
   fpx_websocketframe_init(&out_frame);
