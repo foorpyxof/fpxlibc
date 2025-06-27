@@ -16,7 +16,7 @@ Includes C++ test-programs that you can build using ```make test```.
 - ```make test``` builds the library and all the test programs
 - ```make debug``` builds the library and all the test programs with debug flags enabled
 
-**note:** the Makefile will compile and assemble all .c, .cpp, .s and .S files. To prevent test-programs from being compiled, name them test.(extension). The makefile will ignore these files.
+**note:** the Makefile will compile and assemble all .c, .cpp, and .asm files. To prevent test-programs from being compiled, name them test.(extension). The Makefile will ignore these files.
 
 ## x86_64 assembly
 

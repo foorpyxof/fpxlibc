@@ -26,7 +26,7 @@ struct AckRange {
     union Value {
         fpx_quic_varlen_t Gap;
         fpx_quic_varlen_t AckRangeLength;
-    };
+    } Value;
 };
 
 struct EcnCounts {
@@ -235,7 +235,7 @@ typedef struct {
         uint8_t BYTE;
         uint16_t WORD;
         uint32_t DWORD;
-    };
+    } PacketNumber;
 
     uint8_t FirstByte;  // MSB is HeaderForm; 0 for short, 1 for long
     union _data {

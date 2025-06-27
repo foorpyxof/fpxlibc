@@ -232,7 +232,7 @@ void TcpServer::Listen(const char* ip, unsigned short port) {
                 break;
               default:
                 sprintf(writeBuffer, "[%s (%d)]: %s\n", m_Clients[i - 1].Name, i, cleanMsg);
-                printf(writeBuffer);
+                printf("%s", writeBuffer);
                 for (pollfd& socket : m_Sockets) {
                   if (!(socket.fd == m_Socket4 || socket.fd == m_Sockets[i].fd))
                     write(socket.fd, writeBuffer, strlen(writeBuffer));
