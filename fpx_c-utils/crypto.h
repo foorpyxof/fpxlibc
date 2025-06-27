@@ -1,24 +1,24 @@
 #ifndef FPX_CRYPTO_H
 #define FPX_CRYPTO_H
 
-////////////////////////////////////////////////////////////////
-//  "crypto.h"                                                //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "crypto.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 #include "../fpx_types.h"
 
 typedef struct {
-  uint32_t state[5];
-  uint32_t count;
-  uint8_t buffer[64];
+    uint32_t state[5];
+    uint32_t count;
+    uint8_t buffer[64];
 } SHA1_Context;
 
 typedef struct {
-  uint32_t state[8];
-  uint32_t index;
-  uint8_t* buffer;
+    uint32_t state[8];
+    uint32_t index;
+    uint8_t* buffer;
 } SHA256_Context;
 
 /**
@@ -74,7 +74,8 @@ void fpx_sha256_transform(SHA256_Context*, size_t);
  */
 void fpx_sha256_final(SHA256_Context*);
 
-void fpx_sha256_digest(const uint8_t* input, size_t lengthBytes, uint8_t* output, uint8_t printable);
+void fpx_sha256_digest(
+  const uint8_t* input, size_t lengthBytes, uint8_t* output, uint8_t printable);
 
 /**
  * Returns a (!HEAP ALLOCATED!) base64 string based on the input.
@@ -89,11 +90,13 @@ enum HashAlgorithms {
   SHA256 = 1,
 };
 
-void fpx_hmac(const uint8_t* key, size_t keyLength, const uint8_t* data, size_t dataLength, uint8_t* output,
-  enum HashAlgorithms algo);
+void fpx_hmac(const uint8_t* key, size_t keyLength, const uint8_t* data, size_t dataLength,
+  uint8_t* output, enum HashAlgorithms algo);
 
-void fpx_hkdf_extract(const uint8_t* salt, size_t salt_len, const uint8_t* ikm, size_t ikm_len, uint8_t output[], enum HashAlgorithms algo);
+void fpx_hkdf_extract(const uint8_t* salt, size_t salt_len, const uint8_t* ikm, size_t ikm_len,
+  uint8_t output[], enum HashAlgorithms algo);
 
-int fpx_hkdf_expand(const uint8_t prk[], const uint8_t* info, size_t info_len, uint8_t* output, size_t output_len, enum HashAlgorithms algo);
+int fpx_hkdf_expand(const uint8_t prk[], const uint8_t* info, size_t info_len, uint8_t* output,
+  size_t output_len, enum HashAlgorithms algo);
 
 #endif  // FPX_CRYPTO_H

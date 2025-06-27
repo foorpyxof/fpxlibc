@@ -1,11 +1,11 @@
 #ifndef FPX_MATH_H
 #define FPX_MATH_H
 
-////////////////////////////////////////////////////////////////
-//  "math.h"                                                  //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "math.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 /**
  *  Raises [base] to the power of [power]

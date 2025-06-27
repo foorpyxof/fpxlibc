@@ -1,8 +1,8 @@
-////////////////////////////////////////////////////////////////
-//  "crypto.c"                                                //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "crypto.c"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 #include "crypto.h"
 #include "../fpx_math/math.h"

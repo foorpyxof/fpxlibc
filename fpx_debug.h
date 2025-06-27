@@ -1,11 +1,11 @@
 #ifndef FPX_DEBUG_H
 #define FPX_DEBUG_H
 
-////////////////////////////////////////////////////////////////
-//  "fpx_debug.h"                                             //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "fpx_debug.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 #include <stdio.h>
 

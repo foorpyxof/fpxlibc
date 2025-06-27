@@ -1,11 +1,11 @@
 #ifndef FPX_STRING_H
 #define FPX_STRING_H
 
-////////////////////////////////////////////////////////////////
-//  "string.h"                                                //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "string.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 // _Generics don't seem to work :/
 /*

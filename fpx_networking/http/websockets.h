@@ -3,11 +3,11 @@
 
 #include "../../fpx_types.h"
 
-////////////////////////////////////////////////////////////////
-//  "websockets.h"                                            //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "websockets.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 enum websocket_opcode {
   WEBSOCKET_CONTINUE = 0x0,

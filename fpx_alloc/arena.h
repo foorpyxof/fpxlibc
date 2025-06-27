@@ -1,11 +1,11 @@
 #ifndef FPX_ARENA_H
 #define FPX_ARENA_H
 
-////////////////////////////////////////////////////////////////
-//  "arena.h"                                                 //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "arena.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 // x86_64 source code is in ./x86_64/arena.s
 

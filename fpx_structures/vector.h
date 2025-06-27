@@ -1,11 +1,11 @@
 #ifndef FPX_VECTOR_H
 #define FPX_VECTOR_H
 
-////////////////////////////////////////////////////////////////
-//  "vector.h"                                                //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "vector.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 #include "../fpx_types.h"
 
@@ -14,7 +14,7 @@ namespace fpx {
 /**
  * PARTIALLY FINISHED AND WORKING
  */
-template<typename T>
+template <typename T>
 class Vector {
   public:
     /**
@@ -39,24 +39,32 @@ class Vector {
     /**
      * Returns the current amount of objects inside of the Vector
      */
-    unsigned int GetSize() const { return m_Size; }
+    unsigned int GetSize() const {
+      return m_Size;
+    }
 
     /**
      * Returns the  current maximum capacity of the vector
      * (the amount of reserved space inside of it).
      */
-    unsigned int GetCapacity() const { return m_Capacity; }
+    unsigned int GetCapacity() const {
+      return m_Capacity;
+    }
 
     /**
      * Returns the highest possible capacity, which the
      * Vector will not increase beyond.
      */
-    static unsigned int MaxSize() { return m_MaxSize; }
+    static unsigned int MaxSize() {
+      return m_MaxSize;
+    }
 
     /**
      * Returns whether the vector is empty or not.
      */
-    bool IsEmpty() const { return (m_Size == 0); }
+    bool IsEmpty() const {
+      return (m_Size == 0);
+    }
 
     /**
      * Use this to double the current capacity.
@@ -75,16 +83,22 @@ class Vector {
     /**
      * Returns a reference to the first element in the vector.
      */
-    T& Front() const { return m_Array[0]; }
+    T& Front() const {
+      return m_Array[0];
+    }
     /**
      * Returns a reference to the last element in the vector
      */
-    T& Back() const { return m_Array[m_Size-1]; }
+    T& Back() const {
+      return m_Array[m_Size - 1];
+    }
 
     /**
      * Returns a pointer to the internal (heap-allocated) array.
      */
-    T* Data() const { return m_Array; }
+    T* Data() const {
+      return m_Array;
+    }
 
     // bool PushFront(const T&);
     // bool PushFront(T&&) noexcept;
@@ -113,22 +127,24 @@ class Vector {
 
     /**
      * Shift all of the elements to the left by x spots.
-     * 
+     *
      * Second argument:
      * "true" to remove elements that fall out,
      * "false" to cycle them back to the right.
      */
-    bool Shift(int, bool=false);
+    bool Shift(int, bool = false);
 
-    T& operator[] (unsigned int) const;
+    T& operator[](unsigned int) const;
 
     class Iterator {
       public:
         T* current;
 
-        Iterator(T* ptr): current(ptr) {}
+        Iterator(T* ptr) : current(ptr) { }
 
-        T& operator*() { return *current; }
+        T& operator*() {
+          return *current;
+        }
         Iterator& operator++() {
           if (current)
             current++;
@@ -143,12 +159,20 @@ class Vector {
           return self;
         }
 
-        bool operator==(Iterator const& other) { return (current == other.current); }
-        bool operator!=(Iterator const& other) { return (current != other.current); }
+        bool operator==(Iterator const& other) {
+          return (current == other.current);
+        }
+        bool operator!=(Iterator const& other) {
+          return (current != other.current);
+        }
     };
 
-    Iterator begin() { return Iterator(m_Array); }
-    Iterator end() { return Iterator(m_Array + m_Size); }
+    Iterator begin() {
+      return Iterator(m_Array);
+    }
+    Iterator end() {
+      return Iterator(m_Array + m_Size);
+    }
 
   private:
     const static unsigned int m_MaxSize = 2048;
@@ -157,10 +181,10 @@ class Vector {
     T* m_Array;
 };
 
-}
+}  // namespace fpx
 
 #ifndef FPX_VECTOR_IMPL
 #include "vector.hpp"
-#endif // FPX_VECTOR_IMPL
+#endif  // FPX_VECTOR_IMPL
 
-#endif // FPX_VECTOR_H
+#endif  // FPX_VECTOR_H

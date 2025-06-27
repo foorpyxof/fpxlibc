@@ -1,11 +1,11 @@
 #ifndef FPX_SERVER_TCP_H
 #define FPX_SERVER_TCP_H
 
-////////////////////////////////////////////////////////////////
-//  "tcpserver.h"                                             //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "tcpserver.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 #include <arpa/inet.h>
 #include <poll.h>

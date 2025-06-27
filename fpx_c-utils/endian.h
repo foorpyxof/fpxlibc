@@ -1,11 +1,11 @@
 #ifndef FPX_ENDIAN_H
 #define FPX_ENDIAN_H
 
-////////////////////////////////////////////////////////////////
-//  "endian.h"                                                //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "endian.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 #include "../fpx_types.h"
 

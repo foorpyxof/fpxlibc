@@ -1,8 +1,8 @@
-////////////////////////////////////////////////////////////////
-//  "math.c"                                                  //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "math.c"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 #include "math.h"
 
@@ -25,7 +25,7 @@ int fpx_pow(int base, int power) {
 
   return base;
 }
-#endif // _FPXLIBC_ASM
+#endif  // _FPXLIBC_ASM
 
 unsigned int fpx_abs(int input) {
   return (input < 0) ? (0 - input) : input;

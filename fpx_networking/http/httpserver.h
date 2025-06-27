@@ -5,11 +5,11 @@
 #include "websockets.h"
 #include <sys/socket.h>
 
-////////////////////////////////////////////////////////////////
-//  "httpserver.h"                                            //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "httpserver.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 typedef struct _fpx_httpserver fpx_httpserver_t;
 struct _fpx_httpserver_metadata;

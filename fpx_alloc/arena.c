@@ -1,13 +1,13 @@
-////////////////////////////////////////////////////////////////
-//  "arena.c"                                                 //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "arena.c"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 #include "arena.h"
 
-#include <sys/mman.h>
 #include <stdio.h>
+#include <sys/mman.h>
 
 // #define __USE_MISC
 

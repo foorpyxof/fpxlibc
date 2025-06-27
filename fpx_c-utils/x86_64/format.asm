@@ -1,8 +1,8 @@
-; ////////////////////////////////////////////////////////////////
-; //  "format.s"                                                //
-; //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-; //  Author: Erynn 'foorpyxof' Scholtes                        //
-; ////////////////////////////////////////////////////////////////
+;
+;  "format.asm"
+;  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+;  Author: Erynn 'foorpyxof' Scholtes
+;
 
 section .text
 global fpx_strint

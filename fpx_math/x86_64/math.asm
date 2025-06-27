@@ -1,8 +1,8 @@
-; ////////////////////////////////////////////////////////////////
-; //  "math.s"                                                  //
-; //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-; //  Author: Erynn 'foorpyxof' Scholtes                        //
-; ////////////////////////////////////////////////////////////////
+;
+;  "math.asm"
+;  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+;  Author: Erynn 'foorpyxof' Scholtes
+;
 
 
 ; general math functions

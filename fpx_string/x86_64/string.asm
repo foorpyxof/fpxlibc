@@ -1,8 +1,8 @@
-; ////////////////////////////////////////////////////////////////
-; //  "string.s"                                                //
-; //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-; //  Author: Erynn 'foorpyxof' Scholtes                        //
-; ////////////////////////////////////////////////////////////////
+;
+;  "string.asm"
+;  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+;  Author: Erynn 'foorpyxof' Scholtes
+;
 
 ; .intel_syntax noprefix
 

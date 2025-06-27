@@ -1,33 +1,37 @@
 #ifndef FPX_LINKEDLIST_H
 #define FPX_LINKEDLIST_H
 
-////////////////////////////////////////////////////////////////
-//  "linkedlist.h"                                            //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "linkedlist.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 #include <iostream>
 
 namespace fpx {
 
 struct LinkedListNode {
-  /**
-   * Create a new node. Default value is 0.
-   */
-  LinkedListNode(int val = 0): Next(nullptr), Value(val) {}
+    /**
+     * Create a new node. Default value is 0.
+     */
+    LinkedListNode(int val = 0) : Next(nullptr), Value(val) { }
 
-  // ~LinkedListNode() { std::cout << "Destructing node with value " << Value << std::endl; }
+    // ~LinkedListNode() { std::cout << "Destructing node with value " << Value << std::endl; }
 
-  /**
-   * Prints the value of the node to stdout.
-   */
-  virtual void Print() { std::cout << Value; }
+    /**
+     * Prints the value of the node to stdout.
+     */
+    virtual void Print() {
+      std::cout << Value;
+    }
 
-  virtual bool operator==(LinkedListNode const& other) const { return Value == other.Value; }
+    virtual bool operator==(LinkedListNode const& other) const {
+      return Value == other.Value;
+    }
 
-  LinkedListNode* Next;
-  int Value;
+    LinkedListNode* Next;
+    int Value;
 };
 
 class LinkedList {
@@ -35,7 +39,10 @@ class LinkedList {
     /**
      * Create a new empty linked list
      */
-    LinkedList(const char* name = "unnamed list"): m_Name(name), m_Length(0), m_FirstNode(nullptr) {}
+    LinkedList(const char* name = "unnamed list") :
+      m_Name(name),
+      m_Length(0),
+      m_FirstNode(nullptr) { }
     ~LinkedList();
 
     /**
@@ -75,15 +82,17 @@ class LinkedList {
      */
     const char* GetName() const;
 
-    LinkedListNode& operator[] (unsigned int) const;
+    LinkedListNode& operator[](unsigned int) const;
 
     class Iterator {
       public:
         LinkedListNode* current;
 
-        Iterator(LinkedListNode* node_Address): current(node_Address) {}
+        Iterator(LinkedListNode* node_Address) : current(node_Address) { }
 
-        LinkedListNode& operator*() { return *current; }
+        LinkedListNode& operator*() {
+          return *current;
+        }
         Iterator& operator++() {
           if (current)
             current = current->Next;
@@ -97,12 +106,20 @@ class LinkedList {
           return self;
         }
 
-        bool operator==(Iterator const& other) const { return (current == other.current); }
-        bool operator!=(Iterator const& other) const { return (current != other.current); }
+        bool operator==(Iterator const& other) const {
+          return (current == other.current);
+        }
+        bool operator!=(Iterator const& other) const {
+          return (current != other.current);
+        }
     };
 
-    Iterator begin() const { return Iterator(m_FirstNode); }
-    Iterator end() const { return Iterator(nullptr); }
+    Iterator begin() const {
+      return Iterator(m_FirstNode);
+    }
+    Iterator end() const {
+      return Iterator(nullptr);
+    }
 
   private:
     const char* m_Name;
@@ -110,6 +127,6 @@ class LinkedList {
     LinkedListNode* m_FirstNode = nullptr;
 };
 
-}
+}  // namespace fpx
 
-#endif // FPX_LINKEDLIST_H
+#endif  // FPX_LINKEDLIST_H

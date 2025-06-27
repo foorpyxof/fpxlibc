@@ -1,11 +1,11 @@
 #ifndef FPX_NETUTILS_H
 #define FPX_NETUTILS_H
 
-////////////////////////////////////////////////////////////////
-//  "netutils.h"                                              //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "netutils.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 #include "../fpx_c-utils/endian.h"
 #include "../fpx_types.h"

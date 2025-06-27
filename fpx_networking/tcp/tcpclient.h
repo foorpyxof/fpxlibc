@@ -1,16 +1,16 @@
 #ifndef FPX_CLIENT_TCP_H
 #define FPX_CLIENT_TCP_H
 
-////////////////////////////////////////////////////////////////
-//  "tcpclient.h"                                             //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "tcpclient.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 #include "../../fpx_types.h"
 
-#include <pthread.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #define TCP_BUF_SIZE 1024
 #define TCP_DEFAULTPORT 8080
@@ -32,20 +32,16 @@ void* TcpReaderLoop(void*);
  */
 void* TcpWriterLoop(void*);
 
-}
+}  // namespace ClientProperties
 
 class TcpClient {
   public:
-
     /**
      * Interactive spawns a TCP shell, built to work with fpx::TcpServer.
      * Background allows a callback to send TCP messages.
      */
-    enum class Mode {
-      Interactive,
-      Background
-    };
-  
+    enum class Mode { Interactive, Background };
+
   public:
     /**
      * Takes an IP and a PORT to connect to.
@@ -54,9 +50,9 @@ class TcpClient {
 
     /**
      * Connect to the fpx::TcpServer instance
-     * Takes: 
-     * an fpx::TcpClient::Mode, 
-     * a callback method for passing strings incoming over the socket, 
+     * Takes:
+     * an fpx::TcpClient::Mode,
+     * a callback method for passing strings incoming over the socket,
      * a username for connecting to an fpx::TcpServer instance.
      * ---
      * Modes:
@@ -67,7 +63,7 @@ class TcpClient {
      * is interactive.
      */
     void Connect(Mode mode, void (*readerCallback)(uint8_t*), const char* name = nullptr);
-    
+
     /**
      * Gracefully close the socket. Takes no arguments.
      */
@@ -88,19 +84,19 @@ class TcpClient {
      * A struct containing data about all the current running threads.
      */
     typedef struct {
-      TcpClient* Caller;
-      ClientProperties::fn_ptr fn;
-      pthread_t ReaderThread, WriterThread;
+        TcpClient* Caller;
+        ClientProperties::fn_ptr fn;
+        pthread_t ReaderThread, WriterThread;
 
-      int Socket;
+        int Socket;
 
-      char ReadBuffer[TCP_BUF_SIZE];
+        char ReadBuffer[TCP_BUF_SIZE];
 
-      char WriterName[17];
-      char WriteBuffer[TCP_BUF_SIZE];
-      char Input[TCP_BUF_SIZE-16];
+        char WriterName[17];
+        char WriteBuffer[TCP_BUF_SIZE];
+        char Input[TCP_BUF_SIZE - 16];
     } threaddata_t;
-  
+
   private:
     threaddata_t m_ThreadData;
 
@@ -110,6 +106,6 @@ class TcpClient {
     struct sockaddr_in m_SrvAddress;
 };
 
-}
+}  // namespace fpx
 
-#endif // FPX_CLIENT_TCP_H
+#endif  // FPX_CLIENT_TCP_H

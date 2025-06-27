@@ -1,8 +1,8 @@
-////////////////////////////////////////////////////////////////
-//  "tcpserver.cpp"                                           //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "tcpserver.cpp"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 #include "tcpserver.h"
 

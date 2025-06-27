@@ -1,8 +1,8 @@
-; ////////////////////////////////////////////////////////////////
-; //  "endian.s"                                                //
-; //  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-; //  Author: Erynn 'foorpyxof' Scholtes                        //
-; ////////////////////////////////////////////////////////////////
+;
+;  "endian.asm"
+;  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+;  Author: Erynn 'foorpyxof' Scholtes
+;
 
 
 section .text

@@ -1,11 +1,11 @@
 #ifndef FPX_FORMAT_H
 #define FPX_FORMAT_H
 
-////////////////////////////////////////////////////////////////
-//  "format.h"                                                //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "format.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 #include "../fpx_types.h"
 

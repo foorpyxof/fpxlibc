@@ -1,11 +1,11 @@
 #ifndef FPX_QUIC_TYPES_H
 #define FPX_QUIC_TYPES_H
 
-////////////////////////////////////////////////////////////////
-//  "quic_types.h"                                            //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "quic_types.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 #include "../../fpx_types.h"
 #include "quic_macros.h"

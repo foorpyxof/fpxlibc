@@ -1,11 +1,11 @@
 #ifndef FPX_QUIC_H
 #define FPX_QUIC_H
 
-////////////////////////////////////////////////////////////////
-//  "quic.h"                                                  //
-//  Part of fpxlibc (https://github.com/foorpyxof/fpxlibc)    //
-//  Author: Erynn 'foorpyxof' Scholtes                        //
-////////////////////////////////////////////////////////////////
+//
+//  "quic.h"
+//  Part of fpxlibc (https://git.goodgirl.dev/foorpyxof/fpxlibc)
+//  Author: Erynn 'foorpyxof' Scholtes
+//
 
 // implements [https://datatracker.ietf.org/doc/html/rfc9000]
 
@@ -16,8 +16,7 @@
 
 int fpx_quic_socket_init(
   fpx_quic_socket_t* QUIC_SOCK, const char* IP_ADDRESS, uint16_t PORT, uint8_t IP_VERSION);
-int fpx_quic_listen(
-  fpx_quic_socket_t* QUIC_SOCK, uint16_t MAX_ACTIVE, uint16_t BACKLOG);
+int fpx_quic_listen(fpx_quic_socket_t* QUIC_SOCK, uint16_t MAX_ACTIVE, uint16_t BACKLOG);
 int fpx_quic_stoplisten(fpx_quic_socket_t* QUIC_SOCK);
 
 fpx_quic_connection_t fpx_quic_accept(fpx_quic_socket_t* QUIC_SOCK);
