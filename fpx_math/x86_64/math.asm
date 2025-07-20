@@ -24,24 +24,24 @@ fpx_pow:
 
   mov   r11, rdi
 
-  ja    _fpx_pow_subber
-  jb    _fpx_pow_adder
+  ja    .subber
+  jb    .adder
 
-  _fpx_pow_adder:
+  .adder:
   mov   r10, 1
-  jmp   _fpx_pow_looper
+  jmp   .loop_start
 
-  _fpx_pow_subber:
+  .subber:
   mov   r10, -1
 
-  _fpx_pow_looper:
+  .loop_start:
   add   rsi, r10
   test  rsi, rsi
-  jz    _fpx_pow_result
+  jz    .result
   imul  rdi, r11  ; multiply current iteration of result with its base
-  jmp   _fpx_pow_looper
+  jmp   .loop_start
 
-  _fpx_pow_result:
+  .result:
   mov   rax, rdi
   ret
 

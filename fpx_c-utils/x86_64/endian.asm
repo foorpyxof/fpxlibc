@@ -16,9 +16,9 @@ fpx_endian_swap:
 
   ; check for zero/nullptr in either argument
   test  rdi, rdi
-  jz    return
+  jz    .return
   test  rsi, rsi
-  jz    return
+  jz    .return
 
   push  rbp
   mov   rbp, rsp
@@ -27,25 +27,25 @@ fpx_endian_swap:
   mov   r8, rbp
   mov   r9, rdi   ; save for later
 
-  store_loop:
+  .store_loop:
   dec   r8
   mov   r10b, BYTE [rdi]
   mov   BYTE [r8], r10b
   inc   rdi
   cmp   r8, rsp
-  jne   store_loop
+  jne   .store_loop
 
-  copy_loop:
+  .copy_loop:
   mov   r10b, BYTE [r8]
   mov   BYTE [r9], r10b
   inc   r8
   inc   r9
   cmp   r8, rbp
-  jne   copy_loop
+  jne   .copy_loop
 
   mov   rsp, rbp
   pop   rbp
-  return:
+  .return:
   ret
 
 ; store input-object to stack [ rbp - bytes(arg2) ]

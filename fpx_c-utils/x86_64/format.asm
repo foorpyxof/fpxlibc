@@ -18,34 +18,34 @@ fpx_strint:
 
   ; check for negative
   cmp   BYTE [rdi], '-'
-  jne   strint_check
+  jne   .check
   mov   sil, 0x0  ; not positive; negative number
   inc   rdi
 
-  strint_check:
+  .check:
   cmp   BYTE [rdi], '0'
-  jb    strint_end
+  jb    .end
   cmp   BYTE [rdi], '9'
-  ja    strint_end
+  ja    .end
 
   xor   rdx, rdx
 
-  strint_logic:
+  .logic:
   imul  rax, 10
   mov   dl, BYTE [rdi]
   sub   rdx, '0'
   test  sil, sil
-  jz    strint_neg
+  jz    .neg
 
   add   rax, rdx
-  jmp strint_next
+  jmp .next
 
-  strint_neg:
+  .neg:
   sub   rax, rdx
 
-  strint_next:
+  .next:
   inc   rdi
-  jmp   strint_check
+  jmp   .check
 
-  strint_end:
+  .end:
   ret

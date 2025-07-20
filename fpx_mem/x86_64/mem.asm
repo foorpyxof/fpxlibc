@@ -29,43 +29,43 @@ fpx_memcpy:
   xor   r11, r11    ; set r11 to zero to not interfere with the addresses and such
                     ; during the first iteration of the loop
   
-  memcpy_start:
+  .start:
   sub   rdx, r11    ; this is here for after every copy operation
   add   rdi, r11    ; to decrease the remaining length and increase
   add   rsi, r11    ; both the 'dst' and 'src' addresses
 
   cmp   rdx, 0x7
-  ja    copy_qword  ; if remaining length greater than 0x7
+  ja    .qword      ; if remaining length greater than 0x7
   cmp   rdx, 0x3
-  ja    copy_dword  ; else if greater than 0x3
+  ja    .dword      ; else if greater than 0x3
   cmp   rdx, 0x1
-  ja    copy_word   ; else if greater than 0x1
-  je    copy_byte   ; else if equal to 0x1
+  ja    .word       ; else if greater than 0x1
+  je    .byte       ; else if equal to 0x1
   ret               ; else return (nothing left to go)
 
-  copy_qword:
+  .qword:
   mov   r10, QWORD [rsi]
   mov   QWORD [rdi], r10
-  mov   r11, 0x8   ; move qword size into r11 as prep for updating counters and ptrs
-  jmp   memcpy_start
+  mov   r11, 0x8    ; move qword size into r11 as prep for updating counters and ptrs
+  jmp   .start
 
-  copy_dword:
+  .dword:
   mov   r10d, DWORD [rsi]
   mov   DWORD [rdi], r10d
-  mov   r11, 0x4   ; idem
-  jmp   memcpy_start
+  mov   r11, 0x4    ; idem
+  jmp   .start
 
-  copy_word:
+  .word:
   mov   r10w, WORD [rsi]
   mov   WORD [rdi], r10w
   mov   r11, 0x2    ; idem
-  jmp   memcpy_start
+  jmp   .start
 
-  copy_byte:
+  .byte:
   mov   r10b, BYTE [rsi]
   mov   BYTE [rdi], r10b
   mov   r11, 0x1    ; idem
-  jmp   memcpy_start
+  jmp   .start
 
 fpx_memset:
   ; modified registers:
@@ -95,36 +95,36 @@ fpx_memset:
   mov   rax, rdi
   xor   r11, r11
   
-  memset_start:
+  .start:
   sub   rdx, r11
   add   rdi, r11
   
   ; check fpx_memset comments for explanation of this
   cmp   rdx, 0x7
-  ja    set_qword
+  ja    .qword
   cmp   rdx, 0x3
-  ja    set_dword
+  ja    .dword
   cmp   rdx, 0x1
-  ja    set_word
-  je    set_byte
+  ja    .word
+  je    .byte
   ret
 
-  set_qword:
+  .qword:
   mov   QWORD [rdi], rsi
   mov   r11, 0x8
-  jmp   memset_start
+  jmp   .start
 
-  set_dword:
+  .dword:
   mov   DWORD [rdi], esi
   mov   r11, 0x4
-  jmp   memset_start
+  jmp   .start
 
-  set_word:
+  .word:
   mov   WORD [rdi], si
   mov   r11, 0x2
-  jmp   memset_start
+  jmp   .start
 
-  set_byte:
+  .byte:
   mov   BYTE [rdi], sil
   mov   r11, 0x1
-  jmp   memset_start
+  jmp   .start

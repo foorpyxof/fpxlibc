@@ -19,16 +19,16 @@ fpx_getstringlength:
 	
 	xor   rax, rax
 	test  rdi, rdi
-  jnz   fpx_strlen_start  ; if passed string is NOT nullptr
+  jnz   .start  ; if passed string is NOT nullptr
   ret   ; else, return 0
 	
-  fpx_strlen_loop:
+  .loop:
   inc   rax
 
-	fpx_strlen_start:
+	.start:
 	mov   r10b, BYTE [rdi + rax]
 	test  r10b, r10b
-	jnz   fpx_strlen_loop
+	jnz   .loop
   ret
 
 fpx_strcpy:
