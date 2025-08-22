@@ -19,7 +19,6 @@
 // NOTE: DEBUG LINE!! REMOVE!
 // #define FPXLIBC_DEBUG
 
-#define FPX_ARENA_META_SPACE (512 + 16)
 
 struct __fpx_region {
     fpx_region* __next;
@@ -35,6 +34,12 @@ struct __fpx_arena {
     uint32_t __size;
 };
 
+
+#define FPX_ARENA_MAX_REGION_COUNT 16
+#define FPX_ARENA_META_SPACE \
+  ((FPX_ARENA_MAX_REGION_COUNT * sizeof(struct __fpx_region)) + sizeof(struct __fpx_arena))
+
+
 #ifdef FPXLIBC_DEBUG
 static void arena_print(fpx_arena* arena) {
   printf("HEAD");
@@ -49,10 +54,8 @@ static void arena_print(fpx_arena* arena) {
 // #ifndef __FPXLIBC_ASM
 fpx_arena* fpx_arena_create(uint16_t size) {
 
-  size_t memsize =
-    size + FPX_ARENA_META_SPACE;  // we also include room for the arena's metadata onto
-                                  // this new allocation;
-                                  // 512 bytes allows (512/32=)16 regions
+  size_t memsize = size + FPX_ARENA_META_SPACE;  // we also include room for the arena's metadata
+                                                 // onto this new allocation;
   uint8_t* ptr = NULL;
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -65,10 +68,10 @@ fpx_arena* fpx_arena_create(uint16_t size) {
     return (fpx_arena*)0;
 #endif
 
-  fpx_region* reg = (fpx_region*)(ptr + 16);
+  fpx_region* reg = (fpx_region*)(ptr + sizeof(struct __fpx_arena));
   reg->__next = NULL;
   reg->__prev = NULL;
-  reg->__data = ptr + 512 + 16;
+  reg->__data = ptr + FPX_ARENA_META_SPACE;
   reg->__length = size;
   reg->__is_free = 0x1;
 
@@ -138,7 +141,7 @@ void* fpx_arena_alloc(fpx_arena* ptr, size_t size) {
     }
 
     if (reg->__is_free) {
-      if (reg->__length == size || ptr->__region_count == 16) {
+      if (reg->__length == size || ptr->__region_count == FPX_ARENA_MAX_REGION_COUNT) {
         // great! just take it
         dataptr = reg->__data;
         ptr->__region_count++;

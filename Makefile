@@ -68,13 +68,13 @@ EXE_EXT := $(TARGET)$(EXE_EXT)
 include make/variables.mak
 include make/dll.mak
 
-LIBRARY_NAMES := alloc mem c-utils cpp-utils math networking/http networking/quic networking/tcp string structures
+LIBRARY_NAMES := alloc mem c-utils cpp-utils math networking/http networking/quic networking/tcp string structures serialize
 
 OBJECTS_FOLDER := $(BUILD_FOLDER)/objects
 LIBRARY_FOLDER := $(BUILD_FOLDER)/lib
 
-COMPONENTS_C := $(foreach lib,$(LIBRARY_NAMES),$(patsubst $(SOURCE_FOLDER)/%.c,%,$(wildcard $(SOURCE_FOLDER)/$(lib)/*.c)))
-COMPONENTS_CPP := $(foreach lib,$(LIBRARY_NAMES),$(patsubst $(SOURCE_FOLDER)/%.cpp,%,$(wildcard $(SOURCE_FOLDER)/$(lib)/*.cpp)))
+COMPONENTS_C := $(foreach lib,$(LIBRARY_NAMES),$(patsubst $(SOURCE_FOLDER)/%.c,%,$(filter-out %/test.c,$(wildcard $(SOURCE_FOLDER)/$(lib)/*.c))))
+COMPONENTS_CPP := $(foreach lib,$(LIBRARY_NAMES),$(patsubst $(SOURCE_FOLDER)/%.cpp,%,$(filter-out %/test.cpp,$(wildcard $(SOURCE_FOLDER)/$(lib)/*.cpp))))
 
 OBJECTS_RELEASE_C := $(foreach c,$(COMPONENTS_C),$(OBJECTS_FOLDER)/$c$(OBJ_EXT))
 OBJECTS_DEBUG_C := $(patsubst %$(OBJ_EXT),%$(DEBUG_SUFFIX)$(OBJ_EXT),$(OBJECTS_RELEASE_C))
