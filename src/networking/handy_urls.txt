@@ -1,0 +1,1 @@
+https://datatracker.ietf.org/doc/rfc6455/ - WebSockets protocol

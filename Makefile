@@ -1,109 +1,119 @@
-ARGS = -I$(shell pwd)
-MAKEFLAGS += --no-print-directory
+.PHONY: all prep release debug libs test clean shaders
 
-.PHONY: test debug _test compile compile_dbg setup clean _teardown
+all: libs
 
-CC := clang
-CCPLUS := clang++
-AS := nasm
-LD := ld
+# NOTE: remember to `make clean` after switching target OS
+# WINDOWS := true
 
-ASFLAGS := -f elf64
+CC != which clang 2>/dev/null
+CCPLUS != which clang++ 2>/dev/null
+AR != which ar
 
-compile: CFLAGS := -O3
-compile: FPX_MODE := release
-compile: _compile
+CC_WIN32 := x86_64-w64-mingw32-gcc
+CCPLUS_WIN32 := x86_64-w64-mingw32-g++
+AR_WIN32 := x86_64-w64-mingw32-ar
 
-compile_dbg: CFLAGS := -g -Og -DFPX_DEBUG_ENABLE
-compile_dbg: ASFLAGS += -g
-compile_dbg: FPX_MODE := debug
-compile_dbg: _compile
+include make/early.mak
 
-test: compile
-	@echo "Compiling test programs"
-	@find ./testfiles -type f \( -name "*.cpp" \) -exec bash -c 'NAME=$$(basename {} .cpp); echo "[CC] {}" && $(CCPLUS) $(ARGS) -c {} $(CFLAGS) -o ./build/unlinked/testing/$${NAME}.o' \;
-	@$(MAKE) _test
+WINDOWS_TARGET_NAME := win64
+LINUX_TARGET_NAME := linux
 
-debug: CFLAGS := -g -Og -DFPX_DEBUG_ENABLE
-debug: compile_dbg
-	@echo "Compiling test programs"
-	@find ./testfiles -type f \( -name "*.cpp" \) -exec bash -c 'NAME=$$(basename {} .cpp); echo "[CC] {}" && $(CCPLUS) $(ARGS) -c {} $(CFLAGS) -o ./build/unlinked/testing/$${NAME}.o' \;
-	@$(MAKE) _test
+LIB_PREFIX := libfpx_
+DEBUG_SUFFIX := _debug
 
-_test:
-	@echo
-	@if ! test -d "./build/testing" ; then \
-		mkdir -p ./build/testing; \
-	fi
+ifeq ($(WINDOWS),true)
+	TARGET := $(WINDOWS_TARGET_NAME)
+else
+	TARGET := $(LINUX_TARGET_NAME)
+endif
 
-#	@mv *.o build/unlinked/testing/
-	@echo "Linking test programs"
-	@cd scripts/; \
-		export CC="$(CC)"; export CCPLUS="$(CCPLUS)"; export AS="$(AS)"; export LD="$(LD)"; export CFLAGS="$(CFLAGS)"; export LDFLAGS="$(LDFLAGS)"; \
-	./test_compile.sh
-	@echo
+include make/*.mk
 
-_compile: setup x86_64
-	@echo "Compiling source"
-	@find . -type f \( -name "*.c" \) -exec bash -c ' \
-		NAME=$$(basename {} .c); \
-		[ $${NAME} != test ] && \
-		([ ! -f build/unlinked/$${NAME}.o ] || [ $$(stat --format=%Y {}) -gt $$(stat --format=%Y build/unlinked/$${NAME}.o) ]) && \
-		echo "[CC] {}" && \
-		$(CC) $(ARGS) $$(if [ "noasm" != "$(shell sed -nE 's/^current_architecture:(.+)$$/\1/p' scripts/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -c {} $(CFLAGS) -o ./build/unlinked/tmp/$${NAME}.o && \
-		ld -r ./build/unlinked/tmp/$${NAME}.*o -o ./build/unlinked/$${NAME}.o \
-	' \;; \
-	\
-	find . -type f \( -name "*.cpp" -not -wholename "*/testfiles/*" \) -exec bash -c ' \
-		NAME=$$(basename {} .cpp); \
-		[ $${NAME} != test ] && \
-		([ ! -f build/unlinked/$${NAME}.o ] || [ $$(stat --format=%Y {}) -gt $$(stat --format=%Y build/unlinked/$${NAME}.o) ]) && \
-		echo "[CC] {}" && \
-		$(CCPLUS) $(ARGS) $$(if [ "noasm" != "$(shell sed -nE 's/^current_architecture:(.+)$$/\1/p' scripts/params.fpx)" ]; then echo "-D __FPXLIBC_ASM"; fi) -std=c++17 -c {} $(CFLAGS) -o ./build/unlinked/tmp/$${NAME}.o && \
-		ld -r ./build/unlinked/tmp/$${NAME}.*o -o ./build/unlinked/$${NAME}.o \
-	' \;;
-#	@if [ ! $$(find . -maxdepth 1 -name "*.o" | wc -l) -gt 0 ]; then \
-		echo "No C(++) source to compile or C(++) source not modified!"; \
-	fi
-	@$(MAKE) _teardown
-	@echo
+ifeq ($(TARGET),$(WINDOWS_TARGET_NAME))
 
-_teardown:
-	@rm -rf ./build/unlinked/tmp
+	-include make/windows/*.mk
 
-x86_64:
-	@if grep -q "current_architecture:x86_64" scripts/params.fpx; then \
-    echo "Assembling source"; \
-		find . -type f -name "*.asm" -exec bash -c '[ $$(basename {} | cut -d. -f1) != test ] && echo "[AS] {}" && $(AS) {} $(ASFLAGS) -o build/unlinked/tmp/$$(basename {} | cut -d. -f1).$@.o' \;; \
-    echo; \
-	fi
+	CC := $(CC_WIN32)
+	CCPLUS := $(CCPLUS_WIN32)
+	AR := $(AR_WIN32)
+	CFLAGS += -mwindows
+	CPPFLAGS += -mwindows
 
-setup:
-	@echo -e "\033[31;1;4m !\n !\n Did you update assembly code? Be sure to run \`make clean\` first until I fix this!\n !\n !\033[0m";
-
-	@if ! [ -f ./README.md ] && ! [ -f ./LICENSE ] ; then \
-		echo "Must be run from base directory"; \
-		exit 1; \
-	fi
-
-	@if ! test -d "./build/unlinked/testing" ; then \
-		mkdir -p ./build/unlinked/testing; \
-	fi
+	# mingw/bin/libwinpthread.dll.a import library
+	LDFLAGS += -lwinpthread.dll
 	
-	@cd scripts/; \
-	FPX_MODE="$(FPX_MODE)" ./options.sh
+	EXE_EXT := .exe
+	OBJ_EXT := .obj
+	LIB_EXT := .lib
 
-	@if [ "$$(scripts/options.sh CheckClean)" = "clean" ]; then $(MAKE) clean RESET_PARAMS="false"; fi
-	@scripts/options.sh SetLast
+else
 
-	@if ! test -d "./build/unlinked/tmp" ; then \
-		mkdir -p ./build/unlinked/tmp; \
-	fi
+ifeq ($(CC),)
+	CC != which cc
+endif
+ifeq ($(CCPLUS),)
+	CC != which g++
+endif
 
-#	@$(MAKE) clean
+	LDFLAGS += -lglfw
+	
+	# EXE_EXT := .out
+	OBJ_EXT := .o
+	LIB_EXT := .a
+
+endif
+
+EXE_EXT := $(TARGET)$(EXE_EXT)
+
+include make/variables.mak
+include make/dll.mak
+
+LIBRARY_NAMES := alloc mem c-utils cpp-utils math networking/http networking/quic networking/tcp string structures
+
+OBJECTS_FOLDER := $(BUILD_FOLDER)/objects
+LIBRARY_FOLDER := $(BUILD_FOLDER)/lib
+
+COMPONENTS_C := $(foreach lib,$(LIBRARY_NAMES),$(patsubst $(SOURCE_FOLDER)/%.c,%,$(wildcard $(SOURCE_FOLDER)/$(lib)/*.c)))
+COMPONENTS_CPP := $(foreach lib,$(LIBRARY_NAMES),$(patsubst $(SOURCE_FOLDER)/%.cpp,%,$(wildcard $(SOURCE_FOLDER)/$(lib)/*.cpp)))
+
+OBJECTS_RELEASE_C := $(foreach c,$(COMPONENTS_C),$(OBJECTS_FOLDER)/$c$(OBJ_EXT))
+OBJECTS_DEBUG_C := $(patsubst %$(OBJ_EXT),%$(DEBUG_SUFFIX)$(OBJ_EXT),$(OBJECTS_RELEASE_C))
+
+OBJECTS_RELEASE_CPP := $(foreach c,$(COMPONENTS_CPP),$(OBJECTS_FOLDER)/$c$(OBJ_EXT))
+OBJECTS_DEBUG_CPP := $(patsubst %$(OBJ_EXT),%$(DEBUG_SUFFIX)$(OBJ_EXT),$(OBJECTS_RELEASE_CPP))
+
+TEST_CODE := $(addsuffix .cpp,$(addprefix $(TEST_DIR)/,$(LIBRARY_NAMES)))
+
+include make/library.mak
 
 clean:
-	@if [ -d ./build/ ]; then find ./build/ -type f -exec rm {} +; fi
-	@if [ -d ./build/unlinked/tmp/ ]; then rm -rf ./build/unlinked/tmp/; fi
-	@if [ "$(RESET_PARAMS)" != "false" ] && [ -f scripts/params.fpx ]; then rm scripts/params.fpx; fi
-	@find . -maxdepth 1 -type f -name "*.o" -exec rm {} +
+	rm -rf ./$(BUILD_FOLDER) || true
+
+release: $(LIBS_RELEASE)
+debug: $(LIBS_DEBUG)
+
+# individual libraries, both RELEASE and DEBUG
+libs: $(LIBS_RELEASE) $(LIBS_DEBUG)
+
+$(OBJECTS_FOLDER):
+	mkdir -p $@
+
+MKDIR_COMMAND = if ! [ -d "$(dir $@)" ]; then mkdir -p $(dir $@); fi
+
+$(OBJECTS_RELEASE_C): $(OBJECTS_FOLDER)/%$(OBJ_EXT): $(SOURCE_FOLDER)/%.c
+	$(MKDIR_COMMAND)
+	$(CC) $(CFLAGS) $(RELEASE_FLAGS) -c $< -o $@
+
+$(OBJECTS_DEBUG_C): $(OBJECTS_FOLDER)/%$(DEBUG_SUFFIX)$(OBJ_EXT): $(SOURCE_FOLDER)/%.c
+	$(MKDIR_COMMAND)
+	$(CC) $(CFLAGS) $(DEBUG_FLAGS) -c $< -o $@
+
+$(OBJECTS_RELEASE_CPP): $(OBJECTS_FOLDER)/%$(OBJ_EXT): $(SOURCE_FOLDER)/%.cpp
+	$(MKDIR_COMMAND)
+	$(CCPLUS) $(CPPFLAGS) $(RELEASE_FLAGS) -c $< -o $@
+
+$(OBJECTS_DEBUG_CPP): $(OBJECTS_FOLDER)/%$(DEBUG_SUFFIX)$(OBJ_EXT): $(SOURCE_FOLDER)/%.cpp
+	$(MKDIR_COMMAND)
+	$(CCPLUS) $(CPPFLAGS) $(DEBUG_FLAGS) -c $< -o $@
+
+include make/zip.mak

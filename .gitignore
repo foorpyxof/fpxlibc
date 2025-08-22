@@ -32,3 +32,6 @@ scripts/params.fpx
 # specific files
 curlout.txt
 curlscript_ws.sh
+
+.cache/
+compile_commands.json

@@ -1,0 +1,15 @@
+ifeq ($(WINDOWS), true)
+	MINGW_DIRECTORY := /usr/x86_64-w64-mingw32
+
+	BASE_INCLUDE_DIRECTORY := /home/erynn/programming/crossplatform_headers
+
+	EXTRA_INCLUDE_DIRS += $(BASE_INCLUDE_DIRECTORY)
+
+	VULKAN_INCLUDE_DIRECTORY := $(BASE_INCLUDE_DIRECTORY)/Vulkan-Headers/include
+	GLFW_INCLUDE_DIRECTORY := $(BASE_INCLUDE_DIRECTORY)/glfw/include
+	CGLM_INCLUDE_DIRECTORY := $(BASE_INCLUDE_DIRECTORY)/cglm/include
+
+	BASE_LIBRARY_DIRECTORY := /home/erynn/programming/libraries/windows
+
+	GLFW_LIBRARY_DIRECTORY := $(BASE_LIBRARY_DIRECTORY)
+endif
