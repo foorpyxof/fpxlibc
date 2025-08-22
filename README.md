@@ -5,22 +5,12 @@ I'll keep updating it with more stuff as I go along on my journey to learn more 
 
 ---
 
-Includes C++ test-programs that you can build using ```make test```.
+## Makefile instructions:
 
----
-
-## More Makefile instructions:
-
-- ```make```/```make compile``` only compile the library
-- ```make compile_dbg``` ditto, but with debug flags enabled
-- ```make test``` builds the library and all the test programs
-- ```make debug``` builds the library and all the test programs with debug flags enabled
-
-**note:** the Makefile will compile and assemble all .c, .cpp, and .asm files. To prevent test-programs from being compiled, name them test.(extension). The Makefile will ignore these files.
+- ```make``` to compile into libraries (.a for linux, .lib for windows)
 
 ## x86_64 assembly
 
-Some parts of the library have been written in x86_64 assembly for optimization purposes.
-These files can be assembled by enabling x86_64 assembly when prompted through ```make``` or ```make compile```.
+Some parts of the library have been written in x86_64 assembly. These have not been processed into the build system yet, but will be soon
 
 ### have fun uwu
