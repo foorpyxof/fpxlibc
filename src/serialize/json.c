@@ -19,9 +19,11 @@
 #define IS_WHITESPACE(character) \
   (character == 0x20 || character == 0x0A || character == 0x0D || character == 0x09)
 
-#define TRIM_WHITESPACE(ptr, max_len)                                                      \
-  for (size_t _current_iter = 0; _current_iter < (size_t)(max_len) && IS_WHITESPACE(*ptr); \
-    ++ptr, ++_current_iter) { }
+#define TRIM_WHITESPACE(_dataptr, _limitptr)                               \
+  {                                                                        \
+    for (; (_dataptr < _limitptr) && IS_WHITESPACE(*_dataptr); ++_dataptr) \
+      ;                                                                    \
+  }
 
 // expects first character to be '{'
 // returns FPX_JSON_SYNTAX_ERROR otherwise
@@ -56,6 +58,10 @@ static Fpx_Json_E_Result _json_null_validate(const char** data, const char* limi
 static Fpx_Json_E_Result _json_array_parse(
   const char** string, const char* limit, fpx_arena* arena, Fpx_Json_Array* output);
 
+static void _json_object_print(Fpx_Json_Object*);
+static void _json_array_print(Fpx_Json_Array*);
+static void _json_value_print(Fpx_Json_Value*);
+
 Fpx_Json_Entity fpx_json_read(const char* json_data, size_t len) {
   Fpx_Json_Entity retval = { 0 };
 
@@ -79,10 +85,10 @@ Fpx_Json_Entity fpx_json_read(const char* json_data, size_t len) {
   retval.arena = fpx_arena_create(len);
 
   // trim leading whitespace
-  TRIM_WHITESPACE(current_char, len - (current_char - json_data));
+  TRIM_WHITESPACE(current_char, limit);
 
   retval.isValid = (FPX_JSON_RESULT_SUCCESS ==
-    _json_object_parse(&current_char, limit, retval.arena, &retval.rootObject));
+    _json_object_parse(&current_char, limit, retval.arena, &retval.root));
 
   if (false == retval.isValid) {
     fpx_arena_destroy(retval.arena);
@@ -90,6 +96,29 @@ Fpx_Json_Entity fpx_json_read(const char* json_data, size_t len) {
   }
 
   return retval;
+}
+
+Fpx_Json_E_Result fpx_json_destroy(Fpx_Json_Entity* entity) {
+  if (NULL == entity)
+    return FPX_JSON_RESULT_ARGUMENT_ERROR;
+
+  if (entity->arena) {
+    fpx_arena_destroy(entity->arena);
+  }
+
+  memset(entity, 0, sizeof *(entity));
+  return FPX_JSON_RESULT_SUCCESS;
+}
+
+void fpx_json_print(Fpx_Json_Entity* json) {
+  if (NULL == json || false == json->isValid || NULL == json->arena)
+    return;
+
+  _json_object_print(&json->root);
+
+  printf("\n");
+
+  return;
 }
 
 // STATIC FUNCTIONS BELOW -------------------------
@@ -122,7 +151,7 @@ static Fpx_Json_E_Result _json_object_parse(
 
   ++data;
 
-  TRIM_WHITESPACE(data, limit - data);
+  TRIM_WHITESPACE(data, limit);
 
   if (*data == '}') {
     memset(output, 0, sizeof(*output));
@@ -154,7 +183,7 @@ static Fpx_Json_E_Result _json_object_parse(
 
     new_obj.memberCount++;
 
-    TRIM_WHITESPACE(data, limit - data);
+    TRIM_WHITESPACE(data, limit);
     if (*data != ',' && *data != '}') {
       free(new_obj.members);
       return FPX_JSON_RESULT_SYNTAX_ERROR;
@@ -162,7 +191,7 @@ static Fpx_Json_E_Result _json_object_parse(
     if (*data == ',')
       ++data;
 
-    TRIM_WHITESPACE(data, limit - data);
+    TRIM_WHITESPACE(data, limit);
   } while (data < limit && *data != '}');
 
   *output = new_obj;
@@ -196,12 +225,12 @@ static Fpx_Json_E_Result _json_member_parse(
   if (FPX_JSON_RESULT_SUCCESS > key_result)
     return key_result;
 
-  TRIM_WHITESPACE(data, limit - data);
+  TRIM_WHITESPACE(data, limit);
   if (*data != ':')
     return FPX_JSON_RESULT_SYNTAX_ERROR;
 
   ++data;
-  TRIM_WHITESPACE(data, limit - data);
+  TRIM_WHITESPACE(data, limit);
 
   // parse value
   Fpx_Json_E_Result val_res = _json_value_parse(&data, limit, alloc_arena, new_member.value);
@@ -394,6 +423,11 @@ static Fpx_Json_E_Result _json_string_parse(
   }
 
   void* temp = fpx_arena_alloc(arena, clone_idx + 1);
+  if (NULL == temp) {
+    free(retval.data);
+    return FPX_JSON_RESULT_MEMORY_ERROR;
+  }
+
   memcpy(temp, retval.data, clone_idx);
   free(retval.data);
   retval.size = clone_idx;
@@ -526,12 +560,12 @@ static Fpx_Json_E_Result _json_array_parse(
 
   ++data;
 
+  TRIM_WHITESPACE(data, limit);
+
   if (*data == ']') {
     memset(output, 0, sizeof(*output));
     RETURN(FPX_JSON_RESULT_SUCCESS);
   }
-
-  TRIM_WHITESPACE(data, limit - data);
 
   uint8_t value_increment = 8;
   uint16_t value_capacity = 0;
@@ -553,7 +587,7 @@ static Fpx_Json_E_Result _json_array_parse(
       return val_res;
     }
 
-    TRIM_WHITESPACE(data, limit - data);
+    TRIM_WHITESPACE(data, limit);
     if (*data != ',' && *data != ']') {
       free(new_arr.values);
       return FPX_JSON_RESULT_SYNTAX_ERROR;
@@ -561,7 +595,7 @@ static Fpx_Json_E_Result _json_array_parse(
     if (*data == ',')
       ++data;
 
-    TRIM_WHITESPACE(data, limit - data);
+    TRIM_WHITESPACE(data, limit);
 
     new_arr.count++;
 
@@ -569,9 +603,83 @@ static Fpx_Json_E_Result _json_array_parse(
 
 
   output->values = fpx_arena_alloc(arena, sizeof(Fpx_Json_Value) * new_arr.count);
+
+  if (NULL == output->values)
+    return FPX_JSON_RESULT_MEMORY_ERROR;
+
   memcpy(output->values, new_arr.values, new_arr.count * sizeof(Fpx_Json_Value));
   output->count = new_arr.count;
 
 
   RETURN(FPX_JSON_RESULT_SUCCESS);
+}
+
+static void _json_object_print(Fpx_Json_Object* obj) {
+  if (NULL == obj)
+    return;
+
+  printf("{ ");
+  for (size_t i = 0; i < obj->memberCount; ++i) {
+    Fpx_Json_Member* m = &obj->members[i];
+
+    printf("\"%s\" : ", m->key.data);
+
+    _json_value_print(m->value);
+
+    if (i < (obj->memberCount - 1))
+      printf(", ");
+  }
+  printf(" }");
+
+  return;
+}
+
+static void _json_array_print(Fpx_Json_Array* arr) {
+  if (NULL == arr)
+    return;
+
+  printf("[ ");
+  for (size_t i = 0; i < arr->count; ++i) {
+    _json_value_print(&arr->values[i]);
+
+    if (i < (arr->count - 1))
+      printf(", ");
+  }
+  printf(" ]");
+}
+
+static void _json_value_print(Fpx_Json_Value* val) {
+  if (NULL == val)
+    return;
+
+  switch (val->valueType) {
+    case FPX_JSON_VALUE_BOOL:
+      printf("%s", (val->boolean) ? "true" : "false");
+      break;
+
+    case FPX_JSON_VALUE_NULL:
+      printf("null");
+      break;
+
+    case FPX_JSON_VALUE_NUMBER:
+      printf("%lf", val->number);
+      break;
+
+    case FPX_JSON_VALUE_STRING:
+      printf("\"%s\"", val->string.data);
+      break;
+
+    case FPX_JSON_VALUE_OBJECT:
+      _json_object_print(&val->object);
+      break;
+
+    case FPX_JSON_VALUE_ARRAY:
+      _json_array_print(&val->array);
+      break;
+
+    default:
+      break;
+  }
+
+  return;
 }

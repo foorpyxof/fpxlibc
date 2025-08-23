@@ -5,11 +5,14 @@
 //
 
 #include "alloc/arena.h"
+#include "mem/mem.h"
 
 #include <stdio.h>
+#include <unistd.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <stdlib.h>
+#define PAGE_SIZE 4096
 #else
 #include <sys/mman.h>
 #endif
@@ -30,15 +33,16 @@ struct __fpx_region {
 
 struct __fpx_arena {
     fpx_region* __regions;
-    uint32_t __region_count;
+    uint16_t __region_count;
+    uint16_t __region_capacity;
     uint32_t __size;
 };
 
+static size_t page_size = 0;
 
-#define FPX_ARENA_MAX_REGION_COUNT 16
-#define FPX_ARENA_META_SPACE \
-  ((FPX_ARENA_MAX_REGION_COUNT * sizeof(struct __fpx_region)) + sizeof(struct __fpx_arena))
+static int _fpx_arena_double_reg_cap(fpx_arena* ptr);
 
+#define FPX_ARENA_META_SPACE (sizeof(struct __fpx_arena))
 
 #ifdef FPXLIBC_DEBUG
 static void arena_print(fpx_arena* arena) {
@@ -56,28 +60,47 @@ fpx_arena* fpx_arena_create(uint16_t size) {
 
   size_t memsize = size + FPX_ARENA_META_SPACE;  // we also include room for the arena's metadata
                                                  // onto this new allocation;
-  uint8_t* ptr = NULL;
+  uint8_t* ar_ptr = NULL;
+  uint8_t* reg_ptr = NULL;
+
 
 #if defined(_WIN32) || defined(_WIN64)
   ptr = malloc(memsize);
   if (NULL == ptr)
     return (fpx_arena*)0;
+
+  page_size = 4096;
+
+  reg = malloc(page_size);
+  if (NULL == reg) {
+    free(ptr);
+    return (fpx_arena*)0;
+  }
 #else
-  if ((ptr = mmap(0, memsize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0)) ==
+  if ((ar_ptr = mmap(0, memsize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0)) ==
     (void*)-1)
     return (fpx_arena*)0;
+
+  page_size = getpagesize();
+
+  if ((reg_ptr = mmap(0, page_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0)) ==
+    (void*)-1) {
+    munmap(ar_ptr, memsize);
+    return (fpx_arena*)0;
+  }
 #endif
 
-  fpx_region* reg = (fpx_region*)(ptr + sizeof(struct __fpx_arena));
+  fpx_region* reg = (fpx_region*)reg_ptr;
   reg->__next = NULL;
   reg->__prev = NULL;
-  reg->__data = ptr + FPX_ARENA_META_SPACE;
+  reg->__data = ar_ptr + FPX_ARENA_META_SPACE;
   reg->__length = size;
   reg->__is_free = 0x1;
 
-  fpx_arena* arena = (fpx_arena*)ptr;
+  fpx_arena* arena = (fpx_arena*)ar_ptr;
   arena->__regions = reg;
   arena->__region_count = 1;
+  arena->__region_capacity = page_size / sizeof(fpx_region);
   arena->__size = size;
 
   return arena;
@@ -88,11 +111,15 @@ int fpx_arena_destroy(fpx_arena* ptr) {
   if (NULL == ptr)
     return -1;
 #if defined(_WIN32) || defined(_WIN64)
+  free(ptr->__regions);
   free(ptr);
   return 0;
 #else
-  return munmap(ptr, ptr->__size + FPX_ARENA_META_SPACE);
+  munmap(ptr->__regions, sizeof(fpx_region) * ptr->__region_capacity);
+  munmap(ptr, ptr->__size + FPX_ARENA_META_SPACE);
 #endif
+
+  return 0;
 }
 
 // if a nullptr is returned, it is because there is not enough space.
@@ -100,13 +127,16 @@ int fpx_arena_destroy(fpx_arena* ptr) {
 // - insufficient space
 // - fragmentation
 void* fpx_arena_alloc(fpx_arena* ptr, size_t size) {
+  if (NULL == ptr || 1 > size)
+    return NULL;
+
   // old code ahead
   /*
   for (uint8_t i = 0; i < ptr->__region_count; ++i) {
     fpx_region* reg = &ptr->__regions[i];
     if (reg->__is_free && reg->__length >= size) {
       reg->__is_free = 0;
-      if ((reg->__length == size) || (ptr->__region_count == 16)) {
+      if ((reg->__length == size) || (ptr->__region_count == ptr->__region_capacity)) {
         // return data pointer if size matches exactly or it's the last allowed
         // region
         return reg->__data;
@@ -125,6 +155,9 @@ void* fpx_arena_alloc(fpx_arena* ptr, size_t size) {
   }
   */
 
+  if (ptr->__region_count == ptr->__region_capacity)
+    _fpx_arena_double_reg_cap(ptr);
+
   void* dataptr = NULL;
   fpx_region* reg = ptr->__regions;
   fpx_region* splitter = NULL;
@@ -141,7 +174,7 @@ void* fpx_arena_alloc(fpx_arena* ptr, size_t size) {
     }
 
     if (reg->__is_free) {
-      if (reg->__length == size || ptr->__region_count == FPX_ARENA_MAX_REGION_COUNT) {
+      if (reg->__length == size) {
         // great! just take it
         dataptr = reg->__data;
         ptr->__region_count++;
@@ -153,7 +186,7 @@ void* fpx_arena_alloc(fpx_arena* ptr, size_t size) {
 
       } else if (!splitter) {
         splitter = reg;
-        if (ptr->__region_count < 16)
+        if (ptr->__region_count < ptr->__region_capacity)
           splittee = &ptr->__regions[ptr->__region_count];
         // split into "splittee" region if exists,
         // otherwise continue the loop and get splittee later
@@ -249,6 +282,35 @@ int fpx_arena_free(fpx_arena* arenaptr, void* data) {
 #endif
 
   return 1;
+}
+
+static int _fpx_arena_double_reg_cap(fpx_arena* ptr) {
+  if (NULL == ptr)
+    return -1;
+
+  size_t new_capacity = ptr->__region_capacity * 2;
+
+  fpx_region* new_ptr = mmap(0,
+    new_capacity * sizeof(fpx_region),
+    PROT_READ | PROT_WRITE,
+    MAP_ANONYMOUS | MAP_PRIVATE,
+    -1,
+    0);
+
+  if (new_ptr == (void*)-1)
+    return -2;
+
+  fpx_memcpy(new_ptr, ptr->__regions, ptr->__region_count * sizeof(fpx_region));
+
+  if (munmap(ptr->__regions, ptr->__region_capacity * sizeof(fpx_region)) == -1) {
+    munmap(new_ptr, new_capacity * sizeof(fpx_region));
+    return -2;
+  }
+
+  ptr->__regions = new_ptr;
+  ptr->__region_capacity = new_capacity;
+
+  return 0;
 }
 
 #ifdef FPX_RESET_DEBUG

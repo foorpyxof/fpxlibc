@@ -1,13 +1,41 @@
 #include "serialize/json.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+
 int main(void) {
 
-  char test_string[] =
-    "    { \"abcdef\" : true, \"test key WOAH\" : {\"ligma\"   : [   12,null,-32        ,  false]}      }";
+  FILE* json_file = fopen("input3.json", "rb");
+  if (NULL == json_file) {
+    perror("fopen()");
+    return EXIT_FAILURE;
+  }
 
-  Fpx_Json_Entity new_entity = fpx_json_read(test_string, sizeof(test_string) - 1);
+  fseek(json_file, 0, SEEK_END);
 
-  if (new_entity.arena) { }
+  long file_size = ftell(json_file);
+  if (0 > file_size) {
+    perror("ftell()");
+    return EXIT_FAILURE;
+  }
+
+
+  char* test_string = (char*)malloc(file_size);
+
+  rewind(json_file);
+
+  if ((unsigned long)file_size > fread(test_string, 1, file_size, json_file)) {
+    printf("feof: %d | ferror: %d\n", feof(json_file), ferror(json_file));
+    return EXIT_FAILURE;
+  }
+
+  Fpx_Json_Entity new_entity = fpx_json_read(test_string, file_size);
+
+  // printf("%s\n", ((new_entity.isValid) ? "JSON parse valid!" : "JSON parse failed"));
+
+  fpx_json_print(&new_entity);
+
+  fpx_json_destroy(&new_entity);
 
   return 0;
 }

@@ -36,8 +36,6 @@ struct _fpx_json_string {
 };
 
 struct _fpx_json_member {
-    bool isEmpty;
-
     Fpx_Json_String key;
 
     Fpx_Json_Value* value;
@@ -68,7 +66,7 @@ struct _fpx_json_value {
 struct _fpx_json_entity {
     fpx_arena* arena;
 
-    Fpx_Json_Object rootObject;
+    Fpx_Json_Object root;
 
     bool isValid;
 };
@@ -76,5 +74,7 @@ struct _fpx_json_entity {
 Fpx_Json_Entity fpx_json_read(const char* json_data, size_t data_len);
 
 Fpx_Json_E_Result fpx_json_destroy(Fpx_Json_Entity*);
+
+void fpx_json_print(Fpx_Json_Entity*);
 
 #endif  // FPX_JSON_H
