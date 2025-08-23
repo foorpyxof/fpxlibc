@@ -18,7 +18,7 @@ typedef struct __fpx_arena fpx_arena;
  * Create a memory arena
  * Returns NULL/0 upon failure
  */
-extern fpx_arena* fpx_arena_create(uint16_t size);
+extern fpx_arena* fpx_arena_create(uint64_t size);
 
 /**
  * Destroys an arena

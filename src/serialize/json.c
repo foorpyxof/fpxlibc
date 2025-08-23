@@ -3,6 +3,7 @@
 #include "c-utils/format.h"
 #include "string/string.h"
 
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,6 +24,20 @@
     for (; (_dataptr < _limitptr) && IS_WHITESPACE(*_dataptr); ++_dataptr) \
       ;                                                                    \
   }
+
+#define SYNTAX_EXPECT(ptr, expect)
+
+#if !defined(NDEBUG) || defined(DEBUG)
+#undef SYNTAX_EXPECT
+#define SYNTAX_EXPECT(ptr, expect)                                    \
+  fprintf(stderr,                                                     \
+    "%s:%d - EXPECTED '%c' BUT GOT '%c'. CONTEXT: \"...%.40s...\"\n", \
+    __FILE__,                                                         \
+    __LINE__,                                                         \
+    expect,                                                           \
+    *ptr,                                                             \
+    ptr);
+#endif
 
 // expects first character to be '{'
 // returns FPX_JSON_SYNTAX_ERROR otherwise
@@ -78,6 +93,9 @@ Fpx_Json_Entity fpx_json_read(const char* json_data, size_t len) {
   page_size = getpagesize();
 #endif
 
+  // REALLY nasty! maybe see if there's a better way
+  len *= 2;
+
   size_t page_diff = 0;
 
   if (len % page_size != 0) {
@@ -86,15 +104,15 @@ Fpx_Json_Entity fpx_json_read(const char* json_data, size_t len) {
   }
 
   // allocate an extra page, just in case
-  len += page_size;
 
   retval.arena = fpx_arena_create(len);
 
   // trim leading whitespace
   TRIM_WHITESPACE(current_char, limit);
 
-  retval.isValid = (FPX_JSON_RESULT_SUCCESS ==
-    _json_value_parse(&current_char, limit, retval.arena, &retval.root));
+  Fpx_Json_E_Result root_val = _json_value_parse(&current_char, limit, retval.arena, &retval.root);
+
+  retval.isValid = (FPX_JSON_RESULT_SUCCESS == root_val);
 
   if (false == retval.isValid) {
     fpx_arena_destroy(retval.arena);
@@ -152,8 +170,10 @@ static Fpx_Json_E_Result _json_object_parse(
     return FPX_JSON_RESULT_OUT_OF_BOUNDS_ERROR;
   }
 
-  if (*data != '{')
+  if (*data != '{') {
+    SYNTAX_EXPECT(data, '{');
     return FPX_JSON_RESULT_SYNTAX_ERROR;
+  }
 
   ++data;
 
@@ -192,6 +212,8 @@ static Fpx_Json_E_Result _json_object_parse(
     TRIM_WHITESPACE(data, limit);
     if (*data != ',' && *data != '}') {
       free(new_obj.members);
+      SYNTAX_EXPECT(data, ',');
+      SYNTAX_EXPECT(data, '}');
       return FPX_JSON_RESULT_SYNTAX_ERROR;
     }
     if (*data == ',')
@@ -223,8 +245,10 @@ static Fpx_Json_E_Result _json_member_parse(
 
   new_member.value = fpx_arena_alloc(alloc_arena, sizeof(*new_member.value));
 
-  if (NULL == new_member.value)
+  if (NULL == new_member.value) {
+    fprintf(stderr, "FROM MEMBER PARSE\n");
     return FPX_JSON_RESULT_MEMORY_ERROR;
+  }
 
   Fpx_Json_E_Result key_result = _json_string_parse(&data, limit, alloc_arena, &new_member.key);
 
@@ -232,8 +256,10 @@ static Fpx_Json_E_Result _json_member_parse(
     return key_result;
 
   TRIM_WHITESPACE(data, limit);
-  if (*data != ':')
+  if (*data != ':') {
+    SYNTAX_EXPECT(data, ':');
     return FPX_JSON_RESULT_SYNTAX_ERROR;
+  }
 
   ++data;
   TRIM_WHITESPACE(data, limit);
@@ -321,6 +347,7 @@ static Fpx_Json_E_Result _json_value_parse(
       break;
 
     default:
+      fprintf(stderr, "General syntax error while checking for value\n");
       return FPX_JSON_RESULT_SYNTAX_ERROR;
   }
 
@@ -352,8 +379,10 @@ static Fpx_Json_E_Result _json_string_parse(
     return FPX_JSON_RESULT_OUT_OF_BOUNDS_ERROR;
   }
 
-  if (*data != '\"')
+  if (*data != '\"') {
+    SYNTAX_EXPECT(data, '"');
     return FPX_JSON_RESULT_SYNTAX_ERROR;
+  }
 
   ++data;
 
@@ -366,8 +395,20 @@ static Fpx_Json_E_Result _json_string_parse(
   }
 
   const char* next_dbl_quote = data;
-  for (; *next_dbl_quote != '\"' && next_dbl_quote <= limit; ++next_dbl_quote)
-    ;
+
+  bool escaped = false;
+  for (; next_dbl_quote <= limit; ++next_dbl_quote) {
+    if (!escaped) {
+      if (*next_dbl_quote == '\\') {
+        escaped = true;
+        continue;
+      } else if (*next_dbl_quote == '"')
+        break;
+    } else {
+      escaped = false;
+      continue;
+    }
+  }
 
   if (*next_dbl_quote != '\"')
     return FPX_JSON_RESULT_OUT_OF_BOUNDS_ERROR;
@@ -401,6 +442,7 @@ static Fpx_Json_E_Result _json_string_parse(
         // if unicode escape sequence reaches past the next double quote:
         if (data + 5 > next_dbl_quote) {
           free(retval.data);
+          fprintf(stderr, "NO DBL QUOTE IN RANGE\n");
           return FPX_JSON_RESULT_SYNTAX_ERROR;
         }
 
@@ -431,6 +473,7 @@ static Fpx_Json_E_Result _json_string_parse(
   void* temp = fpx_arena_alloc(arena, clone_idx + 1);
   if (NULL == temp) {
     free(retval.data);
+    fprintf(stderr, "FROM STRING PARSE\n");
     return FPX_JSON_RESULT_MEMORY_ERROR;
   }
 
@@ -461,12 +504,16 @@ static Fpx_Json_E_Result _json_number_parse(
   uint8_t min_space = 1;
   if (*data == 'i' || *data == 'I') {
     min_space = 8;
-    if (0 != strncasecmp("infinity", data, 8))
+    if (0 != strncasecmp("infinity", data, 8)) {
+      fprintf(stderr, "BAD NUMBER\n");
       return FPX_JSON_RESULT_SYNTAX_ERROR;
+    }
   } else if (*data == '-')
     min_space = 2;
-  else if (*data < '0' || *data > '9')
+  else if (*data < '0' || *data > '9') {
+    fprintf(stderr, "BAD NUMBER\n");
     return FPX_JSON_RESULT_SYNTAX_ERROR;
+  }
 
   if (limit - data < min_space)
     return FPX_JSON_RESULT_OUT_OF_BOUNDS_ERROR;
@@ -500,8 +547,11 @@ static Fpx_Json_E_Result _json_bool_parse(const char** string, const char* limit
 
   if (*data == 'f')
     min_space = 5;
-  else if (*data != 't')
+  else if (*data != 't') {
+    SYNTAX_EXPECT(data, 't');
+    SYNTAX_EXPECT(data, 'f');
     return FPX_JSON_RESULT_SYNTAX_ERROR;
+  }
 
   if (limit - data < min_space)
     return FPX_JSON_RESULT_OUT_OF_BOUNDS_ERROR;
@@ -513,6 +563,7 @@ static Fpx_Json_E_Result _json_bool_parse(const char** string, const char* limit
     data += 5;
     *output = false;
   } else {
+    fprintf(stderr, "BOOL SYNTAX ERROR\n");
     return FPX_JSON_RESULT_SYNTAX_ERROR;
   }
 
@@ -532,11 +583,15 @@ static Fpx_Json_E_Result _json_null_validate(const char** string, const char* li
     return _return_value;     \
   }
 
-  if (*data != 'n')
+  if (*data != 'n') {
+    fprintf(stderr, "NULL NOT NULL\n");
     return FPX_JSON_RESULT_SYNTAX_ERROR;
+  }
 
-  if (0 != strncmp("null", data, 4))
+  if (0 != strncmp("null", data, 4)) {
+    fprintf(stderr, "NULL NOT NULL\n");
     return FPX_JSON_RESULT_SYNTAX_ERROR;
+  }
 
   data += 4;
 
@@ -561,8 +616,10 @@ static Fpx_Json_E_Result _json_array_parse(
     return _return_value;                        \
   }
 
-  if (*data != '[')
+  if (*data != '[') {
+    SYNTAX_EXPECT(data, '[');
     return FPX_JSON_RESULT_SYNTAX_ERROR;
+  }
 
   ++data;
 
@@ -596,6 +653,8 @@ static Fpx_Json_E_Result _json_array_parse(
     TRIM_WHITESPACE(data, limit);
     if (*data != ',' && *data != ']') {
       free(new_arr.values);
+      SYNTAX_EXPECT(data, ']');
+      SYNTAX_EXPECT(data, ',');
       return FPX_JSON_RESULT_SYNTAX_ERROR;
     }
     if (*data == ',')
@@ -604,14 +663,15 @@ static Fpx_Json_E_Result _json_array_parse(
     TRIM_WHITESPACE(data, limit);
 
     new_arr.count++;
-
   } while (data < limit && *data != ']');
 
 
   output->values = fpx_arena_alloc(arena, sizeof(Fpx_Json_Value) * new_arr.count);
 
-  if (NULL == output->values)
+  if (NULL == output->values) {
+    fprintf(stderr, "FROM ARRAY PARSE\n");
     return FPX_JSON_RESULT_MEMORY_ERROR;
+  }
 
   memcpy(output->values, new_arr.values, new_arr.count * sizeof(Fpx_Json_Value));
   output->count = new_arr.count;
