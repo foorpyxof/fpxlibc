@@ -18,7 +18,8 @@ include make/early.mak
 WINDOWS_TARGET_NAME := win64
 LINUX_TARGET_NAME := linux
 
-LIB_PREFIX := libfpx_
+PREFIX := fpx_
+LIB_PREFIX := lib$(PREFIX)
 DEBUG_SUFFIX := _debug
 
 ifeq ($(WINDOWS),true)
@@ -73,8 +74,9 @@ LIBRARY_NAMES := alloc mem c-utils cpp-utils math networking/http networking/qui
 OBJECTS_FOLDER := $(BUILD_FOLDER)/objects
 LIBRARY_FOLDER := $(BUILD_FOLDER)/lib
 
-COMPONENTS_C := $(foreach lib,$(LIBRARY_NAMES),$(patsubst $(SOURCE_FOLDER)/%.c,%,$(filter-out %/test.c,$(wildcard $(SOURCE_FOLDER)/$(lib)/*.c))))
-COMPONENTS_CPP := $(foreach lib,$(LIBRARY_NAMES),$(patsubst $(SOURCE_FOLDER)/%.cpp,%,$(filter-out %/test.cpp,$(wildcard $(SOURCE_FOLDER)/$(lib)/*.cpp))))
+COMPONENTS_C := $(strip $(foreach lib,$(LIBRARY_NAMES),$(patsubst $(SOURCE_FOLDER)/$(lib)/%.c,$(lib)/$(PREFIX)$(subst /,_,$(lib))_%,$(filter-out %/test.c,$(wildcard $(SOURCE_FOLDER)/$(lib)/*.c)))))
+
+COMPONENTS_CPP := $(strip $(foreach lib,$(LIBRARY_NAMES),$(patsubst $(SOURCE_FOLDER)/$(lib)/%.cpp,$(lib)/$(PREFIX)$(subst /,_,$(lib))_%,$(filter-out %/test.cpp,$(wildcard $(SOURCE_FOLDER)/$(lib)/*.cpp)))))
 
 OBJECTS_RELEASE_C := $(foreach c,$(COMPONENTS_C),$(OBJECTS_FOLDER)/$c$(OBJ_EXT))
 OBJECTS_DEBUG_C := $(patsubst %$(OBJ_EXT),%$(DEBUG_SUFFIX)$(OBJ_EXT),$(OBJECTS_RELEASE_C))
@@ -85,6 +87,7 @@ OBJECTS_DEBUG_CPP := $(patsubst %$(OBJ_EXT),%$(DEBUG_SUFFIX)$(OBJ_EXT),$(OBJECTS
 TEST_CODE := $(addsuffix .cpp,$(addprefix $(TEST_DIR)/,$(LIBRARY_NAMES)))
 
 include make/library.mak
+
 
 clean:
 	rm -rf ./$(BUILD_FOLDER) || true
@@ -100,20 +103,26 @@ $(OBJECTS_FOLDER):
 
 MKDIR_COMMAND = if ! [ -d "$(dir $@)" ]; then mkdir -p $(dir $@); fi
 
-$(OBJECTS_RELEASE_C): $(OBJECTS_FOLDER)/%$(OBJ_EXT): $(SOURCE_FOLDER)/%.c
-	$(MKDIR_COMMAND)
-	$(CC) $(CFLAGS) $(RELEASE_FLAGS) -c $< -o $@
+# $(1) is lib
+define new-obj-target
+$(filter $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%,$(OBJECTS_RELEASE_C)): $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%$(OBJ_EXT): $(SOURCE_FOLDER)/$(1)/%.c
+	$$(MKDIR_COMMAND)
+	$(CC) $(CFLAGS) $(RELEASE_FLAGS) -c $$< -o $$@
 
-$(OBJECTS_DEBUG_C): $(OBJECTS_FOLDER)/%$(DEBUG_SUFFIX)$(OBJ_EXT): $(SOURCE_FOLDER)/%.c
-	$(MKDIR_COMMAND)
-	$(CC) $(CFLAGS) $(DEBUG_FLAGS) -c $< -o $@
+$(filter $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%,$(OBJECTS_DEBUG_C)): $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%$(DEBUG_SUFFIX)$(OBJ_EXT): $(SOURCE_FOLDER)/$(1)/%.c
+	$$(MKDIR_COMMAND)
+	$(CC) $(CFLAGS) $(DEBUG_FLAGS) -c $$< -o $$@
 
-$(OBJECTS_RELEASE_CPP): $(OBJECTS_FOLDER)/%$(OBJ_EXT): $(SOURCE_FOLDER)/%.cpp
-	$(MKDIR_COMMAND)
-	$(CCPLUS) $(CPPFLAGS) $(RELEASE_FLAGS) -c $< -o $@
+$(filter $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%,$(OBJECTS_RELEASE_CPP)): $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%$(OBJ_EXT): $(SOURCE_FOLDER)/$(1)/%.cpp
+	$$(MKDIR_COMMAND)
+	$(CCPLUS) $(CFLAGS) $(RELEASE_FLAGS) -c $$< -o $$@
 
-$(OBJECTS_DEBUG_CPP): $(OBJECTS_FOLDER)/%$(DEBUG_SUFFIX)$(OBJ_EXT): $(SOURCE_FOLDER)/%.cpp
-	$(MKDIR_COMMAND)
-	$(CCPLUS) $(CPPFLAGS) $(DEBUG_FLAGS) -c $< -o $@
+$(filter $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%,$(OBJECTS_DEBUG_CPP)): $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%$(DEBUG_SUFFIX)$(OBJ_EXT): $(SOURCE_FOLDER)/$(1)/%.cpp
+	$$(MKDIR_COMMAND)
+	$(CCPLUS) $(CFLAGS) $(DEBUG_FLAGS) -c $$< -o $$@
+endef
+
+$(foreach lib,$(LIBRARY_NAMES),$(eval $(call new-obj-target,$(lib))))
+
 
 include make/zip.mak
