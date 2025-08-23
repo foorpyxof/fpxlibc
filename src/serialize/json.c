@@ -88,7 +88,7 @@ Fpx_Json_Entity fpx_json_read(const char* json_data, size_t len) {
   TRIM_WHITESPACE(current_char, limit);
 
   retval.isValid = (FPX_JSON_RESULT_SUCCESS ==
-    _json_object_parse(&current_char, limit, retval.arena, &retval.root));
+    _json_value_parse(&current_char, limit, retval.arena, &retval.root));
 
   if (false == retval.isValid) {
     fpx_arena_destroy(retval.arena);
@@ -114,7 +114,7 @@ void fpx_json_print(Fpx_Json_Entity* json) {
   if (NULL == json || false == json->isValid || NULL == json->arena)
     return;
 
-  _json_object_print(&json->root);
+  _json_value_print(&json->root);
 
   printf("\n");
 

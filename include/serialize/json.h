@@ -66,7 +66,7 @@ struct _fpx_json_value {
 struct _fpx_json_entity {
     fpx_arena* arena;
 
-    Fpx_Json_Object root;
+    Fpx_Json_Value root;
 
     bool isValid;
 };

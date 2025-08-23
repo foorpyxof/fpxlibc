@@ -3,9 +3,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int main(void) {
+int main(int argc, char** argv) {
 
-  FILE* json_file = fopen("input3.json", "rb");
+  if (argc < 2) {
+    fprintf(stderr, "requires JSON input file as argument\n");
+    return EXIT_FAILURE;
+  }
+
+  FILE* json_file = fopen(argv[1], "rb");
   if (NULL == json_file) {
     perror("fopen()");
     return EXIT_FAILURE;

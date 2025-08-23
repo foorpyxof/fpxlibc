@@ -24,8 +24,8 @@
 
 
 struct __fpx_region {
-    fpx_region* __next;
-    fpx_region* __prev;
+    int64_t __next_rela;
+    int64_t __prev_rela;
     void* __data;
     uint32_t __length;
     uint32_t __is_free;
@@ -91,8 +91,8 @@ fpx_arena* fpx_arena_create(uint16_t size) {
 #endif
 
   fpx_region* reg = (fpx_region*)reg_ptr;
-  reg->__next = NULL;
-  reg->__prev = NULL;
+  reg->__next_rela = 0;
+  reg->__prev_rela = 0;
   reg->__data = ar_ptr + FPX_ARENA_META_SPACE;
   reg->__length = size;
   reg->__is_free = 0x1;
@@ -197,7 +197,7 @@ void* fpx_arena_alloc(fpx_arena* ptr, size_t size) {
       }
     }
 
-    reg = reg->__next;
+    reg += reg->__next_rela;
   }
 
   if (splitter && splittee) {
@@ -208,14 +208,15 @@ void* fpx_arena_alloc(fpx_arena* ptr, size_t size) {
 
     splittee->__length = size;
     splittee->__is_free = 0x0;
-    splittee->__prev = splitter;
-    splittee->__next = splitter->__next;
+    splittee->__prev_rela = splitter - splittee;
+    splittee->__next_rela = (splitter + splitter->__next_rela) - splittee;
     splittee->__data = (uint8_t*)(splitter->__data) + splitter->__length;
 
-    if (splitter->__next)
-      splitter->__next->__prev = splittee;
+    if (splitter->__next_rela)
+      (splitter->__next_rela + splitter)->__prev_rela =
+        splittee - (splitter->__next_rela + splitter);
 
-    splitter->__next = splittee;
+    splitter->__next_rela = splittee - splitter;
 
     dataptr = splittee->__data;
 
@@ -231,8 +232,8 @@ void* fpx_arena_alloc(fpx_arena* ptr, size_t size) {
 int fpx_arena_free(fpx_arena* arenaptr, void* data) {
   fpx_region* regptr = arenaptr->__regions;
 
-  while (regptr->__next && (regptr->__data != data))
-    regptr = regptr->__next;
+  while (regptr->__next_rela && (regptr->__data != data))
+    regptr += regptr->__next_rela;
 
   if (regptr->__data != data)
     return 0;
@@ -247,8 +248,9 @@ int fpx_arena_free(fpx_arena* arenaptr, void* data) {
       }
     }
 
-    if (regptr->__prev)
-      regptr->__prev->__next = regptr->__next;
+    if (regptr->__prev_rela)
+      (regptr->__prev_rela + regptr)->__next_rela =
+        (regptr->__next_rela + regptr) - (regptr->__prev_rela + regptr);
 
 #ifdef FPXLIBC_DEBUG
     arena_print(arenaptr);
@@ -257,24 +259,24 @@ int fpx_arena_free(fpx_arena* arenaptr, void* data) {
     return 1;
   }
 
-  fpx_region* next = regptr->__next;
+  fpx_region* next = regptr + regptr->__next_rela;
   while (next && next->__is_free) {
-    regptr->__next = next->__next;
+    regptr->__next_rela += next->__next_rela;
     regptr->__length += next->__length;
     next->__data = (uint8_t*)(next->__data) + next->__length;
     next->__length = 0;
 
-    next = regptr->__next;
+    next = regptr + regptr->__next_rela;
   }
 
-  fpx_region* prev = regptr->__prev;
+  fpx_region* prev = regptr + regptr->__prev_rela;
   while (prev && prev->__is_free) {
-    regptr->__prev = prev->__prev;
+    regptr->__prev_rela = (prev + prev->__prev_rela) - regptr;
     regptr->__length += prev->__length;
     regptr->__data = prev->__data;
     prev->__length = 0;
 
-    prev = regptr->__prev;
+    prev = regptr + regptr->__prev_rela;
   }
 
 #ifdef FPXLIBC_DEBUG
