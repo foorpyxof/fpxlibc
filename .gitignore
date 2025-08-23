@@ -28,6 +28,7 @@ scripts/params.fpx
 
 # binaries
 *.out
+*.exe
 
 # specific files
 curlout.txt

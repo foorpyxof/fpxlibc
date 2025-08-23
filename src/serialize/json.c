@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <threads.h>
 #include <unistd.h>
 
 #define FREE_SAFE(_ptr) \
@@ -71,7 +70,14 @@ Fpx_Json_Entity fpx_json_read(const char* json_data, size_t len) {
   const char* current_char = json_data;
   const char* limit = json_data + len;
 
-  int page_size = getpagesize();
+  int page_size = 0;
+
+#if defined(_WIN32) || defined(_WIN64)
+  page_size = 4096;
+#else
+  page_size = getpagesize();
+#endif
+
   size_t page_diff = 0;
 
   if (len % page_size != 0) {

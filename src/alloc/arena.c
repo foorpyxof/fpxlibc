@@ -65,15 +65,15 @@ fpx_arena* fpx_arena_create(uint16_t size) {
 
 
 #if defined(_WIN32) || defined(_WIN64)
-  ptr = malloc(memsize);
-  if (NULL == ptr)
+  ar_ptr = malloc(memsize);
+  if (NULL == ar_ptr)
     return (fpx_arena*)0;
 
   page_size = 4096;
 
-  reg = malloc(page_size);
-  if (NULL == reg) {
-    free(ptr);
+  reg_ptr = malloc(page_size);
+  if (NULL == reg_ptr) {
+    free(ar_ptr);
     return (fpx_arena*)0;
   }
 #else
@@ -291,8 +291,15 @@ static int _fpx_arena_double_reg_cap(fpx_arena* ptr) {
     return -1;
 
   size_t new_capacity = ptr->__region_capacity * 2;
+  fpx_region* new_ptr = NULL;
 
-  fpx_region* new_ptr = mmap(0,
+#if defined(_WIN32) || defined(_WIN64)
+  new_ptr = malloc(new_capacity * sizeof(fpx_region));
+
+  if (new_ptr == NULL)
+    return -2;
+#else
+  new_ptr = mmap(0,
     new_capacity * sizeof(fpx_region),
     PROT_READ | PROT_WRITE,
     MAP_ANONYMOUS | MAP_PRIVATE,
@@ -301,13 +308,19 @@ static int _fpx_arena_double_reg_cap(fpx_arena* ptr) {
 
   if (new_ptr == (void*)-1)
     return -2;
+#endif
+
 
   fpx_memcpy(new_ptr, ptr->__regions, ptr->__region_count * sizeof(fpx_region));
 
+#if defined(_WIN32) || defined(_WIN64)
+  free(ptr->__regions);
+#else
   if (munmap(ptr->__regions, ptr->__region_capacity * sizeof(fpx_region)) == -1) {
     munmap(new_ptr, new_capacity * sizeof(fpx_region));
     return -2;
   }
+#endif
 
   ptr->__regions = new_ptr;
   ptr->__region_capacity = new_capacity;
