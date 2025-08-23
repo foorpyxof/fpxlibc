@@ -1,5 +1,5 @@
-#include "../fpx_cpp-utils/exceptions.h"
-#include "test-definitions.h"
+#include "cpp-utils/exceptions.hpp"
+#include "test/test-definitions.hpp"
 
 using namespace fpx;
 

@@ -1,8 +1,8 @@
 extern "C" {
-  #include "../fpx_alloc/arena.h"
+#include "alloc/arena.h"
 }
 
-#include "test-definitions.h"
+#include "test/test-definitions.hpp"
 #include <stdio.h>
 
 int main() {
@@ -14,12 +14,12 @@ int main() {
   fpx_arena_free(testptr_uwu, data2);
   fpx_arena_free(testptr_uwu, data3);
   *data = 'a';
-  *(data+1) = 0;
-  
+  *(data + 1) = 0;
+
   char testptr_value[16];
   char dataptr_value[16];
 
-  snprintf(testptr_value, 15, "%p", testptr_uwu);
+  snprintf(testptr_value, 15, "%p", (void*)testptr_uwu);
   snprintf(dataptr_value, 15, "%p", data);
 
   FPX_EXPECT(testptr_value, "0x7........000")

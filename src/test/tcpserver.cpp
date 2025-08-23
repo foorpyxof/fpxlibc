@@ -1,6 +1,6 @@
-#include "../fpx_networking/tcp/tcpserver.h"
-#include "../fpx_cpp-utils/exceptions.h"
-#include "test-definitions.h"
+#include "networking/tcp/tcpserver.hpp"
+#include "cpp-utils/exceptions.hpp"
+#include "test/test-definitions.hpp"
 
 using namespace fpx;
 

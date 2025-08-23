@@ -1,8 +1,8 @@
 #include <stdio.h>
 
-#include "../fpx_structures/linkedlist.h"
-#include "../fpx_structures/vector.h"
-#include "test-definitions.h"
+#include "structures/linkedlist.hpp"
+#include "structures/vector.hpp"
+#include "test/test-definitions.hpp"
 
 using namespace fpx;
 
@@ -78,7 +78,7 @@ int main() {
 
   EMPTY_LINE
 
-  Vector<char> v2;                                                // create an empty vector
+  Vector<char> v2;  // create an empty vector
 
   char v2out1[8] = { 0 };
 
@@ -121,7 +121,8 @@ int main() {
   char v2out4[8] = { 0 };
 
   v2.PopBack();
-  std::cout << "v2 shrink by 4 succeeded? (expect false/0) " << v2.Shrink(4) << std::endl;  // expect: false/0
+  std::cout << "v2 shrink by 4 succeeded? (expect false/0) " << v2.Shrink(4)
+            << std::endl;  // expect: false/0
 
   EMPTY_LINE
 

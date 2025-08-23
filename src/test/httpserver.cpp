@@ -1,13 +1,12 @@
 extern "C" {
 
+#include "networking/http/httpserver.h"
+#include "fpx_debug.h"
 
-#include "../fpx_networking/http/httpserver.h"
-#include "../fpx_debug.h"
-
-#include "../fpx_mem/mem.h"
-#include "../fpx_networking/http/http.h"
-#include "../fpx_networking/http/websockets.h"
-#include "../fpx_string/string.h"
+#include "mem/mem.h"
+#include "networking/http/http.h"
+#include "networking/http/websockets.h"
+#include "string/string.h"
 
 #include <fcntl.h>
 #include <pthread.h>
@@ -19,6 +18,8 @@ extern "C" {
 #define IP "0.0.0.0"
 #define PORT 8080
 }
+
+#include "test/test-definitions.hpp"
 
 struct file_to_serve {
     char name[128];
@@ -58,6 +59,7 @@ void* sender(void* filedescriptor) {
 
 void ws_root_callback(
   const fpx_websocketframe_t* in, int fd, const struct sockaddr* client_address) {
+  UNUSED(client_address);
 
   fpx_websocketframe_t out_frame;
   fpx_websocketframe_init(&out_frame);
@@ -83,6 +85,9 @@ void ws_root_callback(
 
 void ws_loop_callback(
   const fpx_websocketframe_t* incoming, int fd, const struct sockaddr* client_address) {
+  UNUSED(incoming);
+  UNUSED(client_address);
+
   pthread_t t;
 
   pthread_create(&t, NULL, sender, &fd);
@@ -94,6 +99,7 @@ void ws_loop_callback(
 }
 
 void root_callback(const fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr) {
+  UNUSED(reqptr);
   fpx_httpresponse_add_header(resptr, "content-type", "text/plain");
 
   char msg[] = "Hello from fpx_http :D\n";
@@ -105,6 +111,7 @@ void root_callback(const fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr) 
 struct file_to_serve files[5];
 
 void source_callback(const fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr) {
+  UNUSED(reqptr);
 
   // fpx_memcpy(files[0].name, "http.h", 7);
   // fpx_memcpy(files[1].name, "http.c", 7);
@@ -112,7 +119,7 @@ void source_callback(const fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr
   // fpx_memcpy(files[3].name, "httpserver.c", 13);
   // fpx_memcpy(files[4].name, "test.c", 7);
 
-  for (int i = 0; i < sizeof(files) / sizeof(files[0]); ++i) {
+  for (size_t i = 0; i < sizeof(files) / sizeof(files[0]); ++i) {
 
     if (NULL == files[i].content) {
       FILE* fp = fopen(files[i].name, "r");
@@ -143,7 +150,7 @@ void source_callback(const fpx_httprequest_t* reqptr, fpx_httpresponse_t* resptr
 
   fpx_httpresponse_add_header(resptr, "Content-Type", "text/plain");
 
-  char new_body[] = "<h1>Hello from fpx_http!!! :3</h1>";
+  // char new_body[] = "<h1>Hello from fpx_http!!! :3</h1>";
   // fpx_httpresponse_append_body(resptr, new_body, sizeof(new_body) - 1);
 
   return;
@@ -176,7 +183,7 @@ int main() {
     }
 
     char buffer[256] = { 0 };
-    int i = 0;
+    size_t i = 0;
     while (NULL != fgets(buffer, sizeof(buffer), fpipe) && i < (sizeof(files) / sizeof(*files))) {
       buffer[fpx_getstringlength(buffer) - 1] = 0;
       // FPX_DEBUG("loading filename %s\n", buffer);
@@ -191,8 +198,8 @@ int main() {
 
   fpx_httpserver_init(&serv, 8, 1, 16);
 
-  fpx_httpserver_create_endpoint(&serv, "/", GET, root_callback);
-  fpx_httpserver_create_endpoint(&serv, "/source", GET, source_callback);
+  fpx_httpserver_create_endpoint(&serv, "/", HTTP_GET, root_callback);
+  fpx_httpserver_create_endpoint(&serv, "/source", HTTP_GET, source_callback);
 
   fpx_httpserver_create_ws_endpoint(&serv, "/", ws_root_callback);
   fpx_httpserver_create_ws_endpoint(&serv, "/loop", ws_loop_callback);

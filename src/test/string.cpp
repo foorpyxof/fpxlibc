@@ -1,6 +1,6 @@
-#include "test-definitions.h"
+#include "test/test-definitions.hpp"
 extern "C" {
-#include "../fpx_string/string.h"
+#include "string/string.h"
 }
 
 int main() {

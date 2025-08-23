@@ -1,11 +1,11 @@
-#include "test-definitions.h"
+#include "test/test-definitions.hpp"
 
 extern "C" {
-#include "../fpx_c-utils/crypto.h"
-#include "../fpx_c-utils/endian.h"
-#include "../fpx_c-utils/format.h"
-#include "../fpx_mem/mem.h"
-#include "../fpx_networking/netutils.h"
+#include "c-utils/crypto.h"
+#include "c-utils/endian.h"
+#include "c-utils/format.h"
+#include "mem/mem.h"
+#include "networking/netutils.h"
 }
 
 int main() {
@@ -191,7 +191,7 @@ int main() {
 
     char outbuf1[2 * sizeof(output1) + 1] = { 0 };
 
-    for (int i = 0; i < sizeof(output1); ++i) {
+    for (size_t i = 0; i < sizeof(output1); ++i) {
       fpx_hexstr(&output1[i], 1, outbuf1 + i * 2, 2);
     }
 
@@ -213,7 +213,7 @@ int main() {
 
     char outbuf2[2 * sizeof(output2) + 1] = { 0 };
 
-    for (int i = 0; i < sizeof(output2); ++i) {
+    for (size_t i = 0; i < sizeof(output2); ++i) {
       fpx_hexstr(&output2[i], 1, outbuf2 + i * 2, 2);
     }
 
@@ -241,7 +241,7 @@ int main() {
 
     char outbuf1[2 * sizeof(output1) + 1] = { 0 };
 
-    for (int i = 0; i < sizeof(output1); ++i) {
+    for (size_t i = 0; i < sizeof(output1); ++i) {
       fpx_hexstr(&output1[i], 1, outbuf1 + i * 2, 2);
     }
 
@@ -263,7 +263,7 @@ int main() {
 
     char outbuf2[2 * sizeof(output2) + 1] = { 0 };
 
-    for (int i = 0; i < sizeof(output2); ++i) {
+    for (size_t i = 0; i < sizeof(output2); ++i) {
       fpx_hexstr(&output2[i], 1, outbuf2 + i * 2, 2);
     }
 

@@ -1,8 +1,8 @@
-#include "../fpx_cpp-utils/exceptions.h"
-#include "../fpx_networking/tcp/tcpclient.h"
-#include "test-definitions.h"
+#include "networking/tcp/tcpclient.hpp"
+#include "cpp-utils/exceptions.hpp"
+#include "test/test-definitions.hpp"
 extern "C" {
-  #include "../fpx_string/string.h"
+#include "string/string.h"
 }
 
 using namespace fpx;

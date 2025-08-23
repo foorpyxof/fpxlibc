@@ -1,8 +1,8 @@
 extern "C" {
-#include "../fpx_mem/mem.h"
+#include "mem/mem.h"
 }
 
-#include "test-definitions.h"
+#include "test/test-definitions.hpp"
 
 int main() {
   char* testptr = (char*)malloc(16);
