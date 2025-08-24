@@ -10,12 +10,12 @@ $(1)_lib_debug_name := $(LIB_PREFIX)$(notdir $(1))$(DEBUG_SUFFIX)$(LIB_EXT)
 LIBS_RELEASE += $$($(1)_lib_dir)$$($(1)_lib_name)
 $$($(1)_lib_dir)$$($(1)_lib_name): $($(1)_OBJ_REL)
 	-if ! [ -d $$($(1)_lib_dir) ]; then mkdir -p $$($(1)_lib_dir); fi
-	$(AR) r $$@ $$?
+	$(AR) cr --thin $$@ $$? && echo -e 'create $$@\naddlib $$@\nsave\nend' | ar -M
 
 LIBS_DEBUG += $$($(1)_lib_dir)$$($(1)_lib_debug_name)
 $$($(1)_lib_dir)$$($(1)_lib_debug_name): $($(1)_OBJ_DBG)
 	-if ! [ -d $$($(1)_lib_dir) ]; then mkdir -p $$($(1)_lib_dir); fi
-	$(AR) r $$@ $$?
+	$(AR) cr --thin $$@ $$? && echo -e 'create $$@\naddlib $$@\nsave\nend' | ar -M
 
 endef
 
