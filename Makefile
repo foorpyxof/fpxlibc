@@ -105,9 +105,15 @@ MKDIR_COMMAND = if ! [ -d "$(dir $@)" ]; then mkdir -p $(dir $@); fi
 
 # $(1) is lib
 define new-obj-target
+ifeq ($(1),alloc)
+	$(1)_new_rel_flags := $(filter-out -O3,$(RELEASE_FLAGS))
+else
+	$(1)_new_rel_flags := $(RELEASE_FLAGS)
+endif
+
 $(filter $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%,$(OBJECTS_RELEASE_C)): $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%$(OBJ_EXT): $(SOURCE_FOLDER)/$(1)/%.c
 	$$(MKDIR_COMMAND)
-	$(CC) $(CFLAGS) $(RELEASE_FLAGS) -c $$< -o $$@
+	$(CC) $(CFLAGS) $$(alloc_new_rel_flags) -g -c $$< -o $$@
 
 $(filter $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%,$(OBJECTS_DEBUG_C)): $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%$(DEBUG_SUFFIX)$(OBJ_EXT): $(SOURCE_FOLDER)/$(1)/%.c
 	$$(MKDIR_COMMAND)
@@ -115,7 +121,7 @@ $(filter $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%,$(OBJECTS_DEBUG_C))
 
 $(filter $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%,$(OBJECTS_RELEASE_CPP)): $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%$(OBJ_EXT): $(SOURCE_FOLDER)/$(1)/%.cpp
 	$$(MKDIR_COMMAND)
-	$(CCPLUS) $(CFLAGS) $(RELEASE_FLAGS) -c $$< -o $$@
+	$(CCPLUS) $(CFLAGS) $$(alloc_new_rel_flags) -c $$< -o $$@
 
 $(filter $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%,$(OBJECTS_DEBUG_CPP)): $(OBJECTS_FOLDER)/$(1)/$(PREFIX)$(subst /,_,$(1))_%$(DEBUG_SUFFIX)$(OBJ_EXT): $(SOURCE_FOLDER)/$(1)/%.cpp
 	$$(MKDIR_COMMAND)

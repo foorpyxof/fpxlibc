@@ -17,11 +17,6 @@
 #include <sys/mman.h>
 #endif
 
-// #define __USE_MISC
-
-// NOTE: DEBUG LINE!! REMOVE!
-// #define FPXLIBC_DEBUG
-
 
 struct __fpx_region {
     int64_t __next_rela;
@@ -38,8 +33,8 @@ struct __fpx_arena {
     uint32_t __size;
 };
 
-#define NEXT(_region) (_region + _region->__next_rela)
-#define PREV(_region) (_region + _region->__prev_rela)
+#define REG_NEXT(_region) (_region + _region->__next_rela)
+#define REG_PREV(_region) (_region + _region->__prev_rela)
 
 static size_t page_size = 0;
 
@@ -163,8 +158,10 @@ void* fpx_arena_alloc(fpx_arena* ptr, size_t size) {
 
   void* dataptr = NULL;
   fpx_region* reg = ptr->__regions;
+
   fpx_region* splitter = NULL;
   fpx_region* splittee = NULL;
+
   for (uint32_t i = 0; i < ptr->__region_count; ++i) {
     // // Debug:
     // if (reg->__is_free) {
@@ -217,11 +214,12 @@ void* fpx_arena_alloc(fpx_arena* ptr, size_t size) {
     splittee->__length = size;
     splittee->__is_free = 0x0;
     splittee->__prev_rela = splitter - splittee;
-    splittee->__next_rela = NEXT(splitter) - splittee;
+    splittee->__next_rela = REG_NEXT(splitter) - splittee;
     splittee->__data = (uint8_t*)(splitter->__data) + splitter->__length;
 
-    if (NEXT(splitter))
-      NEXT(splitter)->__prev_rela = splittee - NEXT(splitter);
+    if (REG_NEXT(splitter)) {
+      REG_NEXT(splitter)->__prev_rela = splittee - REG_NEXT(splitter);
+    }
 
     splitter->__next_rela = splittee - splitter;
 
@@ -233,6 +231,7 @@ void* fpx_arena_alloc(fpx_arena* ptr, size_t size) {
 #ifdef FPXLIBC_DEBUG
   arena_print(ptr);
 #endif
+
   return dataptr;
 }
 
@@ -255,8 +254,9 @@ int fpx_arena_free(fpx_arena* arenaptr, void* data) {
       }
     }
 
-    if (PREV(regptr))
-      PREV(regptr)->__next_rela = NEXT(regptr) - PREV(regptr);
+    if (NULL != REG_PREV(regptr)) {
+      REG_PREV(regptr)->__next_rela = REG_NEXT(regptr) - REG_PREV(regptr);
+    }
 
 #ifdef FPXLIBC_DEBUG
     arena_print(arenaptr);
@@ -265,24 +265,24 @@ int fpx_arena_free(fpx_arena* arenaptr, void* data) {
     return 1;
   }
 
-  fpx_region* next = NEXT(regptr);
+  fpx_region* next = REG_NEXT(regptr);
   while (next && next->__is_free) {
     regptr->__next_rela += next->__next_rela;
     regptr->__length += next->__length;
     next->__data = (uint8_t*)(next->__data) + next->__length;
     next->__length = 0;
 
-    next = NEXT(regptr);
+    next = REG_NEXT(regptr);
   }
 
-  fpx_region* prev = PREV(regptr);
+  fpx_region* prev = REG_PREV(regptr);
   while (prev && prev->__is_free) {
     regptr->__prev_rela = (prev + prev->__prev_rela) - regptr;
     regptr->__length += prev->__length;
     regptr->__data = prev->__data;
     prev->__length = 0;
 
-    prev = PREV(regptr);
+    prev = REG_PREV(regptr);
   }
 
 #ifdef FPXLIBC_DEBUG
@@ -333,7 +333,3 @@ static int _fpx_arena_double_reg_cap(fpx_arena* ptr) {
 
   return 0;
 }
-
-#ifdef FPX_RESET_DEBUG
-#undef DEBUG
-#endif

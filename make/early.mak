@@ -1,7 +1,7 @@
 # CFLAGS := -std=c11
 # CPPFLAGS := -std=c++11
 
-BASE_FLAGS :=  -Wall -Wextra -Wpedantic -Werror -Wno-gnu-zero-variadic-macro-arguments -Wno-unknown-warning-option -Wno-variadic-macro-arguments-omitted
+BASE_FLAGS :=  -Wall -Wextra -Wpedantic -Werror -Wno-gnu-zero-variadic-macro-arguments -Wno-unknown-warning-option -Wno-variadic-macro-arguments-omitted -Wno-error=format-truncation
 
 CFLAGS += $(BASE_FLAGS)
 CPPFLAGS += $(BASE_FLAGS)
