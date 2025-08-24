@@ -7,8 +7,8 @@
 //  Author: Erynn 'foorpyxof' Scholtes
 //
 
+#include "../../fpx_types.h"
 #include "../netutils.h"
-#include "fpx_types.h"
 
 typedef struct _fpx_httprequest fpx_httprequest_t;
 typedef struct _fpx_httpresponse fpx_httpresponse_t;

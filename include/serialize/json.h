@@ -3,7 +3,7 @@
 
 #include "../alloc/arena.h"
 
-#include "fpx_types.h"
+#include "../fpx_types.h"
 
 typedef struct _fpx_json_entity Fpx_Json_Entity;
 typedef struct _fpx_json_member Fpx_Json_Member;
