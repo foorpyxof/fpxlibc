@@ -10,8 +10,8 @@
 // implements [https://datatracker.ietf.org/doc/html/rfc9000]
 
 #include "fpx_types.h"
-#include "networking/quic/quic_macros.h"
-#include "networking/quic/quic_types.h"
+#include "quic_macros.h"
+#include "quic_types.h"
 #include <pthread.h>
 
 int fpx_quic_socket_init(

@@ -7,8 +7,8 @@
 //  Author: Erynn 'foorpyxof' Scholtes
 //
 
+#include "../netutils.h"
 #include "fpx_types.h"
-#include "networking/netutils.h"
 
 #include <pthread.h>
 

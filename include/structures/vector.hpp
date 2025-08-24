@@ -7,9 +7,9 @@
 //  Author: Erynn 'foorpyxof' Scholtes
 //
 
-#include "cpp-utils/exceptions.hpp"
+#include "../cpp-utils/exceptions.hpp"
 
-#include "fpx_macros.h"
+#include "../fpx_macros.h"
 
 #include <cmath>
 #include <iostream>

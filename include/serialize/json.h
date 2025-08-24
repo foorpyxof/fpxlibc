@@ -1,7 +1,7 @@
 #ifndef FPX_JSON_H
 #define FPX_JSON_H
 
-#include "alloc/arena.h"
+#include "../alloc/arena.h"
 
 #include "fpx_types.h"
 

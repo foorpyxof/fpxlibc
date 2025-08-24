@@ -8,7 +8,7 @@
 //
 
 #include "../../fpx_types.h"
-#include "networking/netutils.h"
+#include "../netutils.h"
 #include "quic_macros.h"
 #include <pthread.h>
 

@@ -1,8 +1,8 @@
 #ifndef FPX_WEBSOCKETS_H
 #define FPX_WEBSOCKETS_H
 
+#include "../netutils.h"
 #include "fpx_types.h"
-#include "networking/netutils.h"
 
 //
 //  "websockets.h"

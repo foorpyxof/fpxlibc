@@ -7,7 +7,7 @@
 //  Author: Erynn 'foorpyxof' Scholtes
 //
 
-#include "networking/netutils.h"
+#include "../netutils.h"
 #include <pthread.h>
 
 #define FPX_MAX_CONNECTIONS 32
