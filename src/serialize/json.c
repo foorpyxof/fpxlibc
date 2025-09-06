@@ -246,7 +246,6 @@ static Fpx_Json_E_Result _json_member_parse(
   new_member.value = fpx_arena_alloc(alloc_arena, sizeof(*new_member.value));
 
   if (NULL == new_member.value) {
-    fprintf(stderr, "FROM MEMBER PARSE\n");
     return FPX_JSON_RESULT_MEMORY_ERROR;
   }
 
@@ -473,7 +472,6 @@ static Fpx_Json_E_Result _json_string_parse(
   void* temp = fpx_arena_alloc(arena, clone_idx + 1);
   if (NULL == temp) {
     free(retval.data);
-    fprintf(stderr, "FROM STRING PARSE\n");
     return FPX_JSON_RESULT_MEMORY_ERROR;
   }
 
@@ -669,7 +667,6 @@ static Fpx_Json_E_Result _json_array_parse(
   output->values = fpx_arena_alloc(arena, sizeof(Fpx_Json_Value) * new_arr.count);
 
   if (NULL == output->values) {
-    fprintf(stderr, "FROM ARRAY PARSE\n");
     return FPX_JSON_RESULT_MEMORY_ERROR;
   }
 
