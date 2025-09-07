@@ -25,11 +25,9 @@ int fpx_pow(int base, int power) {
 
   return base;
 }
-#endif  // _FPXLIBC_ASM
+#endif // _FPXLIBC_ASM
 
-unsigned int fpx_abs(int input) {
-  return (input < 0) ? (0 - input) : input;
-}
+unsigned int fpx_abs(int input) { return (input < 0) ? (0 - input) : input; }
 
 float fpx_ceil(float input) {
   int int_version = (int)input;

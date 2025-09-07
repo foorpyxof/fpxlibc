@@ -12,7 +12,7 @@ namespace fpx {
 LinkedList::~LinkedList() {
   // std::cout << "Linked List out of scope! Freeing nodes..." << std::endl;
 
-  LinkedListNode* current = nullptr;
+  LinkedListNode *current = nullptr;
 
   while (m_FirstNode) {
     current = m_FirstNode;
@@ -21,12 +21,9 @@ LinkedList::~LinkedList() {
   }
 }
 
-unsigned int LinkedList::GetLength() const {
-  return m_Length;
-}
+unsigned int LinkedList::GetLength() const { return m_Length; }
 
-
-void LinkedList::PrependNode(LinkedListNode* node_Address) {
+void LinkedList::PrependNode(LinkedListNode *node_Address) {
   node_Address->Next = m_FirstNode;
   m_FirstNode = node_Address;
 
@@ -34,7 +31,8 @@ void LinkedList::PrependNode(LinkedListNode* node_Address) {
   return;
 }
 
-void LinkedList::InsertNode(LinkedListNode* node_Address, unsigned int index = 0) {
+void LinkedList::InsertNode(LinkedListNode *node_Address,
+                            unsigned int index = 0) {
   if (!index)
     PrependNode(node_Address);
   else {
@@ -46,10 +44,10 @@ void LinkedList::InsertNode(LinkedListNode* node_Address, unsigned int index = 0
   return;
 }
 
-void* LinkedList::RemoveNode(LinkedListNode* node_Address) {
-  const LinkedListNode& node = *node_Address;
+void *LinkedList::RemoveNode(LinkedListNode *node_Address) {
+  const LinkedListNode &node = *node_Address;
 
-  for (LinkedListNode& nodeReference : *this) {
+  for (LinkedListNode &nodeReference : *this) {
     if (nodeReference.Next == &node) {
       nodeReference.Next = node.Next;
       delete &node;
@@ -60,17 +58,17 @@ void* LinkedList::RemoveNode(LinkedListNode* node_Address) {
   return nullptr;
 }
 
-void* LinkedList::RemoveNode(unsigned int node_Index) {
-  const LinkedListNode& node = (*this)[node_Index];
+void *LinkedList::RemoveNode(unsigned int node_Index) {
+  const LinkedListNode &node = (*this)[node_Index];
   switch (node_Index) {
-    case 0:
-      m_FirstNode = node.Next;
-      delete &node;
-      break;
-    default:
-      (*this)[node_Index - 1].Next = node.Next;
-      delete &node;
-      break;
+  case 0:
+    m_FirstNode = node.Next;
+    delete &node;
+    break;
+  default:
+    (*this)[node_Index - 1].Next = node.Next;
+    delete &node;
+    break;
   }
   m_Length--;
   return nullptr;
@@ -78,7 +76,7 @@ void* LinkedList::RemoveNode(unsigned int node_Index) {
 
 void LinkedList::Print() const {
   std::cout << m_Name << ":" << std::endl << "(head)->";
-  for (LinkedListNode& node : *this) {
+  for (LinkedListNode &node : *this) {
     node.Print();
     if (node.Next)
       std::cout << "->";
@@ -86,31 +84,26 @@ void LinkedList::Print() const {
   std::cout << std::endl;
 }
 
+void LinkedList::SetName(const char *newName) { m_Name = newName; }
+const char *LinkedList::GetName() const { return m_Name; }
 
-void LinkedList::SetName(const char* newName) {
-  m_Name = newName;
-}
-const char* LinkedList::GetName() const {
-  return m_Name;
-}
-
-
-LinkedListNode& LinkedList::operator[](unsigned int index) const {
-  LinkedListNode* current = m_FirstNode;
+LinkedListNode &LinkedList::operator[](unsigned int index) const {
+  LinkedListNode *current = m_FirstNode;
 
   if (nullptr == current)
-    throw new IndexOutOfRangeException("This linked list is empty");  // list is empty
+    throw new IndexOutOfRangeException(
+        "This linked list is empty"); // list is empty
 
   if (0 == index)
-    return *current;  // immediately return first object
+    return *current; // immediately return first object
 
   for (size_t i = 0; i < index; i++) {
     current = current->Next;
     if (nullptr == current)
-      throw new IndexOutOfRangeException;  // index out of range
+      throw new IndexOutOfRangeException; // index out of range
   }
 
   return *current;
 }
 
-}  // namespace fpx
+} // namespace fpx

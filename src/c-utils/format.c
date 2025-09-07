@@ -9,7 +9,7 @@
 #include "math/math.h"
 
 #ifndef __FPXLIBC_ASM
-int fpx_strint(const char* input) {
+int fpx_strint(const char *input) {
   // state checkers
   unsigned char first = 1;
   unsigned char positive = 1;
@@ -35,9 +35,9 @@ int fpx_strint(const char* input) {
 
   return retval;
 }
-#endif  // __FPXLIBC_ASM
+#endif // __FPXLIBC_ASM
 
-int fpx_intstr(int input, char* output) {
+int fpx_intstr(int input, char *output) {
   uint8_t digits = 0;
   int input_clone = input;
 
@@ -58,7 +58,7 @@ int fpx_intstr(int input, char* output) {
   return input;
 }
 
-void* fpx_hexstr(void* input, size_t bytes, char* output, size_t buflen) {
+void *fpx_hexstr(void *input, size_t bytes, char *output, size_t buflen) {
   // output buffer too small;
   // we return NULL to indicate error
   if ((buflen < (bytes * 2)) || buflen == 0)
@@ -68,9 +68,8 @@ void* fpx_hexstr(void* input, size_t bytes, char* output, size_t buflen) {
   if (buflen > (bytes * 2))
     terminate = 1;
 
-  char hex_alphabet[16] = {
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
-  };
+  char hex_alphabet[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                           '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
   size_t outputindex = 0;
 
@@ -80,14 +79,16 @@ void* fpx_hexstr(void* input, size_t bytes, char* output, size_t buflen) {
   //  output[outputindex++] = hex_alphabet[byte / 16];
   //  output[outputindex++] = hex_alphabet[byte % 16];
   //}
-  // TODO: something something endianness (check if big endian needs to be different)
+  // TODO: something something endianness (check if big endian needs to be
+  // different)
 
   for (int i = bytes - 1; i > -1; --i) {
-    uint8_t byte = ((uint8_t*)input)[i];
+    uint8_t byte = ((uint8_t *)input)[i];
 
     // if (!started) {
-    // if (byte / 16) { output[outputindex++] = hex_alphabet[byte / 16]; started = 1; }
-    // if (byte % 16) { output[outputindex++] = hex_alphabet[byte % 16]; started = 1; }
+    // if (byte / 16) { output[outputindex++] = hex_alphabet[byte / 16]; started
+    // = 1; } if (byte % 16) { output[outputindex++] = hex_alphabet[byte % 16];
+    // started = 1; }
     //} else {
     output[outputindex++] = hex_alphabet[byte / 16];
     output[outputindex++] = hex_alphabet[byte % 16];

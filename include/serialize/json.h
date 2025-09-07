@@ -31,50 +31,50 @@ typedef enum {
 } Fpx_Json_E_ValueType;
 
 struct _fpx_json_string {
-    char* data;
-    size_t size;
+  char *data;
+  size_t size;
 };
 
 struct _fpx_json_member {
-    Fpx_Json_String key;
+  Fpx_Json_String key;
 
-    Fpx_Json_Value* value;
+  Fpx_Json_Value *value;
 };
 
 struct _fpx_json_object {
-    Fpx_Json_Member* members;
-    size_t memberCount;
+  Fpx_Json_Member *members;
+  size_t memberCount;
 };
 
 struct _fpx_json_array {
-    Fpx_Json_Value* values;
-    size_t count;
+  Fpx_Json_Value *values;
+  size_t count;
 };
 
 struct _fpx_json_value {
-    Fpx_Json_E_ValueType valueType;
+  Fpx_Json_E_ValueType valueType;
 
-    union {
-        Fpx_Json_Object object;
-        Fpx_Json_String string;
-        bool boolean;
-        double number;
-        Fpx_Json_Array array;
-    };
+  union {
+    Fpx_Json_Object object;
+    Fpx_Json_String string;
+    bool boolean;
+    double number;
+    Fpx_Json_Array array;
+  };
 };
 
 struct _fpx_json_entity {
-    fpx_arena* arena;
+  fpx_arena *arena;
 
-    Fpx_Json_Value root;
+  Fpx_Json_Value root;
 
-    bool isValid;
+  bool isValid;
 };
 
-Fpx_Json_Entity fpx_json_read(const char* json_data, size_t data_len);
+Fpx_Json_Entity fpx_json_read(const char *json_data, size_t data_len);
 
-Fpx_Json_E_Result fpx_json_destroy(Fpx_Json_Entity*);
+Fpx_Json_E_Result fpx_json_destroy(Fpx_Json_Entity *);
 
-void fpx_json_print(Fpx_Json_Entity*);
+void fpx_json_print(Fpx_Json_Entity *);
 
-#endif  // FPX_JSON_H
+#endif // FPX_JSON_H

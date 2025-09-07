@@ -23,31 +23,32 @@ enum websocket_opcode {
 typedef struct _fpx_websocketframe fpx_websocketframe_t;
 
 struct _fpx_websocketframe {
-    uint8_t final;
-    uint8_t reserved1;
-    uint8_t reserved2;
-    uint8_t reserved3;
+  uint8_t final;
+  uint8_t reserved1;
+  uint8_t reserved2;
+  uint8_t reserved3;
 
-    enum websocket_opcode opcode;
+  enum websocket_opcode opcode;
 
-    uint8_t mask_set;
-    uint8_t masking_key[4];
+  uint8_t mask_set;
+  uint8_t masking_key[4];
 
-    uint64_t payload_length;
-    uint64_t payload_allocated;
-    uint8_t* payload;
+  uint64_t payload_length;
+  uint64_t payload_allocated;
+  uint8_t *payload;
 
-    uint64_t payload_left_to_read;
+  uint64_t payload_left_to_read;
 };
 
 /**
- * Send a websocket closing frame containing the specified status code and reason
+ * Send a websocket closing frame containing the specified status code and
+ * reason
  *
  * Input:
  * - File descriptor of the underlying socket connection to send the frame over
  * - A websocket status code (>= 0)
- * - An optional reason string (NULL if not applicable) (only gets applied if the status code is
- * valid)
+ * - An optional reason string (NULL if not applicable) (only gets applied if
+ * the status code is valid)
  * - The length of the reason string (<= 123)
  * - Boolean whether the frame is masked or not
  *
@@ -55,8 +56,8 @@ struct _fpx_websocketframe {
  * -  0 on success
  * -  errno if the sending fails
  */
-int fpx_websocket_send_close(
-  int filedescriptor, int16_t, const uint8_t*, uint8_t payload_length, uint8_t masked);
+int fpx_websocket_send_close(int filedescriptor, int16_t, const uint8_t *,
+                             uint8_t payload_length, uint8_t masked);
 
 /**
  * Initializes the websocket frame object to default values
@@ -69,7 +70,7 @@ int fpx_websocket_send_close(
  * -  0 on success
  * - -1 if any passed pointer is unexpectedly NULL
  */
-int fpx_websocketframe_init(fpx_websocketframe_t*);
+int fpx_websocketframe_init(fpx_websocketframe_t *);
 
 /**
  * Appends a new chunk onto the frame's payload
@@ -83,7 +84,8 @@ int fpx_websocketframe_init(fpx_websocketframe_t*);
  * -  0 on success
  * - -1 if any passed pointer is unexpectedly NULL
  */
-int fpx_websocketframe_append_payload(fpx_websocketframe_t*, const uint8_t*, size_t);
+int fpx_websocketframe_append_payload(fpx_websocketframe_t *, const uint8_t *,
+                                      size_t);
 
 /**
  * Send the websocket frame over the wire
@@ -96,7 +98,7 @@ int fpx_websocketframe_append_payload(fpx_websocketframe_t*, const uint8_t*, siz
  * - -1 if any passed pointer is unexpectedly NULL
  * -  errno if an error occurs while sending
  */
-int fpx_websocketframe_send(const fpx_websocketframe_t*, int filedescriptor);
+int fpx_websocketframe_send(const fpx_websocketframe_t *, int filedescriptor);
 
 /**
  * Frees all associated memory allocations to prepare for object destruction
@@ -108,6 +110,6 @@ int fpx_websocketframe_send(const fpx_websocketframe_t*, int filedescriptor);
  * -  0 on success
  * - -1 if any passed pointer is unexpectedly NULL
  */
-int fpx_websocketframe_destroy(fpx_websocketframe_t*);
+int fpx_websocketframe_destroy(fpx_websocketframe_t *);
 
-#endif  // FPX_WEBSOCKETS_H
+#endif // FPX_WEBSOCKETS_H

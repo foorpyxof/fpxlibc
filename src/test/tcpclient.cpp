@@ -7,9 +7,9 @@ extern "C" {
 
 using namespace fpx;
 
-void ReadCallback(uint8_t* theBytes) {
+void ReadCallback(uint8_t *theBytes) {
   printf("\nNew message:\n");
-  for (int i = 0; i < fpx_getstringlength((char*)theBytes); i++) {
+  for (int i = 0; i < fpx_getstringlength((char *)theBytes); i++) {
     printf("%02x", (theBytes)[i]);
   }
   printf("\nMessage over.\n");
@@ -21,10 +21,14 @@ int main() {
   bool background = false;
   try {
     // if string is empty, username is 'Anonymous'.
-    // Also, a maximum of 16 characters is enforced by both the server and this specific client.
-    tcpClient.Connect(
-      (background) ? TcpClient::Mode::Background : TcpClient::Mode::Interactive, ReadCallback);
-  } catch (Exception& exc) { exc.Print(); }
+    // Also, a maximum of 16 characters is enforced by both the server and this
+    // specific client.
+    tcpClient.Connect((background) ? TcpClient::Mode::Background
+                                   : TcpClient::Mode::Interactive,
+                      ReadCallback);
+  } catch (Exception &exc) {
+    exc.Print();
+  }
 
   // simple way to send messages when Mode::Background is selected
   char sendbuf[32];

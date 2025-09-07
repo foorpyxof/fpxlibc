@@ -3,14 +3,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 
   if (argc < 2) {
     fprintf(stderr, "requires JSON input file as argument\n");
     return EXIT_FAILURE;
   }
 
-  FILE* json_file = fopen(argv[1], "rb");
+  FILE *json_file = fopen(argv[1], "rb");
   if (NULL == json_file) {
     perror("fopen()");
     return EXIT_FAILURE;
@@ -24,8 +24,7 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
-
-  char* test_string = (char*)malloc(file_size);
+  char *test_string = (char *)malloc(file_size);
 
   rewind(json_file);
 
@@ -38,7 +37,8 @@ int main(int argc, char** argv) {
 
   Fpx_Json_Entity new_entity = fpx_json_read(test_string, file_size);
 
-  // printf("%s\n", ((new_entity.isValid) ? "JSON parse valid!" : "JSON parse failed"));
+  // printf("%s\n", ((new_entity.isValid) ? "JSON parse valid!" : "JSON parse
+  // failed"));
 
   fpx_json_print(&new_entity);
 

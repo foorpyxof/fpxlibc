@@ -10,21 +10,27 @@ int main() {
   // test fpx::Exception
   try {
     throw Exception();
-  } catch (Exception& err) { err.Print(); }  // Error -1: An exception has occured at runtime!
+  } catch (Exception &err) {
+    err.Print();
+  } // Error -1: An exception has occured at runtime!
 
   try {
     throw NotImplementedException("hiyaaa");
-  } catch (Exception& err) { err.Print(); }  // Error -2: hiyaaa
+  } catch (Exception &err) {
+    err.Print();
+  } // Error -2: hiyaaa
 
   try {
     throw IndexOutOfRangeException(-69);
-  } catch (Exception& err) {
+  } catch (Exception &err) {
     err.Print();
-  }  // Error -69: The index you tried to reach is not in range!
+  } // Error -69: The index you tried to reach is not in range!
 
   try {
     throw NetException("NetException test", -1100);
-  } catch (Exception& err) { err.Print(); }  // Error -1100: NetException test
+  } catch (Exception &err) {
+    err.Print();
+  } // Error -1100: NetException test
 
   EMPTY_LINE
 }

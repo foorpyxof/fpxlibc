@@ -10,5 +10,7 @@ int main() {
 
   try {
     tcpServ.Listen("0.0.0.0", 7777);
-  } catch (NetException& exc) { exc.Print(); }
+  } catch (NetException &exc) {
+    exc.Print();
+  }
 }

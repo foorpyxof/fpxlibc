@@ -14,4 +14,4 @@
 // length of connection ID in bytes
 #define QUIC_CONNECTION_ID_LENGTH 16
 
-#endif  // FPX_QUIC_MACROS_H
+#endif // FPX_QUIC_MACROS_H

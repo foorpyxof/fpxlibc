@@ -11,80 +11,84 @@
 #include <strings.h>
 #include <unistd.h>
 
-#define FREE_SAFE(_ptr) \
-  if (NULL != _ptr) {   \
-    free(_ptr);         \
-  }                     \
+#define FREE_SAFE(_ptr)                                                        \
+  if (NULL != _ptr) {                                                          \
+    free(_ptr);                                                                \
+  }                                                                            \
   _ptr = NULL;
 
-#define IS_WHITESPACE(character) \
-  (character == 0x20 || character == 0x0A || character == 0x0D || character == 0x09)
+#define IS_WHITESPACE(character)                                               \
+  (character == 0x20 || character == 0x0A || character == 0x0D ||              \
+   character == 0x09)
 
-#define TRIM_WHITESPACE(_dataptr, _limitptr)                               \
-  {                                                                        \
-    for (; (_dataptr < _limitptr) && IS_WHITESPACE(*_dataptr); ++_dataptr) \
-      ;                                                                    \
+#define TRIM_WHITESPACE(_dataptr, _limitptr)                                   \
+  {                                                                            \
+    for (; (_dataptr < _limitptr) && IS_WHITESPACE(*_dataptr); ++_dataptr)     \
+      ;                                                                        \
   }
 
 #define SYNTAX_EXPECT(ptr, expect)
 
 #if !defined(NDEBUG) || defined(DEBUG)
 #undef SYNTAX_EXPECT
-#define SYNTAX_EXPECT(ptr, expect)                                    \
-  fprintf(stderr,                                                     \
-    "%s:%d - EXPECTED '%c' BUT GOT '%c'. CONTEXT: \"...%.40s...\"\n", \
-    __FILE__,                                                         \
-    __LINE__,                                                         \
-    expect,                                                           \
-    *ptr,                                                             \
-    ptr);
+#define SYNTAX_EXPECT(ptr, expect)                                             \
+  fprintf(stderr,                                                              \
+          "%s:%d - EXPECTED '%c' BUT GOT '%c'. CONTEXT: \"...%.40s...\"\n",    \
+          __FILE__, __LINE__, expect, *ptr, ptr);
 #endif
 
 // expects first character to be '{'
 // returns FPX_JSON_SYNTAX_ERROR otherwise
-static Fpx_Json_E_Result _json_object_parse(
-  const char** data, const char* limit, fpx_arena* arena, void* output);
+static Fpx_Json_E_Result _json_object_parse(const char **data,
+                                            const char *limit, fpx_arena *arena,
+                                            void *output);
 
-static Fpx_Json_E_Result _json_member_parse(
-  const char** data, const char* limit, fpx_arena* arena, void* output);
+static Fpx_Json_E_Result _json_member_parse(const char **data,
+                                            const char *limit, fpx_arena *arena,
+                                            void *output);
 
-static Fpx_Json_E_Result _json_value_parse(
-  const char** data, const char* limit, fpx_arena* arena, void* output);
+static Fpx_Json_E_Result _json_value_parse(const char **data, const char *limit,
+                                           fpx_arena *arena, void *output);
 
 // expects first character to be '"'
 // returns FPX_JSON_SYNTAX_ERROR otherwise
-static Fpx_Json_E_Result _json_string_parse(
-  const char** string, const char* limit, fpx_arena* arena, void* output);
+static Fpx_Json_E_Result _json_string_parse(const char **string,
+                                            const char *limit, fpx_arena *arena,
+                                            void *output);
 
 // expects first character to be either '-' or a number [0-9]
 // returns FPX_JSON_SYNTAX_ERROR otherwise
-static Fpx_Json_E_Result _json_number_parse(const char** string, const char* limit, void* output);
+static Fpx_Json_E_Result _json_number_parse(const char **string,
+                                            const char *limit, void *output);
 
 // expects first chatacter to be either 't' or 'f'
 // returns FPX_JSON_SYNTAX_ERROR otherwise
-static Fpx_Json_E_Result _json_bool_parse(const char** data, const char* limit, void* output);
+static Fpx_Json_E_Result _json_bool_parse(const char **data, const char *limit,
+                                          void *output);
 
 // expects first chatacter to be 'n'
 // returns FPX_JSON_SYNTAX_ERROR otherwise
-static Fpx_Json_E_Result _json_null_validate(const char** data, const char* limit);
+static Fpx_Json_E_Result _json_null_validate(const char **data,
+                                             const char *limit);
 
 // expects first character to be '['
 // returns FPX_JSON_SYNTAX_ERROR otherwise
-static Fpx_Json_E_Result _json_array_parse(
-  const char** string, const char* limit, fpx_arena* arena, void* output);
+static Fpx_Json_E_Result _json_array_parse(const char **string,
+                                           const char *limit, fpx_arena *arena,
+                                           void *output);
 
-static void _json_object_print(Fpx_Json_Object*);
-static void _json_array_print(Fpx_Json_Array*);
-static void _json_value_print(Fpx_Json_Value*);
+static void _json_object_print(Fpx_Json_Object *);
+static void _json_array_print(Fpx_Json_Array *);
+static void _json_value_print(Fpx_Json_Value *);
 
-Fpx_Json_Entity fpx_json_read(const char* json_data, size_t len) {
-  Fpx_Json_Entity retval = { 0 };
+Fpx_Json_Entity fpx_json_read(const char *json_data, size_t len) {
+  Fpx_Json_Entity retval = {0};
 
   if (NULL == json_data || 0 == len)
     return retval;
 
-  const char* current_char = json_data;
-  const char* limit = json_data + len;
+  const char *current_char = json_data;
+  const char *limit = json_data + len;
 
   // int page_size = 0;
 
@@ -99,17 +103,18 @@ Fpx_Json_Entity fpx_json_read(const char* json_data, size_t len) {
 
   // size_t page_diff = 0;
 
-
   // trim leading whitespace
   TRIM_WHITESPACE(current_char, limit);
 
   size_t alloc_size = 0;
 
-  const char* start_character = current_char;
+  const char *start_character = current_char;
 
-  // pass NULL for arena, and size_t in output. this means that the code will do a dry-run of the
-  // JSON parser, and return the size required for an allocation
-  Fpx_Json_E_Result root_val = _json_value_parse(&current_char, limit, NULL, &alloc_size);
+  // pass NULL for arena, and size_t in output. this means that the code will do
+  // a dry-run of the JSON parser, and return the size required for an
+  // allocation
+  Fpx_Json_E_Result root_val =
+      _json_value_parse(&current_char, limit, NULL, &alloc_size);
 
   if (FPX_JSON_RESULT_SUCCESS > root_val) {
     retval.isValid = false;
@@ -127,7 +132,7 @@ Fpx_Json_Entity fpx_json_read(const char* json_data, size_t len) {
   current_char = start_character;
 
   Fpx_Json_E_Result real_parse_res =
-    _json_value_parse(&current_char, limit, retval.arena, &retval.root);
+      _json_value_parse(&current_char, limit, retval.arena, &retval.root);
 
   retval.isValid = (FPX_JSON_RESULT_SUCCESS == real_parse_res);
 
@@ -139,7 +144,7 @@ Fpx_Json_Entity fpx_json_read(const char* json_data, size_t len) {
   return retval;
 }
 
-Fpx_Json_E_Result fpx_json_destroy(Fpx_Json_Entity* entity) {
+Fpx_Json_E_Result fpx_json_destroy(Fpx_Json_Entity *entity) {
   if (NULL == entity)
     return FPX_JSON_RESULT_ARGUMENT_ERROR;
 
@@ -151,7 +156,7 @@ Fpx_Json_E_Result fpx_json_destroy(Fpx_Json_Entity* entity) {
   return FPX_JSON_RESULT_SUCCESS;
 }
 
-void fpx_json_print(Fpx_Json_Entity* json) {
+void fpx_json_print(Fpx_Json_Entity *json) {
   if (NULL == json || false == json->isValid || NULL == json->arena)
     return;
 
@@ -164,28 +169,28 @@ void fpx_json_print(Fpx_Json_Entity* json) {
 
 // STATIC FUNCTIONS BELOW -------------------------
 
-static Fpx_Json_E_Result _json_object_parse(
-  const char** string, const char* limit, fpx_arena* arena, void* output) {
+static Fpx_Json_E_Result _json_object_parse(const char **string,
+                                            const char *limit, fpx_arena *arena,
+                                            void *output) {
   if (NULL == string || NULL == *string || NULL == limit || NULL == output)
     return FPX_JSON_RESULT_ARGUMENT_ERROR;
 
-  const char* data = *string;
+  const char *data = *string;
 
   bool dry_run = false;
 
   if (NULL == arena)
     dry_run = true;
 
-#define RETURN(_return_value)                    \
-  {                                              \
-    for (; *data != '}' && data < limit; ++data) \
-      ;                                          \
-    if (data != limit)                           \
-      ++data;                                    \
-    *string = data;                              \
-    return _return_value;                        \
+#define RETURN(_return_value)                                                  \
+  {                                                                            \
+    for (; *data != '}' && data < limit; ++data)                               \
+      ;                                                                        \
+    if (data != limit)                                                         \
+      ++data;                                                                  \
+    *string = data;                                                            \
+    return _return_value;                                                      \
   }
-
 
   if (limit - data < 2) {
     // no room for "{}"
@@ -209,20 +214,22 @@ static Fpx_Json_E_Result _json_object_parse(
   if (data >= limit)
     return FPX_JSON_RESULT_OUT_OF_BOUNDS_ERROR;
 
-  Fpx_Json_Object new_obj = { 0 };
+  Fpx_Json_Object new_obj = {0};
 
   uint8_t member_increment = 8;
   uint16_t member_capacity = 0;
 
   do {
     if (member_capacity == new_obj.memberCount) {
-      new_obj.members = (Fpx_Json_Member*)realloc(
-        new_obj.members, sizeof(Fpx_Json_Member) * (new_obj.memberCount + member_increment));
+      new_obj.members = (Fpx_Json_Member *)realloc(
+          new_obj.members,
+          sizeof(Fpx_Json_Member) * (new_obj.memberCount + member_increment));
       member_capacity += member_increment;
     }
 
     Fpx_Json_E_Result member_result = _json_member_parse(
-      &data, limit, arena, (dry_run) ? (output) : (&new_obj.members[new_obj.memberCount]));
+        &data, limit, arena,
+        (dry_run) ? (output) : (&new_obj.members[new_obj.memberCount]));
 
     if (FPX_JSON_RESULT_SUCCESS > member_result) {
       free(new_obj.members);
@@ -245,21 +252,20 @@ static Fpx_Json_E_Result _json_object_parse(
   } while (data < limit && *data != '}');
 
   if (!dry_run) {
-    *(Fpx_Json_Object*)output = new_obj;
+    *(Fpx_Json_Object *)output = new_obj;
 
-    ((Fpx_Json_Object*)output)->members =
-      fpx_arena_alloc(arena, new_obj.memberCount * sizeof(Fpx_Json_Member));
+    ((Fpx_Json_Object *)output)->members =
+        fpx_arena_alloc(arena, new_obj.memberCount * sizeof(Fpx_Json_Member));
 
-    if (NULL == ((Fpx_Json_Object*)output)->members) {
+    if (NULL == ((Fpx_Json_Object *)output)->members) {
       free(new_obj.members);
       RETURN(FPX_JSON_RESULT_MEMORY_ERROR);
     }
 
-    memcpy(((Fpx_Json_Object*)output)->members,
-      new_obj.members,
-      new_obj.memberCount * sizeof(Fpx_Json_Member));
+    memcpy(((Fpx_Json_Object *)output)->members, new_obj.members,
+           new_obj.memberCount * sizeof(Fpx_Json_Member));
   } else {
-    *(size_t*)output += (new_obj.memberCount * sizeof(Fpx_Json_Member));
+    *(size_t *)output += (new_obj.memberCount * sizeof(Fpx_Json_Member));
   }
 
   free(new_obj.members);
@@ -269,8 +275,10 @@ static Fpx_Json_E_Result _json_object_parse(
 #undef RETURN
 }
 
-static Fpx_Json_E_Result _json_member_parse(
-  const char** dataptr, const char* limit, fpx_arena* alloc_arena, void* output) {
+static Fpx_Json_E_Result _json_member_parse(const char **dataptr,
+                                            const char *limit,
+                                            fpx_arena *alloc_arena,
+                                            void *output) {
   if (NULL == dataptr || NULL == *dataptr || NULL == limit || NULL == output)
     return FPX_JSON_RESULT_ARGUMENT_ERROR;
 
@@ -279,18 +287,18 @@ static Fpx_Json_E_Result _json_member_parse(
   if (NULL == alloc_arena)
     dry_run = true;
 
-#define RETURN(_return_value) \
-  {                           \
-    *dataptr = data;          \
-    return _return_value;     \
+#define RETURN(_return_value)                                                  \
+  {                                                                            \
+    *dataptr = data;                                                           \
+    return _return_value;                                                      \
   }
 
-  const char* data = *dataptr;
+  const char *data = *dataptr;
 
-  Fpx_Json_Member new_member = { 0 };
+  Fpx_Json_Member new_member = {0};
 
   if (dry_run) {
-    *(size_t*)output += sizeof(*new_member.value);
+    *(size_t *)output += sizeof(*new_member.value);
   } else {
     new_member.value = fpx_arena_alloc(alloc_arena, sizeof(*new_member.value));
 
@@ -299,9 +307,8 @@ static Fpx_Json_E_Result _json_member_parse(
     }
   }
 
-
-  Fpx_Json_E_Result key_result =
-    _json_string_parse(&data, limit, alloc_arena, (dry_run) ? (output) : (&new_member.key));
+  Fpx_Json_E_Result key_result = _json_string_parse(
+      &data, limit, alloc_arena, (dry_run) ? (output) : (&new_member.key));
 
   if (FPX_JSON_RESULT_SUCCESS > key_result)
     return key_result;
@@ -316,14 +323,14 @@ static Fpx_Json_E_Result _json_member_parse(
   TRIM_WHITESPACE(data, limit);
 
   // parse value
-  Fpx_Json_E_Result val_res =
-    _json_value_parse(&data, limit, alloc_arena, (dry_run) ? (output) : (new_member.value));
+  Fpx_Json_E_Result val_res = _json_value_parse(
+      &data, limit, alloc_arena, (dry_run) ? (output) : (new_member.value));
 
   if (FPX_JSON_RESULT_SUCCESS > val_res)
     return val_res;
 
   if (!dry_run) {
-    *(Fpx_Json_Member*)output = new_member;
+    *(Fpx_Json_Member *)output = new_member;
   }
 
   RETURN(FPX_JSON_RESULT_SUCCESS);
@@ -331,118 +338,120 @@ static Fpx_Json_E_Result _json_member_parse(
 #undef RETURN
 }
 
-static Fpx_Json_E_Result _json_value_parse(
-  const char** dataptr, const char* limit, fpx_arena* arena, void* output) {
+static Fpx_Json_E_Result _json_value_parse(const char **dataptr,
+                                           const char *limit, fpx_arena *arena,
+                                           void *output) {
   if (NULL == dataptr || NULL == *dataptr || NULL == output)
     return FPX_JSON_RESULT_ARGUMENT_ERROR;
-  const char* data = *dataptr;
+  const char *data = *dataptr;
 
   bool dry_run = false;
   if (NULL == arena)
     dry_run = true;
 
-#define RETURN(_return_value) \
-  {                           \
-    *dataptr = data;          \
-    return _return_value;     \
+#define RETURN(_return_value)                                                  \
+  {                                                                            \
+    *dataptr = data;                                                           \
+    return _return_value;                                                      \
   }
 
-  Fpx_Json_Value new_val = { 0 };
+  Fpx_Json_Value new_val = {0};
   Fpx_Json_E_ValueType type = FPX_JSON_VALUE_INVALID;
   switch (*data) {
-    case '-':
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-    case '8':
-    case '9':
-    case 'i':  // infinity
-    case 'I':  // infinity
-      type = FPX_JSON_VALUE_NUMBER;
-      double double_temp = 0.0f;
-      Fpx_Json_E_Result num_res =
-        _json_number_parse(&data, limit, (dry_run) ? (&double_temp) : (&new_val.number));
-      if (FPX_JSON_RESULT_SUCCESS > num_res)
-        return num_res;
-      break;
+  case '-':
+  case '0':
+  case '1':
+  case '2':
+  case '3':
+  case '4':
+  case '5':
+  case '6':
+  case '7':
+  case '8':
+  case '9':
+  case 'i': // infinity
+  case 'I': // infinity
+    type = FPX_JSON_VALUE_NUMBER;
+    double double_temp = 0.0f;
+    Fpx_Json_E_Result num_res = _json_number_parse(
+        &data, limit, (dry_run) ? (&double_temp) : (&new_val.number));
+    if (FPX_JSON_RESULT_SUCCESS > num_res)
+      return num_res;
+    break;
 
-    case 't':
-    case 'f':
-      type = FPX_JSON_VALUE_BOOL;
-      bool bool_temp = false;
-      Fpx_Json_E_Result bool_res =
-        _json_bool_parse(&data, limit, (dry_run) ? (&bool_temp) : (&new_val.boolean));
-      if (FPX_JSON_RESULT_SUCCESS > bool_res)
-        return bool_res;
-      break;
+  case 't':
+  case 'f':
+    type = FPX_JSON_VALUE_BOOL;
+    bool bool_temp = false;
+    Fpx_Json_E_Result bool_res = _json_bool_parse(
+        &data, limit, (dry_run) ? (&bool_temp) : (&new_val.boolean));
+    if (FPX_JSON_RESULT_SUCCESS > bool_res)
+      return bool_res;
+    break;
 
-    case 'n':
-      type = FPX_JSON_VALUE_NULL;
-      Fpx_Json_E_Result null_res = _json_null_validate(&data, limit);
-      if (FPX_JSON_RESULT_SUCCESS > null_res)
-        return null_res;
-      break;
+  case 'n':
+    type = FPX_JSON_VALUE_NULL;
+    Fpx_Json_E_Result null_res = _json_null_validate(&data, limit);
+    if (FPX_JSON_RESULT_SUCCESS > null_res)
+      return null_res;
+    break;
 
-    case '{':
-      type = FPX_JSON_VALUE_OBJECT;
-      Fpx_Json_E_Result mem_res =
-        _json_object_parse(&data, limit, arena, (dry_run) ? (output) : (&new_val.object));
-      if (FPX_JSON_RESULT_SUCCESS > mem_res)
-        return mem_res;
-      break;
+  case '{':
+    type = FPX_JSON_VALUE_OBJECT;
+    Fpx_Json_E_Result mem_res = _json_object_parse(
+        &data, limit, arena, (dry_run) ? (output) : (&new_val.object));
+    if (FPX_JSON_RESULT_SUCCESS > mem_res)
+      return mem_res;
+    break;
 
-    case '[':
-      type = FPX_JSON_VALUE_ARRAY;
-      Fpx_Json_E_Result arr_res =
-        _json_array_parse(&data, limit, arena, (dry_run) ? (output) : (&new_val.array));
-      if (FPX_JSON_RESULT_SUCCESS > arr_res)
-        return arr_res;
-      break;
+  case '[':
+    type = FPX_JSON_VALUE_ARRAY;
+    Fpx_Json_E_Result arr_res = _json_array_parse(
+        &data, limit, arena, (dry_run) ? (output) : (&new_val.array));
+    if (FPX_JSON_RESULT_SUCCESS > arr_res)
+      return arr_res;
+    break;
 
-    case '"':
-      type = FPX_JSON_VALUE_STRING;
-      Fpx_Json_E_Result str_res =
-        _json_string_parse(&data, limit, arena, (dry_run) ? (output) : (&new_val.string));
-      if (FPX_JSON_RESULT_SUCCESS > str_res)
-        return str_res;
-      break;
+  case '"':
+    type = FPX_JSON_VALUE_STRING;
+    Fpx_Json_E_Result str_res = _json_string_parse(
+        &data, limit, arena, (dry_run) ? (output) : (&new_val.string));
+    if (FPX_JSON_RESULT_SUCCESS > str_res)
+      return str_res;
+    break;
 
-    default:
-      FPX_ERROR("General syntax error while checking for JSON value\n");
-      return FPX_JSON_RESULT_SYNTAX_ERROR;
+  default:
+    FPX_ERROR("General syntax error while checking for JSON value\n");
+    return FPX_JSON_RESULT_SYNTAX_ERROR;
   }
 
   new_val.valueType = type;
 
   if (!dry_run)
-    *(Fpx_Json_Value*)output = new_val;
+    *(Fpx_Json_Value *)output = new_val;
 
   RETURN(FPX_JSON_RESULT_SUCCESS);
 
 #undef RETURN
 }
 
-static Fpx_Json_E_Result _json_string_parse(
-  const char** in_string, const char* limit, fpx_arena* arena, void* output) {
-  Fpx_Json_String retval = { 0 };
+static Fpx_Json_E_Result _json_string_parse(const char **in_string,
+                                            const char *limit, fpx_arena *arena,
+                                            void *output) {
+  Fpx_Json_String retval = {0};
 
-  const char* data = *in_string;
+  const char *data = *in_string;
   bool dry_run = false;
 
   if (NULL == arena)
     dry_run = true;
 
-#define RETURN(_return_value) \
-  {                           \
-    if (data != limit)        \
-      ++data;                 \
-    *in_string = data;        \
-    return _return_value;     \
+#define RETURN(_return_value)                                                  \
+  {                                                                            \
+    if (data != limit)                                                         \
+      ++data;                                                                  \
+    *in_string = data;                                                         \
+    return _return_value;                                                      \
   }
 
   if (limit - data < 2) {
@@ -460,14 +469,14 @@ static Fpx_Json_E_Result _json_string_parse(
   // empty string
   if (*data == '\"') {
     if (!dry_run) {
-      ((Fpx_Json_String*)output)->size = 0;
-      ((Fpx_Json_String*)output)->data = NULL;
+      ((Fpx_Json_String *)output)->size = 0;
+      ((Fpx_Json_String *)output)->data = NULL;
     }
 
     RETURN(FPX_JSON_RESULT_SUCCESS);
   }
 
-  const char* next_dbl_quote = data;
+  const char *next_dbl_quote = data;
 
   bool escaped = false;
   for (; next_dbl_quote <= limit; ++next_dbl_quote) {
@@ -487,12 +496,12 @@ static Fpx_Json_E_Result _json_string_parse(
     return FPX_JSON_RESULT_OUT_OF_BOUNDS_ERROR;
 
   size_t clone_idx = 0;
-  retval.data = (char*)calloc(next_dbl_quote - data, 1);
+  retval.data = (char *)calloc(next_dbl_quote - data, 1);
 
   for (; data < next_dbl_quote; ++data) {
     if (*data == '\\') {
       ++data;
-      uint8_t to_clone = ' ';  // filler in case of weird logic error
+      uint8_t to_clone = ' '; // filler in case of weird logic error
 
       if (*data == '"' || *data == '\\' || *data == '/')
         to_clone = *data;
@@ -542,7 +551,7 @@ static Fpx_Json_E_Result _json_string_parse(
     }
   }
 
-  void* temp = NULL;
+  void *temp = NULL;
   if (!dry_run) {
     temp = fpx_arena_alloc(arena, clone_idx + 1);
 
@@ -559,10 +568,10 @@ static Fpx_Json_E_Result _json_string_parse(
   retval.data = temp;
 
   if (dry_run) {
-    *(size_t*)output += clone_idx + 1;
+    *(size_t *)output += clone_idx + 1;
   } else {
     retval.data[clone_idx] = 0;
-    *(Fpx_Json_String*)output = retval;
+    *(Fpx_Json_String *)output = retval;
   }
 
   RETURN(FPX_JSON_RESULT_SUCCESS);
@@ -570,13 +579,14 @@ static Fpx_Json_E_Result _json_string_parse(
 #undef RETURN
 }
 
-static Fpx_Json_E_Result _json_number_parse(const char** string, const char* limit, void* output) {
-  const char* data = *string;
+static Fpx_Json_E_Result _json_number_parse(const char **string,
+                                            const char *limit, void *output) {
+  const char *data = *string;
 
-#define RETURN(_return_value) \
-  {                           \
-    *string = data;           \
-    return _return_value;     \
+#define RETURN(_return_value)                                                  \
+  {                                                                            \
+    *string = data;                                                            \
+    return _return_value;                                                      \
   }
 
   uint8_t min_space = 1;
@@ -594,9 +604,9 @@ static Fpx_Json_E_Result _json_number_parse(const char** string, const char* lim
   if (limit - data < min_space)
     return FPX_JSON_RESULT_OUT_OF_BOUNDS_ERROR;
 
-  const char* number_end = NULL;
+  const char *number_end = NULL;
 
-  *(double*)output = strtod(data, (char**)&number_end);
+  *(double *)output = strtod(data, (char **)&number_end);
 
   if (number_end >= limit)
     return FPX_JSON_RESULT_OUT_OF_BOUNDS_ERROR;
@@ -608,15 +618,16 @@ static Fpx_Json_E_Result _json_number_parse(const char** string, const char* lim
 #undef RETURN
 }
 
-static Fpx_Json_E_Result _json_bool_parse(const char** string, const char* limit, void* output) {
+static Fpx_Json_E_Result _json_bool_parse(const char **string,
+                                          const char *limit, void *output) {
   if (NULL == string || NULL == *string || NULL == limit || NULL == output)
     return FPX_JSON_RESULT_ARGUMENT_ERROR;
-  const char* data = *string;
+  const char *data = *string;
 
-#define RETURN(_return_value) \
-  {                           \
-    *string = data;           \
-    return _return_value;     \
+#define RETURN(_return_value)                                                  \
+  {                                                                            \
+    *string = data;                                                            \
+    return _return_value;                                                      \
   }
 
   uint8_t min_space = 4;
@@ -634,10 +645,10 @@ static Fpx_Json_E_Result _json_bool_parse(const char** string, const char* limit
 
   if (*data == 't' && 0 == strncmp("true", data, 4)) {
     data += 4;
-    *(bool*)output = true;
+    *(bool *)output = true;
   } else if (*data == 'f' && 0 == strncmp("false", data, 5)) {
     data += 5;
-    *(bool*)output = false;
+    *(bool *)output = false;
   } else {
     return FPX_JSON_RESULT_SYNTAX_ERROR;
   }
@@ -647,15 +658,16 @@ static Fpx_Json_E_Result _json_bool_parse(const char** string, const char* limit
 #undef RETURN
 }
 
-static Fpx_Json_E_Result _json_null_validate(const char** string, const char* limit) {
+static Fpx_Json_E_Result _json_null_validate(const char **string,
+                                             const char *limit) {
   if (NULL == string || NULL == *string || NULL == limit)
     return FPX_JSON_RESULT_ARGUMENT_ERROR;
-  const char* data = *string;
+  const char *data = *string;
 
-#define RETURN(_return_value) \
-  {                           \
-    *string = data;           \
-    return _return_value;     \
+#define RETURN(_return_value)                                                  \
+  {                                                                            \
+    *string = data;                                                            \
+    return _return_value;                                                      \
   }
 
   if (*data != 'n') {
@@ -673,25 +685,26 @@ static Fpx_Json_E_Result _json_null_validate(const char** string, const char* li
 #undef RETURN
 }
 
-static Fpx_Json_E_Result _json_array_parse(
-  const char** string, const char* limit, fpx_arena* arena, void* output) {
+static Fpx_Json_E_Result _json_array_parse(const char **string,
+                                           const char *limit, fpx_arena *arena,
+                                           void *output) {
   if (NULL == string || NULL == *string || NULL == limit || NULL == output)
     return FPX_JSON_RESULT_ARGUMENT_ERROR;
-  const char* data = *string;
+  const char *data = *string;
 
   bool dry_run = false;
 
   if (NULL == arena)
     dry_run = true;
 
-#define RETURN(_return_value)                    \
-  {                                              \
-    for (; *data != ']' && data < limit; ++data) \
-      ;                                          \
-    if (data != limit)                           \
-      ++data;                                    \
-    *string = data;                              \
-    return _return_value;                        \
+#define RETURN(_return_value)                                                  \
+  {                                                                            \
+    for (; *data != ']' && data < limit; ++data)                               \
+      ;                                                                        \
+    if (data != limit)                                                         \
+      ++data;                                                                  \
+    *string = data;                                                            \
+    return _return_value;                                                      \
   }
 
   if (*data != '[') {
@@ -713,17 +726,19 @@ static Fpx_Json_E_Result _json_array_parse(
   uint8_t value_increment = 8;
   uint16_t value_capacity = 0;
 
-  Fpx_Json_Array new_arr = { 0 };
+  Fpx_Json_Array new_arr = {0};
 
   do {
     if (value_capacity == new_arr.count) {
-      new_arr.values = (Fpx_Json_Value*)realloc(
-        new_arr.values, sizeof(Fpx_Json_Value) * (new_arr.count + value_increment));
+      new_arr.values = (Fpx_Json_Value *)realloc(
+          new_arr.values,
+          sizeof(Fpx_Json_Value) * (new_arr.count + value_increment));
       value_capacity += value_increment;
     }
 
     Fpx_Json_E_Result val_res = _json_value_parse(
-      &data, limit, arena, (dry_run) ? (output) : (&new_arr.values[new_arr.count]));
+        &data, limit, arena,
+        (dry_run) ? (output) : (&new_arr.values[new_arr.count]));
 
     if (FPX_JSON_RESULT_SUCCESS > val_res) {
       free(new_arr.values);
@@ -745,21 +760,20 @@ static Fpx_Json_E_Result _json_array_parse(
     new_arr.count++;
   } while (data < limit && *data != ']');
 
-
   if (!dry_run) {
-    ((Fpx_Json_Array*)output)->values =
-      fpx_arena_alloc(arena, sizeof(Fpx_Json_Value) * new_arr.count);
+    ((Fpx_Json_Array *)output)->values =
+        fpx_arena_alloc(arena, sizeof(Fpx_Json_Value) * new_arr.count);
 
-    if (NULL == ((Fpx_Json_Array*)output)->values) {
+    if (NULL == ((Fpx_Json_Array *)output)->values) {
       free(new_arr.values);
       return FPX_JSON_RESULT_MEMORY_ERROR;
     }
 
-    memcpy(
-      ((Fpx_Json_Array*)output)->values, new_arr.values, new_arr.count * sizeof(Fpx_Json_Value));
-    ((Fpx_Json_Array*)output)->count = new_arr.count;
+    memcpy(((Fpx_Json_Array *)output)->values, new_arr.values,
+           new_arr.count * sizeof(Fpx_Json_Value));
+    ((Fpx_Json_Array *)output)->count = new_arr.count;
   } else {
-    *(size_t*)output += sizeof(Fpx_Json_Value) * new_arr.count;
+    *(size_t *)output += sizeof(Fpx_Json_Value) * new_arr.count;
   }
 
   free(new_arr.values);
@@ -767,13 +781,13 @@ static Fpx_Json_E_Result _json_array_parse(
   RETURN(FPX_JSON_RESULT_SUCCESS);
 }
 
-static void _json_object_print(Fpx_Json_Object* obj) {
+static void _json_object_print(Fpx_Json_Object *obj) {
   if (NULL == obj)
     return;
 
   printf("{");
   for (size_t i = 0; i < obj->memberCount; ++i) {
-    Fpx_Json_Member* m = &obj->members[i];
+    Fpx_Json_Member *m = &obj->members[i];
 
     printf("\"%s\":", m->key.data);
 
@@ -787,7 +801,7 @@ static void _json_object_print(Fpx_Json_Object* obj) {
   return;
 }
 
-static void _json_array_print(Fpx_Json_Array* arr) {
+static void _json_array_print(Fpx_Json_Array *arr) {
   if (NULL == arr)
     return;
 
@@ -801,37 +815,37 @@ static void _json_array_print(Fpx_Json_Array* arr) {
   printf("]");
 }
 
-static void _json_value_print(Fpx_Json_Value* val) {
+static void _json_value_print(Fpx_Json_Value *val) {
   if (NULL == val)
     return;
 
   switch (val->valueType) {
-    case FPX_JSON_VALUE_BOOL:
-      printf("%s", (val->boolean) ? "true" : "false");
-      break;
+  case FPX_JSON_VALUE_BOOL:
+    printf("%s", (val->boolean) ? "true" : "false");
+    break;
 
-    case FPX_JSON_VALUE_NULL:
-      printf("null");
-      break;
+  case FPX_JSON_VALUE_NULL:
+    printf("null");
+    break;
 
-    case FPX_JSON_VALUE_NUMBER:
-      printf("%lf", val->number);
-      break;
+  case FPX_JSON_VALUE_NUMBER:
+    printf("%lf", val->number);
+    break;
 
-    case FPX_JSON_VALUE_STRING:
-      printf("\"%s\"", val->string.data);
-      break;
+  case FPX_JSON_VALUE_STRING:
+    printf("\"%s\"", val->string.data);
+    break;
 
-    case FPX_JSON_VALUE_OBJECT:
-      _json_object_print(&val->object);
-      break;
+  case FPX_JSON_VALUE_OBJECT:
+    _json_object_print(&val->object);
+    break;
 
-    case FPX_JSON_VALUE_ARRAY:
-      _json_array_print(&val->array);
-      break;
+  case FPX_JSON_VALUE_ARRAY:
+    _json_array_print(&val->array);
+    break;
 
-    default:
-      break;
+  default:
+    break;
   }
 
   return;

@@ -26,15 +26,17 @@
 #define SIGKILL SIGTERM
 #endif
 
-// static int _hkdf_derive(uint8_t* salt, size_t salt_len, uint8_t* info, size_t info_len,
+// static int _hkdf_derive(uint8_t* salt, size_t salt_len, uint8_t* info, size_t
+// info_len,
 //   uint8_t* ikm, size_t ikm_len, uint8_t* output, size_t output_len) {
 //   uint8_t intermediate[32];
 //   fpx_hkdf_extract(salt, salt_len, ikm, ikm_len, intermediate, SHA256);
-//   return fpx_hkdf_expand(intermediate, info, info_len, output, output_len, SHA256);
+//   return fpx_hkdf_expand(intermediate, info, info_len, output, output_len,
+//   SHA256);
 // }
 
-static void* _background_listener(void* arg) {
-  fpx_quic_socket_t* quic_sock = (fpx_quic_socket_t*)arg;
+static void *_background_listener(void *arg) {
+  fpx_quic_socket_t *quic_sock = (fpx_quic_socket_t *)arg;
 
   while (1) {
     pthread_mutex_lock(&quic_sock->ListenerMutex);
@@ -51,7 +53,8 @@ static void* _background_listener(void* arg) {
 }
 
 // static int _quic_can_send(fpx_quic_stream_t* stream) {
-//   // code that checks whether or not the stream is able to have data sent over it
+//   // code that checks whether or not the stream is able to have data sent
+//   over it
 //   // (a.k.a. is flow control credit reserved?)
 // }
 
@@ -105,8 +108,8 @@ static void* _background_listener(void* arg) {
 //   return 0;
 // }
 
-int fpx_quic_socket_init(
-  fpx_quic_socket_t* quic_sock, const char* ip, uint16_t port, uint8_t ip_version) {
+int fpx_quic_socket_init(fpx_quic_socket_t *quic_sock, const char *ip,
+                         uint16_t port, uint8_t ip_version) {
   int listen_fd = -1;
 
   if (ip_version == 4) {
@@ -119,16 +122,16 @@ int fpx_quic_socket_init(
 
     {
       int optval = 1;
-      int setsockopt_result =
-        setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, (void*)&optval, sizeof(optval));
+      int setsockopt_result = setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR,
+                                         (void *)&optval, sizeof(optval));
 
       if (setsockopt_result == -1) {
         perror("fpx_quic_init() -> setsockopt() (Reuse Address and Port)");
         return -1;
       }
 
-      setsockopt_result =
-        setsockopt(listen_fd, IPPROTO_IP, IP_PMTUDISC_DO, (void*)&optval, sizeof(optval));
+      setsockopt_result = setsockopt(listen_fd, IPPROTO_IP, IP_PMTUDISC_DO,
+                                     (void *)&optval, sizeof(optval));
 
       if (setsockopt_result == -1) {
         perror("fpx_quic_init() -> setsockopt() (Don't Fragment)");
@@ -136,12 +139,13 @@ int fpx_quic_socket_init(
       }
     }
 
-    struct sockaddr_in address = { 0 };
+    struct sockaddr_in address = {0};
     address.sin_family = AF_INET;
     address.sin_port = htons(port);
     inet_pton(AF_INET, ip, &address.sin_addr);
 
-    int bind_result = bind(listen_fd, (struct sockaddr*)&address, sizeof(address));
+    int bind_result =
+        bind(listen_fd, (struct sockaddr *)&address, sizeof(address));
     if (bind_result == -1) {
       perror("fpx_quic_init() -> bind()");
       return -1;
@@ -158,21 +162,23 @@ int fpx_quic_socket_init(
   return 0;
 }
 
-int fpx_quic_listen(fpx_quic_socket_t* quic_sock, uint16_t max_active, uint16_t backlog) {
+int fpx_quic_listen(fpx_quic_socket_t *quic_sock, uint16_t max_active,
+                    uint16_t backlog) {
   // TODO: finish proper allocator implementation so it's usable
   // in fpx_quic
   if (quic_sock->Backlog != NULL)
     free(quic_sock->Backlog);
 
-  quic_sock->Backlog = (fpx_quic_connection_t*)calloc(backlog, sizeof(fpx_quic_connection_t));
+  quic_sock->Backlog =
+      (fpx_quic_connection_t *)calloc(backlog, sizeof(fpx_quic_connection_t));
 
   if (quic_sock->Backlog == NULL) {
     perror("fpx_quic_listen() -> calloc() (backlog)");
     return -1;
   }
 
-  quic_sock->Connections =
-    (fpx_quic_connection_t*)calloc(max_active, sizeof(fpx_quic_connection_t));
+  quic_sock->Connections = (fpx_quic_connection_t *)calloc(
+      max_active, sizeof(fpx_quic_connection_t));
 
   if (quic_sock->Connections == NULL) {
     perror("fpx_quic_listen() -> calloc() (connections)");
@@ -183,13 +189,14 @@ int fpx_quic_listen(fpx_quic_socket_t* quic_sock, uint16_t max_active, uint16_t 
   quic_sock->MaxConnections = max_active;
   quic_sock->ActiveConnections = 0;
 
-  quic_sock->Thread = pthread_create(&quic_sock->Thread, NULL, _background_listener, quic_sock);
+  quic_sock->Thread =
+      pthread_create(&quic_sock->Thread, NULL, _background_listener, quic_sock);
   pthread_mutex_init(&quic_sock->ListenerMutex, NULL);
 
   return 0;
 }
 
-int fpx_quic_stoplisten(fpx_quic_socket_t* quic_sock) {
+int fpx_quic_stoplisten(fpx_quic_socket_t *quic_sock) {
   // XXX: this could be bad (infinite sleep), try to find a better way
   pthread_mutex_lock(&quic_sock->ListenerMutex);
 
@@ -222,7 +229,7 @@ int fpx_quic_stoplisten(fpx_quic_socket_t* quic_sock) {
   return 0;
 }
 
-fpx_quic_connection_t fpx_quic_accept(fpx_quic_socket_t* quic_sock) {
+fpx_quic_connection_t fpx_quic_accept(fpx_quic_socket_t *quic_sock) {
   pthread_mutex_lock(&quic_sock->ListenerMutex);
   if (quic_sock->Backlog[0].FileDescriptor == 0) {
     // there is no-one in the backlog.
@@ -239,8 +246,10 @@ fpx_quic_connection_t fpx_quic_accept(fpx_quic_socket_t* quic_sock) {
     size_t i = 0;
 
     do {
-      fpx_memcpy(&quic_sock->Backlog[i], &quic_sock->Backlog[i + 1], sizeof(fpx_quic_connection_t));
-    } while (quic_sock->Backlog[++i].FileDescriptor != 0 && i < quic_sock->BacklogLength);
+      fpx_memcpy(&quic_sock->Backlog[i], &quic_sock->Backlog[i + 1],
+                 sizeof(fpx_quic_connection_t));
+    } while (quic_sock->Backlog[++i].FileDescriptor != 0 &&
+             i < quic_sock->BacklogLength);
   }
 
   pthread_mutex_unlock(&quic_sock->ListenerMutex);

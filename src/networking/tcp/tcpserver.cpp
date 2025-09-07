@@ -36,24 +36,26 @@ namespace fpx {
 
 namespace ServerProperties {
 
-static void* TcpAcceptLoop(void* arguments) {
+static void *TcpAcceptLoop(void *arguments) {
   if (!arguments)
     return nullptr;
-  tcp_acceptargs_t* args = (tcp_acceptargs_t*)arguments;
-  const char welcomeMessage[] = "Welcome to fpx_TCP! :)\nSend '!help' for a list of commands.\n\n";
+  tcp_acceptargs_t *args = (tcp_acceptargs_t *)arguments;
+  const char welcomeMessage[] =
+      "Welcome to fpx_TCP! :)\nSend '!help' for a list of commands.\n\n";
   while (1) {
     if (*(args->ClientCountPtr) < FPX_MAX_CONNECTIONS) {
       SOCKET_TYPE client =
-        accept(*(args->ListenSocketPtr), args->ClientAddressBlockPtr, args->ClientAddressSizePtr);
+          accept(*(args->ListenSocketPtr), args->ClientAddressBlockPtr,
+                 args->ClientAddressSizePtr);
       if (client == INVALID_SOCKET) {
         close(client);
         continue;
       }
       for (short i = 1; i < FPX_MAX_CONNECTIONS + 1; i++) {
-        pollfd& socket = args->ConnectedSockets[i];
+        pollfd &socket = args->ConnectedSockets[i];
         if (socket.fd == INVALID_SOCKET) {
-          socket = { client, POLLIN, 0 };
-          args->ConnectedClients[i - 1] = { "Anonymous" };
+          socket = {client, POLLIN, 0};
+          args->ConnectedClients[i - 1] = {"Anonymous"};
           (*(args->ClientCountPtr))++;
           printf("A new client (%d) has connected!\n", i);
           write(client, welcomeMessage, sizeof(welcomeMessage));
@@ -65,30 +67,23 @@ static void* TcpAcceptLoop(void* arguments) {
   return NULL;
 }
 
-}  // namespace ServerProperties
+} // namespace ServerProperties
 
-TcpServer::TcpServer() :
-  m_Port(0),
-  m_Socket4(0),
-  m_Sockets{
-    { INVALID_SOCKET, {}, {} }
-},
-  m_Clients{ { 0 } },
-  m_ClientAddressSize(sizeof(struct sockaddr)),
-  m_ConnectedClients(0),
-  m_IsListening(false),
-  m_AcceptThread(0) {
+TcpServer::TcpServer()
+    : m_Port(0), m_Socket4(0), m_Sockets{{INVALID_SOCKET, {}, {}}},
+      m_Clients{{0}}, m_ClientAddressSize(sizeof(struct sockaddr)),
+      m_ConnectedClients(0), m_IsListening(false), m_AcceptThread(0) {
   memset(m_Sockets, -1, sizeof(m_Sockets));
   memset(m_Clients, 0, sizeof(m_Clients));
 }
 
-void TcpServer::Listen(const char* ip, unsigned short port) {
-  char readBuffer[FPX_BUF_SIZE] = { 0 };
-  char writeBuffer[FPX_BUF_SIZE] = { 0 };
+void TcpServer::Listen(const char *ip, unsigned short port) {
+  char readBuffer[FPX_BUF_SIZE] = {0};
+  char writeBuffer[FPX_BUF_SIZE] = {0};
 
   if (!inet_pton(AF_INET, ip, &(m_SocketAddress4.sin_addr)))
     perror("Invalid IP address");
-  m_SocketAddress4 = { AF_INET, htons(port), {}, {} };
+  m_SocketAddress4 = {AF_INET, htons(port), {}, {}};
   m_Port = port;
 
   m_Socket4 = socket(AF_INET, SOCK_STREAM | SO_REUSEADDR, 0);
@@ -97,7 +92,8 @@ void TcpServer::Listen(const char* ip, unsigned short port) {
     throw NetException("Failed to create socket.");
   }
 
-  if (bind(m_Socket4, (sockaddr*)&m_SocketAddress4, sizeof(m_SocketAddress4)) < 0) {
+  if (bind(m_Socket4, (sockaddr *)&m_SocketAddress4, sizeof(m_SocketAddress4)) <
+      0) {
     Close();
     throw NetException("Failed to bind to socket.");
   }
@@ -110,33 +106,38 @@ void TcpServer::Listen(const char* ip, unsigned short port) {
   m_Sockets[0].fd = m_Socket4;
   m_Sockets[0].events = POLLIN;
 
-  printf("TCPserver listening on %s:%d\n", inet_ntoa(m_SocketAddress4.sin_addr), m_Port);
+  printf("TCPserver listening on %s:%d\n", inet_ntoa(m_SocketAddress4.sin_addr),
+         m_Port);
 
   ServerProperties::tcp_acceptargs_t accepterArguments = {
-    &m_ConnectedClients, &m_Socket4, &m_ClientAddress, &m_ClientAddressSize, m_Sockets, m_Clients
-  };
+      &m_ConnectedClients,  &m_Socket4, &m_ClientAddress,
+      &m_ClientAddressSize, m_Sockets,  m_Clients};
 
   int threadCreation =
-    pthread_create(&m_AcceptThread, NULL, ServerProperties::TcpAcceptLoop, &accepterArguments);
+      pthread_create(&m_AcceptThread, NULL, ServerProperties::TcpAcceptLoop,
+                     &accepterArguments);
   switch (threadCreation) {
-    case 0:
-      // thread started successfully
-      break;
+  case 0:
+    // thread started successfully
+    break;
 
-    default:
-      // thread did not start successfully
-      break;
+  default:
+    // thread did not start successfully
+    break;
   }
 
   m_IsListening = true;
 
   while (m_IsListening) {
 
-// printf("Polling sockets for %d seconds or until a socket is ready...\n", POLLTIMEOUT/1000);
+// printf("Polling sockets for %d seconds or until a socket is ready...\n",
+// POLLTIMEOUT/1000);
 #if defined(_WIN32) || defined(_WIN64)
-    int result = WSAPoll(m_Sockets, sizeof(m_Sockets) / sizeof(m_Sockets[0]), FPX_POLLTIMEOUT);
+    int result = WSAPoll(m_Sockets, sizeof(m_Sockets) / sizeof(m_Sockets[0]),
+                         FPX_POLLTIMEOUT);
 #else
-    int result = poll(m_Sockets, sizeof(m_Sockets) / sizeof(m_Sockets[0]), FPX_POLLTIMEOUT);
+    int result = poll(m_Sockets, sizeof(m_Sockets) / sizeof(m_Sockets[0]),
+                      FPX_POLLTIMEOUT);
 #endif
 
     if (result == -1) {
@@ -159,90 +160,100 @@ void TcpServer::Listen(const char* ip, unsigned short port) {
         if (bytesRead > 0) {
           // printf("%s\n", readBuffer);
           if (!strncmp(readBuffer, FPX_INCOMING, strlen(FPX_INCOMING))) {
-            char* cleanMsg = (char*)fpx_substr_replace(readBuffer, FPX_INCOMING, "");
+            char *cleanMsg =
+                (char *)fpx_substr_replace(readBuffer, FPX_INCOMING, "");
             cleanMsg[strcspn(cleanMsg, "\r\n")] = 0;
             switch (*cleanMsg) {
-              case '!':
-                char temp[40];
-                if (!strcmp(cleanMsg, "!online")) {
-                  memset(temp, 0, sizeof(temp));
-                  sprintf(writeBuffer,
-                    "\nHere is a list of connected clients (%d/%d):\n\n",
-                    m_ConnectedClients,
-                    FPX_MAX_CONNECTIONS);
-                  short k = 1;
-                  for (ClientData& cnt : m_Clients) {
-                    if (*cnt.Name != 0) {
-                      sprintf(temp, "%s (%d)", cnt.Name, k);
-                      if (k == i)
-                        strcat(temp, " << YOU");
-                      strcat(temp, "\n");
-                      strcat(writeBuffer, temp);
-                      memset(temp, 0, sizeof(temp));
-                    }
-                    k++;
+            case '!':
+              char temp[40];
+              if (!strcmp(cleanMsg, "!online")) {
+                memset(temp, 0, sizeof(temp));
+                sprintf(writeBuffer,
+                        "\nHere is a list of connected clients (%d/%d):\n\n",
+                        m_ConnectedClients, FPX_MAX_CONNECTIONS);
+                short k = 1;
+                for (ClientData &cnt : m_Clients) {
+                  if (*cnt.Name != 0) {
+                    sprintf(temp, "%s (%d)", cnt.Name, k);
+                    if (k == i)
+                      strcat(temp, " << YOU");
+                    strcat(temp, "\n");
+                    strcat(writeBuffer, temp);
+                    memset(temp, 0, sizeof(temp));
                   }
-                  strcat(writeBuffer, "\n");
-                } else if (!strcmp(cleanMsg, "!whoami")) {
-                  sprintf(temp, "\nYou are: %s (%d)\n\n", m_Clients[i - 1].Name, i);
-                  strcat(writeBuffer, temp);
-                  memset(temp, 0, sizeof(temp));
-                } else if (!strcmp(cleanMsg, "!help")) {
+                  k++;
+                }
+                strcat(writeBuffer, "\n");
+              } else if (!strcmp(cleanMsg, "!whoami")) {
+                sprintf(temp, "\nYou are: %s (%d)\n\n", m_Clients[i - 1].Name,
+                        i);
+                strcat(writeBuffer, temp);
+                memset(temp, 0, sizeof(temp));
+              } else if (!strcmp(cleanMsg, "!help")) {
+                sprintf(writeBuffer,
+                        "\nHere is a list of commands:\n!whoami\n!online\n!pm "
+                        "[id] [message]\n\n");
+              } else if (!strcmp(cleanMsg, "!id")) {
+                sprintf(writeBuffer, "%d", i);
+              } else if (!strncmp(cleanMsg, "!pm", 3)) {
+                // TODO:  improve this command's code.
+                //        wrote this while very tired and braindead lol
+                //        - Erynn
+                if (!(cleanMsg[3] == ' '))
                   sprintf(writeBuffer,
-                    "\nHere is a list of commands:\n!whoami\n!online\n!pm [id] [message]\n\n");
-                } else if (!strcmp(cleanMsg, "!id")) {
-                  sprintf(writeBuffer, "%d", i);
-                } else if (!strncmp(cleanMsg, "!pm", 3)) {
-                  // TODO:  improve this command's code.
-                  //        wrote this while very tired and braindead lol
-                  //        - Erynn
-                  if (!(cleanMsg[3] == ' '))
-                    sprintf(writeBuffer, "Bad syntax: '!pm'. Requires '!pm [id] [message]'");
-                  else {
-                    const char* args = fpx_substr_replace(cleanMsg, "!pm ", "");
-                    const char* argsCpy = args;
-                    char recIDchars[4], message[FPX_BUF_SIZE], messageCpy[FPX_BUF_SIZE];
-                    int recID;
+                          "Bad syntax: '!pm'. Requires '!pm [id] [message]'");
+                else {
+                  const char *args = fpx_substr_replace(cleanMsg, "!pm ", "");
+                  const char *argsCpy = args;
+                  char recIDchars[4], message[FPX_BUF_SIZE],
+                      messageCpy[FPX_BUF_SIZE];
+                  int recID;
 
-                    memcpy(recIDchars,
-                      args,
-                      (strspn(args, "0123456789") > 4) ? 4 : strspn(args, "0123456789"));
-                    recID = atoi(recIDchars);
-                    args += strspn(args, "0123456789");
-                    if (*args != ' ')
-                      sprintf(writeBuffer, "Bad syntax: '!pm'. Requires '!pm [id] [message]'");
-                    else {
-                      args++;
-                      sprintf(message, "Private from [%s (%d)]: ", m_Clients[i - 1].Name, i);
-                      memcpy(messageCpy, message, FPX_BUF_SIZE);
-                      snprintf(message, FPX_BUF_SIZE, "%s%s\n", messageCpy, args);
-                      write(m_Sockets[recID].fd, message, strlen(message));
-                    }
-                    free((char*)argsCpy);
+                  memcpy(recIDchars, args,
+                         (strspn(args, "0123456789") > 4)
+                             ? 4
+                             : strspn(args, "0123456789"));
+                  recID = atoi(recIDchars);
+                  args += strspn(args, "0123456789");
+                  if (*args != ' ')
+                    sprintf(writeBuffer,
+                            "Bad syntax: '!pm'. Requires '!pm [id] [message]'");
+                  else {
+                    args++;
+                    sprintf(message,
+                            "Private from [%s (%d)]: ", m_Clients[i - 1].Name,
+                            i);
+                    memcpy(messageCpy, message, FPX_BUF_SIZE);
+                    snprintf(message, FPX_BUF_SIZE, "%s%s\n", messageCpy, args);
+                    write(m_Sockets[recID].fd, message, strlen(message));
                   }
-                } else {
-                  sprintf(writeBuffer,
-                    "\nUnrecognised command '%s'. Try '!help' for a list of commands.\n\n",
-                    cleanMsg);
+                  free((char *)argsCpy);
                 }
-                if (*writeBuffer != 0) {
-                  write(m_Sockets[i].fd, writeBuffer, strlen(writeBuffer));
-                  memset(writeBuffer, 0, strlen(writeBuffer));
-                }
-                break;
-              case 0:
-                break;
-              default:
-                sprintf(writeBuffer, "[%s (%d)]: %s\n", m_Clients[i - 1].Name, i, cleanMsg);
-                printf("%s", writeBuffer);
-                for (pollfd& socket : m_Sockets) {
-                  if (!(socket.fd == m_Socket4 || socket.fd == m_Sockets[i].fd))
-                    write(socket.fd, writeBuffer, strlen(writeBuffer));
-                }
+              } else {
+                sprintf(writeBuffer,
+                        "\nUnrecognised command '%s'. Try '!help' for a list "
+                        "of commands.\n\n",
+                        cleanMsg);
+              }
+              if (*writeBuffer != 0) {
+                write(m_Sockets[i].fd, writeBuffer, strlen(writeBuffer));
                 memset(writeBuffer, 0, strlen(writeBuffer));
-                break;
+              }
+              break;
+            case 0:
+              break;
+            default:
+              sprintf(writeBuffer, "[%s (%d)]: %s\n", m_Clients[i - 1].Name, i,
+                      cleanMsg);
+              printf("%s", writeBuffer);
+              for (pollfd &socket : m_Sockets) {
+                if (!(socket.fd == m_Socket4 || socket.fd == m_Sockets[i].fd))
+                  write(socket.fd, writeBuffer, strlen(writeBuffer));
+              }
+              memset(writeBuffer, 0, strlen(writeBuffer));
+              break;
             }
-            free((char*)cleanMsg);
+            free((char *)cleanMsg);
           }
 
           if (!strncmp(readBuffer, FPX_DISCONNECT, strlen(FPX_DISCONNECT))) {
@@ -252,16 +263,18 @@ void TcpServer::Listen(const char* ip, unsigned short port) {
             continue;
           } else
 
-            if (!strncmp(readBuffer, FPX_INIT, strlen(FPX_INIT))) {
-            char* clientName = (char*)fpx_substr_replace(readBuffer, FPX_INIT, "");
+              if (!strncmp(readBuffer, FPX_INIT, strlen(FPX_INIT))) {
+            char *clientName =
+                (char *)fpx_substr_replace(readBuffer, FPX_INIT, "");
             clientName[strcspn(clientName, "\r\n")] = 0;
             if (*clientName != 0) {
               memset(m_Clients[i - 1].Name, 0, sizeof(m_Clients[i - 1]));
-              memcpy(m_Clients[i - 1].Name, clientName, sizeof(m_Clients[i - 1]));
+              memcpy(m_Clients[i - 1].Name, clientName,
+                     sizeof(m_Clients[i - 1]));
             }
             free(clientName);
           } else if (!strncmp(readBuffer, FPX_ECHO, strlen(FPX_ECHO))) {
-            const char* cleanMsg = fpx_substr_replace(readBuffer, FPX_ECHO, "");
+            const char *cleanMsg = fpx_substr_replace(readBuffer, FPX_ECHO, "");
             snprintf(writeBuffer, FPX_BUF_SIZE, "%s", cleanMsg);
             write(m_Sockets[i].fd, writeBuffer, strlen(writeBuffer));
             memset(writeBuffer, 0, FPX_BUF_SIZE);
@@ -293,7 +306,7 @@ void TcpServer::Listen(const char* ip, unsigned short port) {
   return;
 }
 
-void TcpServer::ListenSecure(const char* keypath, const char* certpath) {
+void TcpServer::ListenSecure(const char *keypath, const char *certpath) {
   UNUSED(keypath);
   UNUSED(certpath);
   throw NotImplementedException("SSL/TLS is not yet implemented.");
@@ -323,12 +336,13 @@ void TcpServer::Close() {
   return;
 }
 
-void TcpServer::pvt_HandleDisconnect(pollfd& client, short& clientNumber) {
+void TcpServer::pvt_HandleDisconnect(pollfd &client, short &clientNumber) {
   m_ConnectedClients--;
   close(client.fd);
-  printf("[%s (%d)] disconnected.\n", m_Clients[clientNumber - 1].Name, clientNumber);
-  client = { INVALID_SOCKET, -1, 0 };
+  printf("[%s (%d)] disconnected.\n", m_Clients[clientNumber - 1].Name,
+         clientNumber);
+  client = {INVALID_SOCKET, -1, 0};
   memset(&m_Clients[clientNumber - 1], 0, sizeof(m_Clients[clientNumber - 1]));
 }
 
-}  // namespace fpx
+} // namespace fpx

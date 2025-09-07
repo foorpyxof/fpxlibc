@@ -18,12 +18,12 @@ typedef struct __fpx_arena fpx_arena;
  * Create a memory arena
  * Returns NULL/0 upon failure
  */
-extern fpx_arena* fpx_arena_create(uint64_t size);
+extern fpx_arena *fpx_arena_create(uint64_t size);
 
 /**
  * Destroys an arena
  */
-extern int fpx_arena_destroy(fpx_arena* ptr);
+extern int fpx_arena_destroy(fpx_arena *ptr);
 
 /**
  * Allocate memory within the arena pointed at by
@@ -31,8 +31,8 @@ extern int fpx_arena_destroy(fpx_arena* ptr);
  * The second argument (size) must be less than or
  * equal to the REMAINING space in this arena.
  */
-extern void* fpx_arena_alloc(fpx_arena* ptr, size_t size);
+extern void *fpx_arena_alloc(fpx_arena *ptr, size_t size);
 
-extern int fpx_arena_free(fpx_arena* arenaptr, void* data);
+extern int fpx_arena_free(fpx_arena *arenaptr, void *data);
 
-#endif  // FPX_ARENA_H
+#endif // FPX_ARENA_H

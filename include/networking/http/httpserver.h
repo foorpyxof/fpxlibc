@@ -12,21 +12,22 @@
 
 typedef struct _fpx_httpserver fpx_httpserver_t;
 struct _fpx_httpserver_metadata;
-typedef void (*fpx_httpcallback_t)(const fpx_httprequest_t*, fpx_httpresponse_t*);
+typedef void (*fpx_httpcallback_t)(const fpx_httprequest_t *,
+                                   fpx_httpresponse_t *);
 
 typedef struct _fpx_websocketclient fpx_websocketclient_t;
-typedef void (*fpx_websocketcallback_t)(
-  const fpx_websocketframe_t* _incoming, int file_descriptor, const struct sockaddr*);
-
+typedef void (*fpx_websocketcallback_t)(const fpx_websocketframe_t *_incoming,
+                                        int file_descriptor,
+                                        const struct sockaddr *);
 
 enum fpx_httpserver_type {
-  Http = 0,        // this means HTTP ONLY
-  WebSockets = 1,  // this means HTTP + WebSockets
+  Http = 0,       // this means HTTP ONLY
+  WebSockets = 1, // this means HTTP + WebSockets
 };
 
 enum fpx_httpserver_opts {
-  ManualWsUpgrade = 0x01,  // this allows for upgrading the request within the HTTP endpoint
-                           // callback instead of automatically
+  ManualWsUpgrade = 0x01, // this allows for upgrading the request within the
+                          // HTTP endpoint callback instead of automatically
 };
 
 /**
@@ -48,8 +49,8 @@ enum fpx_httpserver_opts {
  * will set it to the default instead. The default is specified
  * in the implementation file
  */
-int fpx_httpserver_init(
-  fpx_httpserver_t*, const uint8_t http_threads, const uint8_t ws_threads, uint8_t max_endpoints);
+int fpx_httpserver_init(fpx_httpserver_t *, const uint8_t http_threads,
+                        const uint8_t ws_threads, uint8_t max_endpoints);
 
 /**
  * Set the default headers to be applied to every outgoing response\
@@ -71,10 +72,11 @@ int fpx_httpserver_init(
  * - Leading and trailing whitespace on a header key is removed
  * - Leading whitespace on a header value is removed
  */
-int fpx_httpserver_set_default_headers(fpx_httpserver_t*, const char*);
+int fpx_httpserver_set_default_headers(fpx_httpserver_t *, const char *);
 
 /**
- * Get the default headers of the server, and output them in the provided output buffer
+ * Get the default headers of the server, and output them in the provided output
+ * buffer
  *
  * Input:
  * - Pointer to the server to read the default headers from
@@ -90,10 +92,11 @@ int fpx_httpserver_set_default_headers(fpx_httpserver_t*, const char*);
  * if the current one is deemed too small
  *
  * Notes:
- * - The operation will PARTIALLY complete if the output buffer is deemed too small
+ * - The operation will PARTIALLY complete if the output buffer is deemed too
+ * small
  * - A null-terminator will ALWAYS be appended. Even if the buffer is too short.
  */
-int fpx_httpserver_get_default_headers(fpx_httpserver_t*, char*, size_t);
+int fpx_httpserver_get_default_headers(fpx_httpserver_t *, char *, size_t);
 
 /**
  * Set the maximum body length that the server will accept from requests
@@ -131,15 +134,17 @@ int fpx_httpserver_get_default_headers(fpx_httpserver_t*, char*, size_t);
  * - Pointer to the server to set the default callback for
  * - Bitwise OR of the HTTP methods that are allowed on this endpoint
  * (e.g. GET | POST | PUT allows GET, POST and PUT)
- * - A callback function to run every time the endpoint is successfully contacted
+ * - A callback function to run every time the endpoint is successfully
+ * contacted
  *
  * Returns:
  * -  0 on success
  * - -1 if any passed pointer is unexpectedly NULL
  * - -2 if the server object is uninitialized
  */
-int fpx_httpserver_set_default_http_endpoint(
-  fpx_httpserver_t*, const uint16_t methods, fpx_httpcallback_t);
+int fpx_httpserver_set_default_http_endpoint(fpx_httpserver_t *,
+                                             const uint16_t methods,
+                                             fpx_httpcallback_t);
 
 /**
  * Append an HTTP endpoint to the current list of endpoints
@@ -149,7 +154,8 @@ int fpx_httpserver_set_default_http_endpoint(
  * - Null-terminated string to represent the URI
  * - Bitwise OR of the HTTP methods that are allowed on this endpoint
  * (e.g. GET | POST | PUT allows GET, POST and PUT)
- * - A callback function to run every time the endpoint is successfully contacted
+ * - A callback function to run every time the endpoint is successfully
+ * contacted
  *
  * Returns:
  * - The index of the endpoint in the array on success
@@ -162,8 +168,9 @@ int fpx_httpserver_set_default_http_endpoint(
  * - If the URI is missing a leading '/', this will be prepended.
  * - The URI will be processed first and any '.'s or '..'s will be removed.
  */
-int fpx_httpserver_create_endpoint(
-  fpx_httpserver_t*, const char* uri, const uint16_t methods, fpx_httpcallback_t callback);
+int fpx_httpserver_create_endpoint(fpx_httpserver_t *, const char *uri,
+                                   const uint16_t methods,
+                                   fpx_httpcallback_t callback);
 
 /**
  * Append a WebSockets endpoint to the current list of endpoints
@@ -171,7 +178,8 @@ int fpx_httpserver_create_endpoint(
  * Input:
  * - Pointer to the server to add an endpoint to
  * - Null-terminated string to represent the URI
- * - A callback function to run every time a client connected to the endpoint sends a message
+ * - A callback function to run every time a client connected to the endpoint
+ * sends a message
  *
  * Returns:
  * - The index of the endpoint in the array on success
@@ -184,8 +192,8 @@ int fpx_httpserver_create_endpoint(
  * - If the URI is missing a leading '/', this will be prepended.
  * - The URI will be processed first and any '.'s or '..'s will be removed.
  */
-int fpx_httpserver_create_ws_endpoint(
-  fpx_httpserver_t*, const char* uri, fpx_websocketcallback_t callback);
+int fpx_httpserver_create_ws_endpoint(fpx_httpserver_t *, const char *uri,
+                                      fpx_websocketcallback_t callback);
 
 /**
  * Start listening for HTTP requests on [ip]:[port]
@@ -204,7 +212,8 @@ int fpx_httpserver_create_ws_endpoint(
  * - -4 if the passed port is invalid ( == 0 )
  * -  the value of `errno` on other failure
  */
-int fpx_httpserver_listen(fpx_httpserver_t*, const char* ip, const uint16_t port);
+int fpx_httpserver_listen(fpx_httpserver_t *, const char *ip,
+                          const uint16_t port);
 
 /**
  * Stops listening on the HTTP server
@@ -219,24 +228,23 @@ int fpx_httpserver_listen(fpx_httpserver_t*, const char* ip, const uint16_t port
  * - -3 if the server object is not currently listening
  * -  the value of `errno` on other failure
  */
-int fpx_httpserver_close(fpx_httpserver_t*);
-
+int fpx_httpserver_close(fpx_httpserver_t *);
 
 struct _fpx_httpserver {
-    enum fpx_httpserver_type server_type;
-    uint8_t options;
+  enum fpx_httpserver_type server_type;
+  uint8_t options;
 
-    uint8_t max_endpoints;
+  uint8_t max_endpoints;
 
-    uint8_t http_thread_count;
-    uint8_t ws_thread_count;
+  uint8_t http_thread_count;
+  uint8_t ws_thread_count;
 
-    fpx_websocketcallback_t ws_callback;
+  fpx_websocketcallback_t ws_callback;
 
-    uint32_t keepalive_timeout;
-    uint32_t websockets_timeout;
+  uint32_t keepalive_timeout;
+  uint32_t websockets_timeout;
 
-    struct _fpx_httpserver_metadata* _internal;
+  struct _fpx_httpserver_metadata *_internal;
 };
 
-#endif  // FPX_HTTPSERVER_H
+#endif // FPX_HTTPSERVER_H

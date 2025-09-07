@@ -11,7 +11,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
-#include <stdlib.h>  // malloc()
+#include <stdlib.h> // malloc()
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <winsock2.h>
@@ -29,21 +29,27 @@
 
 #define BUFFER_DEFAULT 16384
 
-static int _set_http_version(struct _fpx_http_content* _cnt, const char* _version);
-static int _get_http_version(struct _fpx_http_content* _cnt, char* _output, size_t _maxlen);
+static int _set_http_version(struct _fpx_http_content *_cnt,
+                             const char *_version);
+static int _get_http_version(struct _fpx_http_content *_cnt, char *_output,
+                             size_t _maxlen);
 
-static int _add_http_header(struct _fpx_http_content* _cnt, const char* _key, const char* _value);
-static int _get_http_header(
-  struct _fpx_http_content* _cnt, const char* _key, char* _output, size_t _maxlen);
+static int _add_http_header(struct _fpx_http_content *_cnt, const char *_key,
+                            const char *_value);
+static int _get_http_header(struct _fpx_http_content *_cnt, const char *_key,
+                            char *_output, size_t _maxlen);
 
-static int _append_http_body(struct _fpx_http_content* _cnt, const char* _chunk, size_t _len);
-static int _get_http_body(struct _fpx_http_content* _cnt, char* _output, size_t _maxlen);
+static int _append_http_body(struct _fpx_http_content *_cnt, const char *_chunk,
+                             size_t _len);
+static int _get_http_body(struct _fpx_http_content *_cnt, char *_output,
+                          size_t _maxlen);
 
-static int _copy_http_content(struct _fpx_http_content* _dst, const struct _fpx_http_content* _src);
+static int _copy_http_content(struct _fpx_http_content *_dst,
+                              const struct _fpx_http_content *_src);
 
-static int _destroy_http_content(struct _fpx_http_content* cntptr);
+static int _destroy_http_content(struct _fpx_http_content *cntptr);
 
-int fpx_httprequest_init(fpx_httprequest_t* reqptr) {
+int fpx_httprequest_init(fpx_httprequest_t *reqptr) {
   if (NULL == reqptr)
     return -1;
 
@@ -52,8 +58,8 @@ int fpx_httprequest_init(fpx_httprequest_t* reqptr) {
   return 0;
 }
 
-
-int fpx_httprequest_set_method(fpx_httprequest_t* reqptr, fpx_httpmethod_t method) {
+int fpx_httprequest_set_method(fpx_httprequest_t *reqptr,
+                               fpx_httpmethod_t method) {
   if (NULL == reqptr)
     return -1;
 
@@ -62,16 +68,14 @@ int fpx_httprequest_set_method(fpx_httprequest_t* reqptr, fpx_httpmethod_t metho
   return 0;
 }
 
-
-fpx_httpmethod_t fpx_httprequest_get_method(fpx_httprequest_t* reqptr) {
+fpx_httpmethod_t fpx_httprequest_get_method(fpx_httprequest_t *reqptr) {
   if (NULL == reqptr)
     return HTTP_ERROR;
 
   return reqptr->method;
 }
 
-
-int fpx_httprequest_set_uri(fpx_httprequest_t* reqptr, const char* newuri) {
+int fpx_httprequest_set_uri(fpx_httprequest_t *reqptr, const char *newuri) {
   if (NULL == reqptr || NULL == newuri)
     return -1;
 
@@ -85,8 +89,8 @@ int fpx_httprequest_set_uri(fpx_httprequest_t* reqptr, const char* newuri) {
   return 0;
 }
 
-
-int fpx_httprequest_get_uri(fpx_httprequest_t* reqptr, char* store_buf, size_t maxlen) {
+int fpx_httprequest_get_uri(fpx_httprequest_t *reqptr, char *store_buf,
+                            size_t maxlen) {
   if (NULL == reqptr || NULL == store_buf)
     return -1;
 
@@ -96,70 +100,67 @@ int fpx_httprequest_get_uri(fpx_httprequest_t* reqptr, char* store_buf, size_t m
 
   // we copy after we confirm the sizes check out
   fpx_memcpy(store_buf, reqptr->uri, urilen);
-  store_buf[urilen] = 0;  // and we NULL-terminate
+  store_buf[urilen] = 0; // and we NULL-terminate
 
   return 0;
 }
 
-
-int fpx_httprequest_set_version(fpx_httprequest_t* reqptr, const char* input) {
+int fpx_httprequest_set_version(fpx_httprequest_t *reqptr, const char *input) {
   if (NULL == reqptr)
     return -1;
 
   return _set_http_version(&reqptr->content, input);
 }
 
-
-int fpx_httprequest_get_version(fpx_httprequest_t* reqptr, char* outbuffer, size_t outbuf_len) {
+int fpx_httprequest_get_version(fpx_httprequest_t *reqptr, char *outbuffer,
+                                size_t outbuf_len) {
   if (NULL == reqptr)
     return -1;
 
   return _get_http_version(&reqptr->content, outbuffer, outbuf_len);
 }
 
-
-int fpx_httprequest_add_header(fpx_httprequest_t* reqptr, const char* key, const char* value) {
+int fpx_httprequest_add_header(fpx_httprequest_t *reqptr, const char *key,
+                               const char *value) {
   if (NULL == reqptr)
     return -1;
 
   return _add_http_header(&reqptr->content, key, value);
 }
 
-
-int fpx_httprequest_get_header(
-  fpx_httprequest_t* reqptr, const char* key, char* output, size_t output_len) {
+int fpx_httprequest_get_header(fpx_httprequest_t *reqptr, const char *key,
+                               char *output, size_t output_len) {
   if (NULL == reqptr)
     return -1;
 
   return _get_http_header(&reqptr->content, key, output, output_len);
 }
 
-
-int fpx_httprequest_append_body(fpx_httprequest_t* reqptr, const char* new_chunk, size_t body_len) {
+int fpx_httprequest_append_body(fpx_httprequest_t *reqptr,
+                                const char *new_chunk, size_t body_len) {
   if (NULL == reqptr)
     return -1;
 
   return _append_http_body(&reqptr->content, new_chunk, body_len);
 }
 
-
-int fpx_httprequest_get_body(fpx_httprequest_t* reqptr, char* outbuffer, size_t max_len) {
+int fpx_httprequest_get_body(fpx_httprequest_t *reqptr, char *outbuffer,
+                             size_t max_len) {
   if (NULL == reqptr)
     return -1;
 
   return _get_http_body(&reqptr->content, outbuffer, max_len);
 }
 
-
-int fpx_httprequest_get_body_length(fpx_httprequest_t* reqptr) {
+int fpx_httprequest_get_body_length(fpx_httprequest_t *reqptr) {
   if (NULL == reqptr)
     return -1;
 
   return reqptr->content.body_len;
 }
 
-
-int fpx_httprequest_copy(fpx_httprequest_t* _dst, const fpx_httprequest_t* _src) {
+int fpx_httprequest_copy(fpx_httprequest_t *_dst,
+                         const fpx_httprequest_t *_src) {
   if (NULL == _dst || NULL == _src)
     return -1;
 
@@ -170,16 +171,14 @@ int fpx_httprequest_copy(fpx_httprequest_t* _dst, const fpx_httprequest_t* _src)
   return _copy_http_content(&_dst->content, &_src->content);
 }
 
-
-int fpx_httprequest_destroy(fpx_httprequest_t* reqptr) {
+int fpx_httprequest_destroy(fpx_httprequest_t *reqptr) {
   if (NULL == reqptr)
     return -1;
 
   return _destroy_http_content(&reqptr->content);
 }
 
-
-int fpx_httpresponse_init(fpx_httpresponse_t* resptr) {
+int fpx_httpresponse_init(fpx_httpresponse_t *resptr) {
   if (NULL == resptr)
     return -1;
 
@@ -188,66 +187,63 @@ int fpx_httpresponse_init(fpx_httpresponse_t* resptr) {
   return 0;
 }
 
-
-int fpx_httpresponse_set_version(fpx_httpresponse_t* resptr, const char* input) {
+int fpx_httpresponse_set_version(fpx_httpresponse_t *resptr,
+                                 const char *input) {
   if (NULL == resptr)
     return -1;
 
   return _set_http_version(&resptr->content, input);
 }
 
-
-int fpx_httpresponse_get_version(fpx_httpresponse_t* resptr, char* outbuffer, size_t outbuf_len) {
+int fpx_httpresponse_get_version(fpx_httpresponse_t *resptr, char *outbuffer,
+                                 size_t outbuf_len) {
   if (NULL == resptr)
     return -1;
 
   return _get_http_version(&resptr->content, outbuffer, outbuf_len);
 }
 
-
-int fpx_httpresponse_add_header(fpx_httpresponse_t* resptr, const char* key, const char* value) {
+int fpx_httpresponse_add_header(fpx_httpresponse_t *resptr, const char *key,
+                                const char *value) {
   if (NULL == resptr)
     return -1;
 
   return _add_http_header(&resptr->content, key, value);
 }
 
-
-int fpx_httpresponse_get_header(
-  fpx_httpresponse_t* resptr, const char* key, char* output, size_t output_len) {
+int fpx_httpresponse_get_header(fpx_httpresponse_t *resptr, const char *key,
+                                char *output, size_t output_len) {
   if (NULL == resptr)
     return -1;
 
   return _get_http_header(&resptr->content, key, output, output_len);
 }
 
-
-int fpx_httpresponse_append_body(
-  fpx_httpresponse_t* resptr, const char* new_chunk, size_t body_len) {
+int fpx_httpresponse_append_body(fpx_httpresponse_t *resptr,
+                                 const char *new_chunk, size_t body_len) {
   if (NULL == resptr)
     return -1;
 
   return _append_http_body(&resptr->content, new_chunk, body_len);
 }
 
-
-int fpx_httpresponse_get_body(fpx_httpresponse_t* resptr, char* outbuffer, size_t max_len) {
+int fpx_httpresponse_get_body(fpx_httpresponse_t *resptr, char *outbuffer,
+                              size_t max_len) {
   if (NULL == resptr)
     return -1;
 
   return _get_http_body(&resptr->content, outbuffer, max_len);
 }
 
-
-int fpx_httpresponse_get_body_length(fpx_httpresponse_t* resptr) {
+int fpx_httpresponse_get_body_length(fpx_httpresponse_t *resptr) {
   if (NULL == resptr)
     return -1;
 
   return resptr->content.body_len;
 }
 
-
-int fpx_httpresponse_copy(fpx_httpresponse_t* _dst, const fpx_httpresponse_t* _src) {
+int fpx_httpresponse_copy(fpx_httpresponse_t *_dst,
+                          const fpx_httpresponse_t *_src) {
   if (NULL == _dst || NULL == _src)
     return -1;
 
@@ -257,33 +253,33 @@ int fpx_httpresponse_copy(fpx_httpresponse_t* _dst, const fpx_httpresponse_t* _s
   return _copy_http_content(&_dst->content, &_src->content);
 }
 
-
-int fpx_httpresponse_destroy(fpx_httpresponse_t* resptr) {
+int fpx_httpresponse_destroy(fpx_httpresponse_t *resptr) {
   if (NULL == resptr)
     return -1;
 
   return _destroy_http_content(&resptr->content);
 }
 
+int fpx_websocket_send_close(int filedescriptor, int16_t code,
+                             const uint8_t *reason, uint8_t reason_length,
+                             uint8_t masked) {
 
-int fpx_websocket_send_close(
-  int filedescriptor, int16_t code, const uint8_t* reason, uint8_t reason_length, uint8_t masked) {
-
-  fpx_websocketframe_t close_frame = { .final = TRUE,
-    .mask_set = ((FALSE == masked) ? 0 : 1),
-    .opcode = WEBSOCKET_CLOSE,
-    .reserved1 = FALSE,
-    .reserved2 = FALSE,
-    .reserved3 = FALSE,
-    .payload = NULL,
-    .payload_length = 0,
-    .payload_allocated = 0 };
+  fpx_websocketframe_t close_frame = {.final = TRUE,
+                                      .mask_set = ((FALSE == masked) ? 0 : 1),
+                                      .opcode = WEBSOCKET_CLOSE,
+                                      .reserved1 = FALSE,
+                                      .reserved2 = FALSE,
+                                      .reserved3 = FALSE,
+                                      .payload = NULL,
+                                      .payload_length = 0,
+                                      .payload_allocated = 0};
 
   if (0 > code) {
     reason_length = 0;
   } else {
     fpx_endian_swap_if_host(&code, sizeof(code));
-    fpx_websocketframe_append_payload(&close_frame, (uint8_t*)&code, sizeof(code));
+    fpx_websocketframe_append_payload(&close_frame, (uint8_t *)&code,
+                                      sizeof(code));
   }
 
   if (reason_length > 123)
@@ -299,8 +295,7 @@ int fpx_websocket_send_close(
   return retval;
 }
 
-
-int fpx_websocketframe_init(fpx_websocketframe_t* frameptr) {
+int fpx_websocketframe_init(fpx_websocketframe_t *frameptr) {
   if (NULL == frameptr)
     return -1;
 
@@ -309,14 +304,15 @@ int fpx_websocketframe_init(fpx_websocketframe_t* frameptr) {
   return 0;
 }
 
-
-#define FPX_ALLOC_CALC(output, old_len, new_len)                                            \
-  output = HTTP_DATA_ALLOC_BLOCK_SIZE * ((old_len + new_len) / HTTP_DATA_ALLOC_BLOCK_SIZE); \
-  if ((old_len + new_len) % HTTP_DATA_ALLOC_BLOCK_SIZE != 0)                                \
+#define FPX_ALLOC_CALC(output, old_len, new_len)                               \
+  output = HTTP_DATA_ALLOC_BLOCK_SIZE *                                        \
+           ((old_len + new_len) / HTTP_DATA_ALLOC_BLOCK_SIZE);                 \
+  if ((old_len + new_len) % HTTP_DATA_ALLOC_BLOCK_SIZE != 0)                   \
   output += HTTP_DATA_ALLOC_BLOCK_SIZE
 
-int fpx_websocketframe_append_payload(
-  fpx_websocketframe_t* frameptr, const uint8_t* payload, size_t payload_len) {
+int fpx_websocketframe_append_payload(fpx_websocketframe_t *frameptr,
+                                      const uint8_t *payload,
+                                      size_t payload_len) {
   if (NULL == frameptr)
     return -1;
 
@@ -333,9 +329,9 @@ int fpx_websocketframe_append_payload(
   }
 
   if (frameptr->payload_allocated == 0) {
-    frameptr->payload = (uint8_t*)calloc(to_allocate, 1);
+    frameptr->payload = (uint8_t *)calloc(to_allocate, 1);
   } else if (frameptr->payload_allocated < to_allocate) {
-    frameptr->payload = (uint8_t*)realloc(frameptr->payload, to_allocate);
+    frameptr->payload = (uint8_t *)realloc(frameptr->payload, to_allocate);
   }
 
   if (NULL == frameptr->payload) {
@@ -343,7 +339,8 @@ int fpx_websocketframe_append_payload(
     return -2;
   }
 
-  fpx_memcpy(&frameptr->payload[frameptr->payload_length], payload, payload_len);
+  fpx_memcpy(&frameptr->payload[frameptr->payload_length], payload,
+             payload_len);
 
   frameptr->payload_length += payload_len;
   frameptr->payload_allocated = to_allocate;
@@ -351,9 +348,8 @@ int fpx_websocketframe_append_payload(
   return 0;
 }
 
-
-int fpx_websocketframe_send(const fpx_websocketframe_t* frameptr, int fd) {
-  uint8_t write_buf[BUFFER_DEFAULT] = { 0 };
+int fpx_websocketframe_send(const fpx_websocketframe_t *frameptr, int fd) {
+  uint8_t write_buf[BUFFER_DEFAULT] = {0};
 
 // to ignore SIGPIPE when writing to a disconnected client
 #if defined(_WIN32) || defined(_WIN64)
@@ -364,13 +360,12 @@ int fpx_websocketframe_send(const fpx_websocketframe_t* frameptr, int fd) {
 
   {
     uint8_t meta_byte = 0x0;
-    meta_byte |= ((frameptr->final != 0) << 7);  // fin bit is MSB of byte
-    meta_byte |= (frameptr->opcode & 0x0f);      // set op-code
+    meta_byte |= ((frameptr->final != 0) << 7); // fin bit is MSB of byte
+    meta_byte |= (frameptr->opcode & 0x0f);     // set op-code
 
-    if (0 > send(fd, (char*)&meta_byte, 1, send_flags))  // send meta_byte
+    if (0 > send(fd, (char *)&meta_byte, 1, send_flags)) // send meta_byte
       return errno;
   }
-
 
   uint8_t len_len = 0;
 
@@ -390,16 +385,15 @@ int fpx_websocketframe_send(const fpx_websocketframe_t* frameptr, int fd) {
     if (frameptr->mask_set)
       payload_len_first_byte |= 0x80;
 
-    if (0 > send(fd, (char*)&payload_len_first_byte, 1, send_flags))
+    if (0 > send(fd, (char *)&payload_len_first_byte, 1, send_flags))
       return errno;
   }
-
 
   {
     uint16_t short_len;
     uint64_t longlong_len;
 
-    void* the_length = NULL;
+    void *the_length = NULL;
 
     if (2 == len_len) {
       short_len = frameptr->payload_length;
@@ -440,15 +434,14 @@ int fpx_websocketframe_send(const fpx_websocketframe_t* frameptr, int fd) {
 
     payload_written += to_write;
 
-    if (0 > send(fd, (char*)write_buf, to_write, 0 | send_flags))
+    if (0 > send(fd, (char *)write_buf, to_write, 0 | send_flags))
       return errno;
   }
 
   return 0;
 }
 
-
-int fpx_websocketframe_destroy(fpx_websocketframe_t* frameptr) {
+int fpx_websocketframe_destroy(fpx_websocketframe_t *frameptr) {
   if (NULL == frameptr)
     return -1;
 
@@ -461,15 +454,13 @@ int fpx_websocketframe_destroy(fpx_websocketframe_t* frameptr) {
   return 0;
 }
 
-
 // ------------------------------------------------------- //
 // ------------------------------------------------------- //
 // ---------- STATIC FUNCTION DEFINITIONS BELOW ---------- //
 // ------------------------------------------------------- //
 // ------------------------------------------------------- //
 
-
-static int _destroy_http_content(struct _fpx_http_content* cntptr) {
+static int _destroy_http_content(struct _fpx_http_content *cntptr) {
   if (NULL == cntptr)
     return -2;
 
@@ -488,8 +479,7 @@ static int _destroy_http_content(struct _fpx_http_content* cntptr) {
   return 0;
 }
 
-
-int _set_http_version(struct _fpx_http_content* cntptr, const char* input) {
+int _set_http_version(struct _fpx_http_content *cntptr, const char *input) {
   if (NULL == cntptr || NULL == input)
     return -1;
 
@@ -502,8 +492,8 @@ int _set_http_version(struct _fpx_http_content* cntptr, const char* input) {
   return 0;
 }
 
-
-int _get_http_version(struct _fpx_http_content* cntptr, char* outbuffer, size_t outbuf_len) {
+int _get_http_version(struct _fpx_http_content *cntptr, char *outbuffer,
+                      size_t outbuf_len) {
   if (NULL == cntptr || NULL == outbuffer)
     return -1;
 
@@ -521,8 +511,8 @@ int _get_http_version(struct _fpx_http_content* cntptr, char* outbuffer, size_t 
   return 0;
 }
 
-
-static int _add_http_header(struct _fpx_http_content* cntptr, const char* key, const char* value) {
+static int _add_http_header(struct _fpx_http_content *cntptr, const char *key,
+                            const char *value) {
   if (NULL == cntptr || NULL == key || NULL == value)
     return -1;
 
@@ -532,11 +522,11 @@ static int _add_http_header(struct _fpx_http_content* cntptr, const char* key, c
   keylen = fpx_getstringlength(key);
   valuelen = fpx_getstringlength(value);
 
-  size_t new_header_len =  // total length of header =
-    keylen +               // header key length
-    2 +                    // ": "
-    valuelen +             // header value length
-    2;                     // "\r\n"
+  size_t new_header_len = // total length of header =
+      keylen +            // header key length
+      2 +                 // ": "
+      valuelen +          // header value length
+      2;                  // "\r\n"
 
   FPX_ALLOC_CALC(to_allocate, cntptr->headers_len, new_header_len);
 
@@ -546,9 +536,9 @@ static int _add_http_header(struct _fpx_http_content* cntptr, const char* key, c
   }
 
   if (cntptr->headers_allocated == 0) {
-    cntptr->headers = (char*)calloc(to_allocate, 1);
+    cntptr->headers = (char *)calloc(to_allocate, 1);
   } else if (to_allocate > cntptr->headers_allocated) {
-    cntptr->headers = (char*)realloc(cntptr->headers, to_allocate);
+    cntptr->headers = (char *)realloc(cntptr->headers, to_allocate);
   }
 
   if (NULL == cntptr->headers) {
@@ -571,8 +561,10 @@ static int _add_http_header(struct _fpx_http_content* cntptr, const char* key, c
   for (; *value == ' '; ++value, --valuelen)
     ;
 
-  fpx_memcpy(&cntptr->headers[cntptr->headers_len + keylen + 2], value, valuelen);
-  fpx_memcpy(&cntptr->headers[cntptr->headers_len + keylen + 2 + valuelen], "\r\n", 2);
+  fpx_memcpy(&cntptr->headers[cntptr->headers_len + keylen + 2], value,
+             valuelen);
+  fpx_memcpy(&cntptr->headers[cntptr->headers_len + keylen + 2 + valuelen],
+             "\r\n", 2);
 
   cntptr->headers_len += keylen + 2 + valuelen + 2;
   cntptr->headers_allocated = to_allocate;
@@ -580,29 +572,28 @@ static int _add_http_header(struct _fpx_http_content* cntptr, const char* key, c
   return 0;
 }
 
-
-static int _get_http_header(
-  struct _fpx_http_content* cntptr, const char* key, char* output, size_t output_len) {
+static int _get_http_header(struct _fpx_http_content *cntptr, const char *key,
+                            char *output, size_t output_len) {
   if (NULL == cntptr || NULL == key || NULL == output)
     return -1;
 
   if (NULL == cntptr->headers ||
-    cntptr->headers_len < 6 /*minimum length of valid header: "x:y\r\n"*/)
+      cntptr->headers_len < 6 /*minimum length of valid header: "x:y\r\n"*/)
     return -2;
 
   int found_index;
 
   {
     int keylen;
-    char* key_but_lowercase = NULL;
+    char *key_but_lowercase = NULL;
 
     keylen = fpx_getstringlength(key);
-    key_but_lowercase = (char*)malloc(keylen + 3);
+    key_but_lowercase = (char *)malloc(keylen + 3);
     if (NULL == key_but_lowercase)
       return -3;
     fpx_memcpy(key_but_lowercase, key, keylen);
     fpx_memcpy(&key_but_lowercase[keylen], ": ", 2);
-    key_but_lowercase[keylen + 2] = 0;  // NULL-terminator
+    key_but_lowercase[keylen + 2] = 0; // NULL-terminator
 
     fpx_string_to_lower(key_but_lowercase, FALSE);
 
@@ -638,7 +629,8 @@ static int _get_http_header(
     for (; cntptr->headers[found_index + value_start] == ' '; ++value_start)
       ;
 
-    crlf_index = fpx_substringindex(&cntptr->headers[found_index + value_start], "\r\n");
+    crlf_index =
+        fpx_substringindex(&cntptr->headers[found_index + value_start], "\r\n");
 
     if (crlf_index > (int)output_len)
       return crlf_index + 1;
@@ -649,9 +641,8 @@ static int _get_http_header(
   return 0;
 }
 
-
-static int _append_http_body(
-  struct _fpx_http_content* cntptr, const char* new_chunk, size_t body_len) {
+static int _append_http_body(struct _fpx_http_content *cntptr,
+                             const char *new_chunk, size_t body_len) {
   if (NULL == cntptr || NULL == new_chunk)
     return -1;
 
@@ -668,9 +659,9 @@ static int _append_http_body(
   }
 
   if (cntptr->body_allocated == 0) {
-    cntptr->body = (char*)calloc(to_allocate, 1);
+    cntptr->body = (char *)calloc(to_allocate, 1);
   } else if (cntptr->body_allocated < to_allocate) {
-    cntptr->body = (char*)realloc(cntptr->body, to_allocate);
+    cntptr->body = (char *)realloc(cntptr->body, to_allocate);
   }
 
   if (NULL == cntptr->body) {
@@ -686,12 +677,13 @@ static int _append_http_body(
   return 0;
 }
 
-
-static int _get_http_body(struct _fpx_http_content* cntptr, char* outbuffer, size_t max_len) {
+static int _get_http_body(struct _fpx_http_content *cntptr, char *outbuffer,
+                          size_t max_len) {
   if (NULL == cntptr || NULL == outbuffer)
     return -1;
 
-  if (NULL == cntptr->body || cntptr->body_len == 0 || cntptr->body_allocated == 0)
+  if (NULL == cntptr->body || cntptr->body_len == 0 ||
+      cntptr->body_allocated == 0)
     return -2;
 
   int lesser;
@@ -709,16 +701,15 @@ static int _get_http_body(struct _fpx_http_content* cntptr, char* outbuffer, siz
   return retval;
 }
 
-
-static int _copy_http_content(
-  struct _fpx_http_content* _dst, const struct _fpx_http_content* _src) {
+static int _copy_http_content(struct _fpx_http_content *_dst,
+                              const struct _fpx_http_content *_src) {
   if (NULL == _dst || NULL == _src)
     return -3;
 
   fpx_memcpy(_dst, _src, sizeof(*_dst));
 
   if (_dst->headers_allocated > 0) {
-    _dst->headers = (char*)malloc(_dst->headers_allocated);
+    _dst->headers = (char *)malloc(_dst->headers_allocated);
     if (NULL == _dst->headers) {
       // bad alloc
       return -2;
@@ -728,7 +719,7 @@ static int _copy_http_content(
   }
 
   if (_dst->body_allocated > 0) {
-    _dst->body = (char*)malloc(_dst->body_allocated);
+    _dst->body = (char *)malloc(_dst->body_allocated);
     if (NULL == _dst->body) {
       // bad alloc
       return -2;

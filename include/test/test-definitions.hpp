@@ -6,8 +6,9 @@
 
 #define FPX_EXPECT(v, e) printf(" got:      %s\n expected: %s\n", v, e);
 
-#define UNUSED(_variable) \
-  if (_variable) { }
+#define UNUSED(_variable)                                                      \
+  if (_variable) {                                                             \
+  }
 
 #define TRUE 1
 #define FALSE 0

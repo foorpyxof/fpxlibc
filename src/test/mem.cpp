@@ -5,7 +5,7 @@ extern "C" {
 #include "test/test-definitions.hpp"
 
 int main() {
-  char* testptr = (char*)malloc(16);
+  char *testptr = (char *)malloc(16);
   char arr[16];
 
   for (int i = 0; i < 15; ++i)

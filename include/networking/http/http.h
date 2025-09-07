@@ -37,7 +37,7 @@ typedef enum {
  * -  0 on success
  *   -1 if the provided pointer is NULL
  */
-int fpx_httprequest_init(fpx_httprequest_t*);
+int fpx_httprequest_init(fpx_httprequest_t *);
 
 /**
  * Set the HTTP method of an fpx_httprequest_t object
@@ -50,7 +50,7 @@ int fpx_httprequest_init(fpx_httprequest_t*);
  * -  0 on success
  * - -1 is any passed pointer is unexpectedly NULL
  */
-int fpx_httprequest_set_method(fpx_httprequest_t*, fpx_httpmethod_t);
+int fpx_httprequest_set_method(fpx_httprequest_t *, fpx_httpmethod_t);
 
 /**
  * Get the HTTP method of an fpx_httprequest_t object
@@ -62,7 +62,7 @@ int fpx_httprequest_set_method(fpx_httprequest_t*, fpx_httpmethod_t);
  * - The associated HTTP method on success
  * - ERROR on error
  */
-fpx_httpmethod_t fpx_httprequest_get_method(fpx_httprequest_t*);
+fpx_httpmethod_t fpx_httprequest_get_method(fpx_httprequest_t *);
 
 /**
  * Set the URI of an fpx_httprequest_t object
@@ -78,9 +78,10 @@ fpx_httpmethod_t fpx_httprequest_get_method(fpx_httprequest_t*);
  * if the one provided was too large
  *
  * Notes:
- * - The operation will NOT start if it is determined that the given URI is too long
+ * - The operation will NOT start if it is determined that the given URI is too
+ * long
  */
-int fpx_httprequest_set_uri(fpx_httprequest_t*, const char*);
+int fpx_httprequest_set_uri(fpx_httprequest_t *, const char *);
 
 /**
  * Get the URI of an fpx_httprequest_t object
@@ -96,7 +97,7 @@ int fpx_httprequest_set_uri(fpx_httprequest_t*, const char*);
  * - any positive value to represent the minimum required buffer size
  * if the one provided was too small
  */
-int fpx_httprequest_get_uri(fpx_httprequest_t*, char*, size_t);
+int fpx_httprequest_get_uri(fpx_httprequest_t *, char *, size_t);
 
 /**
  * Set the HTTP version of the request
@@ -116,7 +117,7 @@ int fpx_httprequest_get_uri(fpx_httprequest_t*, char*, size_t);
  * Notes:
  * - The operation will NOT start if it is determined that the input is too long
  */
-int fpx_httprequest_set_version(fpx_httprequest_t*, const char*);
+int fpx_httprequest_set_version(fpx_httprequest_t *, const char *);
 
 /**
  * Get the HTTP version of the request
@@ -134,9 +135,10 @@ int fpx_httprequest_set_version(fpx_httprequest_t*, const char*);
  * if it is deemed too small
  *
  * Notes:
- * - The operation will PARTIALLY complete if the output buffer is deemed too small
+ * - The operation will PARTIALLY complete if the output buffer is deemed too
+ * small
  */
-int fpx_httprequest_get_version(fpx_httprequest_t*, char*, size_t);
+int fpx_httprequest_get_version(fpx_httprequest_t *, char *, size_t);
 
 /**
  * Add a header to an fpx_httprequest_t object
@@ -151,7 +153,7 @@ int fpx_httprequest_get_version(fpx_httprequest_t*, char*, size_t);
  * - -1 if any passed pointer is unexpectedly NULL
  * - -2 if any memory allocation fails for any reason
  */
-int fpx_httprequest_add_header(fpx_httprequest_t*, const char*, const char*);
+int fpx_httprequest_add_header(fpx_httprequest_t *, const char *, const char *);
 
 /**
  * Get the Header value attached to the first occurence of a key
@@ -171,7 +173,8 @@ int fpx_httprequest_add_header(fpx_httprequest_t*, const char*, const char*);
  * - any positive value to represent the minimum required buffer size
  * if the one provided was too small
  */
-int fpx_httprequest_get_header(fpx_httprequest_t*, const char*, char*, size_t);
+int fpx_httprequest_get_header(fpx_httprequest_t *, const char *, char *,
+                               size_t);
 
 /**
  * Append to the body of an fpx_httprequest_t object
@@ -186,7 +189,7 @@ int fpx_httprequest_get_header(fpx_httprequest_t*, const char*, char*, size_t);
  * - -1 if any passed pointer is unexpectedly NULL
  * - -2 if any memory allocation fails for any reason
  */
-int fpx_httprequest_append_body(fpx_httprequest_t*, const char*, size_t);
+int fpx_httprequest_append_body(fpx_httprequest_t *, const char *, size_t);
 
 /**
  * Get the request body of an fpx_httprequest_t object
@@ -204,10 +207,11 @@ int fpx_httprequest_append_body(fpx_httprequest_t*, const char*, size_t);
  * if the one provided was too small
  *
  * Notes:
- * - The operation will PARTIALLY complete if the output buffer is deemed too small
+ * - The operation will PARTIALLY complete if the output buffer is deemed too
+ * small
  * - The body stored in the output_buffer is always NULL-terminated
  */
-int fpx_httprequest_get_body(fpx_httprequest_t*, char*, size_t);
+int fpx_httprequest_get_body(fpx_httprequest_t *, char *, size_t);
 
 /**
  * Get the request body length of an fpx_httprequest_t object
@@ -219,7 +223,7 @@ int fpx_httprequest_get_body(fpx_httprequest_t*, char*, size_t);
  * -  0 on success
  * - -1 if any passed pointer is unexpectedly NULL
  */
-int fpx_httprequest_get_body_length(fpx_httprequest_t*);
+int fpx_httprequest_get_body_length(fpx_httprequest_t *);
 
 /**
  * Copy the contents of *_src to *_dst
@@ -234,7 +238,8 @@ int fpx_httprequest_get_body_length(fpx_httprequest_t*);
  * - -2 if any memory allocation fails for any reason
  * - -3 if an unknown error occurs
  */
-int fpx_httprequest_copy(fpx_httprequest_t* _dst, const fpx_httprequest_t* _src);
+int fpx_httprequest_copy(fpx_httprequest_t *_dst,
+                         const fpx_httprequest_t *_src);
 
 /**
  * Free all the underlying memory contained within the httprequest object
@@ -247,7 +252,7 @@ int fpx_httprequest_copy(fpx_httprequest_t* _dst, const fpx_httprequest_t* _src)
  * - -1 if any passed pointer is unexpectedly NULL
  * - -2 if an unknown error occured
  */
-int fpx_httprequest_destroy(fpx_httprequest_t*);
+int fpx_httprequest_destroy(fpx_httprequest_t *);
 
 /**
  * Initialize a httpresponse object to defaults (zeroes)
@@ -259,15 +264,15 @@ int fpx_httprequest_destroy(fpx_httprequest_t*);
  * -  0 on success
  *   -1 if the provided pointer is NULL
  */
-int fpx_httpresponse_init(fpx_httpresponse_t*);
+int fpx_httpresponse_init(fpx_httpresponse_t *);
 
 /**
  * Set the HTTP version of the response
  *
  * Input:
  * - Pointer to the response object
- * - NULL-terminated string that looks similar to the following: "1.1" or "2.0" or "3"
- * in short: it must represent the version like what comes after HTTP/
+ * - NULL-terminated string that looks similar to the following: "1.1" or "2.0"
+ * or "3" in short: it must represent the version like what comes after HTTP/
  * when normally defining the version
  *
  * Returns:
@@ -279,7 +284,7 @@ int fpx_httpresponse_init(fpx_httpresponse_t*);
  * Notes:
  * - The operation will NOT start if it is determined that the input is too long
  */
-int fpx_httpresponse_set_version(fpx_httpresponse_t*, const char*);
+int fpx_httpresponse_set_version(fpx_httpresponse_t *, const char *);
 
 /**
  * Get the HTTP version of the response
@@ -297,9 +302,10 @@ int fpx_httpresponse_set_version(fpx_httpresponse_t*, const char*);
  * if it is deemed too small
  *
  * Notes:
- * - The operation will PARTIALLY complete if the output buffer is deemed too small
+ * - The operation will PARTIALLY complete if the output buffer is deemed too
+ * small
  */
-int fpx_httpresponse_get_version(fpx_httpresponse_t*, char*, size_t);
+int fpx_httpresponse_get_version(fpx_httpresponse_t *, char *, size_t);
 
 /**
  * Add a header to an fpx_httpresponse_t object
@@ -314,7 +320,8 @@ int fpx_httpresponse_get_version(fpx_httpresponse_t*, char*, size_t);
  * - -1 if any passed pointer is unexpectedly NULL
  * - -2 if any memory allocation fails for any reason
  */
-int fpx_httpresponse_add_header(fpx_httpresponse_t*, const char*, const char*);
+int fpx_httpresponse_add_header(fpx_httpresponse_t *, const char *,
+                                const char *);
 
 /**
  * Get the Header value attached to the first occurence of a key
@@ -334,7 +341,8 @@ int fpx_httpresponse_add_header(fpx_httpresponse_t*, const char*, const char*);
  * - any positive value to represent the minimum required buffer size
  * if the one provided was too small
  */
-int fpx_httpresponse_get_header(fpx_httpresponse_t*, const char*, char*, size_t);
+int fpx_httpresponse_get_header(fpx_httpresponse_t *, const char *, char *,
+                                size_t);
 
 /**
  * Append to the body of an fpx_httpresponse_t object
@@ -348,7 +356,7 @@ int fpx_httpresponse_get_header(fpx_httpresponse_t*, const char*, char*, size_t)
  * - -1 if any passed pointer is unexpectedly NULL
  * - -2 if any memory allocation fails for any reason
  */
-int fpx_httpresponse_append_body(fpx_httpresponse_t*, const char*, size_t);
+int fpx_httpresponse_append_body(fpx_httpresponse_t *, const char *, size_t);
 
 /**
  * Get the response body of an fpx_httpresponse_t object
@@ -366,10 +374,11 @@ int fpx_httpresponse_append_body(fpx_httpresponse_t*, const char*, size_t);
  * if the one provided was too small
  *
  * Notes:
- * - The operation will PARTIALLY complete if the output buffer is deemed too small
+ * - The operation will PARTIALLY complete if the output buffer is deemed too
+ * small
  * - The body stored in the output_buffer is always NULL-terminated
  */
-int fpx_httpresponse_get_body(fpx_httpresponse_t*, char*, size_t);
+int fpx_httpresponse_get_body(fpx_httpresponse_t *, char *, size_t);
 
 /**
  * Get the response body length of an fpx_httpresponse_t object
@@ -381,7 +390,7 @@ int fpx_httpresponse_get_body(fpx_httpresponse_t*, char*, size_t);
  * -  0 on success
  * - -1 if any passed pointer is unexpectedly NULL
  */
-int fpx_httpresponse_get_body_length(fpx_httpresponse_t*);
+int fpx_httpresponse_get_body_length(fpx_httpresponse_t *);
 
 /**
  * Copy the contents of *_src to *_dst
@@ -396,7 +405,8 @@ int fpx_httpresponse_get_body_length(fpx_httpresponse_t*);
  * - -2 if any memory allocation fails for any reason
  * - -3 if an unknown error occurs
  */
-int fpx_httpresponse_copy(fpx_httpresponse_t* _dst, const fpx_httpresponse_t* _src);
+int fpx_httpresponse_copy(fpx_httpresponse_t *_dst,
+                          const fpx_httpresponse_t *_src);
 
 /**
  * Free all the underlying memory contained within the httpresponse object
@@ -409,33 +419,33 @@ int fpx_httpresponse_copy(fpx_httpresponse_t* _dst, const fpx_httpresponse_t* _s
  * - -1 if any passed pointer is unexpectedly NULL
  * - -2 if an unknown error occured
  */
-int fpx_httpresponse_destroy(fpx_httpresponse_t*);
+int fpx_httpresponse_destroy(fpx_httpresponse_t *);
 
 struct _fpx_http_content {
-    char version[16];
+  char version[16];
 
-    char* headers;  // HEAP
-    char* body;     // HEAP
+  char *headers; // HEAP
+  char *body;    // HEAP
 
-    size_t headers_len;  // no null terminator included
-    size_t body_len;     // no null terminator included
+  size_t headers_len; // no null terminator included
+  size_t body_len;    // no null terminator included
 
-    size_t headers_allocated;
-    size_t body_allocated;
+  size_t headers_allocated;
+  size_t body_allocated;
 };
 
 struct _fpx_httprequest {
-    fpx_httpmethod_t method;
-    char uri[256];
+  fpx_httpmethod_t method;
+  char uri[256];
 
-    struct _fpx_http_content content;
+  struct _fpx_http_content content;
 };
 
 struct _fpx_httpresponse {
-    uint16_t status;
-    char reason[32];
+  uint16_t status;
+  char reason[32];
 
-    struct _fpx_http_content content;
+  struct _fpx_http_content content;
 };
 
-#endif  // FPX_HTTP_H
+#endif // FPX_HTTP_H

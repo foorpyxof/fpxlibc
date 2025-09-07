@@ -10,7 +10,7 @@
 #include <stdlib.h>
 
 #ifndef __FPXLIBC_ASM
-int fpx_getstringlength(const char* stringToCheck) {
+int fpx_getstringlength(const char *stringToCheck) {
   /**
    * Returns the length from the start of the string
    * until the first occurence of a null-byte (\0).
@@ -24,10 +24,10 @@ int fpx_getstringlength(const char* stringToCheck) {
     ;
   return i;
 }
-#endif  // __FPXLIBC_ASM
+#endif // __FPXLIBC_ASM
 
 #ifndef __FPXLIBC_ASM
-char* fpx_strcpy(char* dst, const char* src) {
+char *fpx_strcpy(char *dst, const char *src) {
   if (!(dst && src))
     return NULL;
 
@@ -36,9 +36,9 @@ char* fpx_strcpy(char* dst, const char* src) {
 
   return dst;
 }
-#endif  // __FPXLIBC_ASM
+#endif // __FPXLIBC_ASM
 
-int fpx_substringindex(const char* haystack, const char* needle) {
+int fpx_substringindex(const char *haystack, const char *needle) {
   /**
    * Will find the *first* occurence of a given substring
    * "needle" in the string "haystack".
@@ -48,14 +48,15 @@ int fpx_substringindex(const char* haystack, const char* needle) {
 
   const int haystackLen = fpx_getstringlength(haystack);
   const int needleLen = fpx_getstringlength(needle);
-  const char* needleStart = needle;
+  const char *needleStart = needle;
   char lost = 0;
   int foundSubstringIndex = 0;
 
   for (int i = 0; i < haystackLen; i++) {
     if (*haystack == *needle) {
       needle++;
-      if (*haystack == *needleStart && !(*(haystack - 1) == *needleStart) && lost) {
+      if (*haystack == *needleStart && !(*(haystack - 1) == *needleStart) &&
+          lost) {
         foundSubstringIndex = i;
         lost = 0;
       }
@@ -75,7 +76,8 @@ int fpx_substringindex(const char* haystack, const char* needle) {
   return -1;
 }
 
-char* fpx_substr_replace(const char* haystack, const char* needle, const char* replacement) {
+char *fpx_substr_replace(const char *haystack, const char *needle,
+                         const char *replacement) {
   /**
    * Replaces the *first* occurence of the given "needle" string
    * within the "haystack" string with the given replacement string.
@@ -88,14 +90,15 @@ char* fpx_substr_replace(const char* haystack, const char* needle, const char* r
   const int needleLen = fpx_getstringlength(needle);
   const int replacementLen = fpx_getstringlength(replacement);
   const int haystackStartIndex = fpx_substringindex(haystack, needle);
-  const int returnedHaystackLen = fpx_getstringlength(haystack) + replacementLen - needleLen;
+  const int returnedHaystackLen =
+      fpx_getstringlength(haystack) + replacementLen - needleLen;
 
   // allocate string to return on the heap
-  char* returnedHaystack = (char*)malloc(returnedHaystackLen + 1);
+  char *returnedHaystack = (char *)malloc(returnedHaystackLen + 1);
 
   // if haystack doesn't contain needle, return haystack back to the caller
   if (haystackStartIndex < 0)
-    return (char*)malloc(fpx_getstringlength(haystack) + 1);
+    return (char *)malloc(fpx_getstringlength(haystack) + 1);
 
   /*
    * perform magic
@@ -112,27 +115,32 @@ char* fpx_substr_replace(const char* haystack, const char* needle, const char* r
   }
 
   /*
-   * add null-byte (\0) to the end of the char array, to denote the end of the string
-   * (this null-byte was accounted for when allocating memory for the result string)
+   * add null-byte (\0) to the end of the char array, to denote the end of the
+   * string (this null-byte was accounted for when allocating memory for the
+   * result string)
    */
   returnedHaystack[returnedHaystackLen] = '\0';
   return returnedHaystack;
 }
 
-char* fpx_string_to_upper(const char* input, int doReturn) {
+char *fpx_string_to_upper(const char *input, int doReturn) {
   /**
    * Converts the whole string to its uppercase variant.
    *
    * Depending on user choice, either:
-   * (doReturn != 0) Returns new heap-allocated, null-terminated char[] when finished
+   * (doReturn != 0) Returns new heap-allocated, null-terminated char[] when
+   * finished
    *  ||
-   * (doReturn == 0) Modifies input string and returns NULL (will not allocate heap)
+   * (doReturn == 0) Modifies input string and returns NULL (will not allocate
+   * heap)
    */
   const int inputLength = fpx_getstringlength(input);
-  char* inputCopy = (doReturn) ? (char*)malloc(inputLength + 1) : (char*)input;
+  char *inputCopy =
+      (doReturn) ? (char *)malloc(inputLength + 1) : (char *)input;
 
   for (int i = 0; i < inputLength; i++) {
-    inputCopy[i] = (input[i] > 96 && input[i] < 123) ? (input[i] - 32) : input[i];
+    inputCopy[i] =
+        (input[i] > 96 && input[i] < 123) ? (input[i] - 32) : input[i];
   }
 
   if (doReturn) {
@@ -143,20 +151,24 @@ char* fpx_string_to_upper(const char* input, int doReturn) {
   return NULL;
 }
 
-char* fpx_string_to_lower(const char* input, int doReturn) {
+char *fpx_string_to_lower(const char *input, int doReturn) {
   /**
    * Converts the whole string to its lowercase variant.
    *
    * Depending on user choice, either:
-   * (doReturn != 0) Returns new heap-allocated, null-terminated char[] when finished
+   * (doReturn != 0) Returns new heap-allocated, null-terminated char[] when
+   * finished
    *  ||
-   * (doReturn == 0) Modifies input string and returns NULL (will not allocate heap)
+   * (doReturn == 0) Modifies input string and returns NULL (will not allocate
+   * heap)
    */
   const int inputLength = fpx_getstringlength(input);
-  char* inputCopy = (doReturn) ? (char*)malloc(inputLength + 1) : (char*)input;
+  char *inputCopy =
+      (doReturn) ? (char *)malloc(inputLength + 1) : (char *)input;
 
   for (int i = 0; i < inputLength; i++) {
-    inputCopy[i] = (input[i] > 64 && input[i] < 91) ? (input[i] + 32) : input[i];
+    inputCopy[i] =
+        (input[i] > 64 && input[i] < 91) ? (input[i] + 32) : input[i];
   }
 
   if (doReturn) {

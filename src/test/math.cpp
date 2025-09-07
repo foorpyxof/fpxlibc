@@ -8,7 +8,7 @@ int main() {
 
   printf("Testing power-raising\n");
 
-  char output1[32] = { 0 };
+  char output1[32] = {0};
   snprintf(output1, 31, "%d", fpx_pow(10, 3));
   printf("\n 10 to the power of 3\n");
   FPX_EXPECT(output1, "1000")
