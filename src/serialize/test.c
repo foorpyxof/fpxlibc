@@ -34,6 +34,8 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
+  fclose(json_file);
+
   Fpx_Json_Entity new_entity = fpx_json_read(test_string, file_size);
 
   // printf("%s\n", ((new_entity.isValid) ? "JSON parse valid!" : "JSON parse failed"));
@@ -41,6 +43,8 @@ int main(int argc, char** argv) {
   fpx_json_print(&new_entity);
 
   fpx_json_destroy(&new_entity);
+
+  free(test_string);
 
   return 0;
 }
