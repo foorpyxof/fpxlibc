@@ -2,7 +2,7 @@ $(foreach lib,$(LIBRARY_NAMES),$(eval $(lib)_OBJ_REL := $(filter $(OBJECTS_FOLDE
 $(foreach lib,$(LIBRARY_NAMES),$(eval $(lib)_OBJ_DBG := $(filter $(OBJECTS_FOLDER)/$(lib)/%,$(OBJECTS_DEBUG_C) $(OBJECTS_DEBUG_CPP))))
 
 define new-lib-target
-$(1)_lib_dir := $(LIBRARY_FOLDER)/$(dir $(1))
+$(1)_lib_dir := $(LIBRARY_FOLDER)/$(patsubst ./%,%,$(dir $(1)))
 $(1)_lib_name := $(LIB_PREFIX)$(notdir $(1))$(LIB_EXT)
 $(1)_lib_debug_name := $(LIB_PREFIX)$(notdir $(1))$(DEBUG_SUFFIX)$(LIB_EXT)
 
