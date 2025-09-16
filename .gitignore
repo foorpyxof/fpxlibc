@@ -34,5 +34,7 @@ scripts/params.fpx
 curlout.txt
 curlscript_ws.sh
 
+make/custom.mk
+
 .cache/
 compile_commands.json
