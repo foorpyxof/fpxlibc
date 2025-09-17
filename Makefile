@@ -56,8 +56,6 @@ ifeq ($(CCPLUS),)
 	CC != which g++
 endif
 
-	LDFLAGS += -lglfw
-	
 	# EXE_EXT := .out
 	OBJ_EXT := .o
 	LIB_EXT := .a
