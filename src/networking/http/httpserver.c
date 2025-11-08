@@ -1892,7 +1892,7 @@ static int _ws_parse_request(int fd, fpx_websocketframe_t *output) {
         return -1;
 
       uint16_t extended = *((uint16_t *)readbuf_copy);
-      fpx_endian_swap_if_host(&extended, sizeof(extended));
+      fpx_endian_swap_if_little(&extended, sizeof(extended));
       p_length = extended;
 
       readbuf_copy += sizeof(extended);
@@ -1901,7 +1901,7 @@ static int _ws_parse_request(int fd, fpx_websocketframe_t *output) {
         return -1;
 
       uint64_t extended = *((uint64_t *)readbuf_copy);
-      fpx_endian_swap_if_host(&extended, sizeof(extended));
+      fpx_endian_swap_if_little(&extended, sizeof(extended));
       p_length = extended;
 
       readbuf_copy += sizeof(extended);

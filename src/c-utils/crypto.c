@@ -279,7 +279,7 @@ void fpx_sha256_pad(SHA256_Context *ctx_ptr) {
   ctx_ptr->buffer[ctx_ptr->index] = 0x80;
 
   // add size in bits to end
-  fpx_endian_swap_if_host(&length_bits, 8);
+  fpx_endian_swap_if_little(&length_bits, 8);
   fpx_memcpy(&ctx_ptr->buffer[buffer_length - 8], &length_bits, 8);
 }
 
@@ -370,7 +370,7 @@ void fpx_sha256_final(SHA256_Context *ctx_ptr) {
   }
 
   for (int i = 0; i < 8; ++i) {
-    fpx_endian_swap_if_host(&ctx_ptr->state[i], 4);
+    fpx_endian_swap_if_little(&ctx_ptr->state[i], 4);
   }
 }
 

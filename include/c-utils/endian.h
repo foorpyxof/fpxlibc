@@ -15,4 +15,10 @@
  */
 extern void fpx_endian_swap(void *input, uint8_t bytes);
 
+// swaps endianness of value IF the currently running machine is LITTLE ENDIAN
+void fpx_endian_swap_if_little(void *address, size_t bytes);
+
+// swaps endianness of value IF the currently running machine is BIG ENDIAN
+void fpx_endian_swap_if_big(void *address, size_t bytes);
+
 #endif // FPX_ENDIAN_H

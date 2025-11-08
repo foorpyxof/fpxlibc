@@ -277,7 +277,7 @@ int fpx_websocket_send_close(int filedescriptor, int16_t code,
   if (0 > code) {
     reason_length = 0;
   } else {
-    fpx_endian_swap_if_host(&code, sizeof(code));
+    fpx_endian_swap_if_little(&code, sizeof(code));
     fpx_websocketframe_append_payload(&close_frame, (uint8_t *)&code,
                                       sizeof(code));
   }
@@ -403,7 +403,7 @@ int fpx_websocketframe_send(const fpx_websocketframe_t *frameptr, int fd) {
       the_length = &longlong_len;
     }
 
-    fpx_endian_swap_if_host(the_length, len_len);
+    fpx_endian_swap_if_little(the_length, len_len);
 
 #if defined(_WIN32) || defined(_WIN64)
     int flag = 0;
