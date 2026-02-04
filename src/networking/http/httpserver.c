@@ -18,7 +18,9 @@
 #include "networking/netutils.h"
 
 #if defined(_WIN32) || defined(_WIN64)
+#define LONG_FORMAT "ll"
 #else
+#define LONG_FORMAT "l"
 #include <poll.h>
 #endif
 
@@ -1012,7 +1014,8 @@ static void _on_response_ready(struct _thread *thread,
   time(&thread->client_data[idx].last_time);
 
   if (closing) {
-    FPX_DEBUG("Disconnecting client %d in thread %lu\n", idx, thread->thread);
+    FPX_DEBUG("Disconnecting client %d in thread %" LONG_FORMAT "u\n", idx,
+              thread->thread);
     _disconnect_client(thread, idx, TRUE);
   }
 
@@ -1364,7 +1367,11 @@ static int _http_handle_client(struct _thread *thread, int idx) {
 static int _disconnect_client(struct _thread *t, int idx,
                               uint8_t close_socket) {
   if (TRUE == close_socket) {
+#if defined(_WIN32) || defined(_WIN64)
+    FPX_DEBUG("Closing fd: %llu\n", t->pfds[idx].fd);
+#else
     FPX_DEBUG("Closing fd: %d\n", t->pfds[idx].fd);
+#endif
     close(t->pfds[idx].fd);
   }
 

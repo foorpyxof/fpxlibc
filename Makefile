@@ -19,12 +19,13 @@ WINDOWS_TARGET_NAME := win64
 LINUX_TARGET_NAME := linux
 
 PREFIX := fpx_
-LIB_PREFIX := lib$(PREFIX)
 DEBUG_SUFFIX := _debug
 
 ifeq ($(WINDOWS),true)
+	LIB_PREFIX := $(PREFIX)
 	TARGET := $(WINDOWS_TARGET_NAME)
 else
+	LIB_PREFIX := lib$(PREFIX)
 	TARGET := $(LINUX_TARGET_NAME)
 endif
 
